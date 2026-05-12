@@ -1,0 +1,9 @@
+{
+  "name": "@emprely/mobile",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Placeholder do app mobile Emprely Orçamentos. O scaffold Expo entra em fase futura do MVP.",
+  "scripts": {
+    "dev": "echo \"Expo ainda nao foi scaffoldado nesta etapa.\""
+  }
+}

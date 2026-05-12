@@ -1,0 +1,14 @@
+{
+  "name": "emprely",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@11.1.0",
+  "scripts": {
+    "dev:web": "pnpm --dir apps/web dev",
+    "build:web": "pnpm --dir apps/web build",
+    "lint:web": "pnpm --dir apps/web lint",
+    "build:api": "dotnet build apps/api/Emprely.sln",
+    "test:api": "dotnet test apps/api/Emprely.sln",
+    "validate": "pnpm lint:web && pnpm build:web && dotnet build apps/api/Emprely.sln && dotnet test apps/api/Emprely.sln"
+  }
+}

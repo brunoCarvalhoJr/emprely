@@ -1,0 +1,32 @@
+# OS/editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Node/pnpm
+node_modules/
+.pnpm-store/
+pnpm-debug.log*
+
+# Next.js
+.next/
+out/
+
+# .NET
+bin/
+obj/
+TestResults/
+*.user
+*.suo
+
+# Infra/local
+*.tfstate
+*.tfstate.*
+.terraform/
+docker-data/

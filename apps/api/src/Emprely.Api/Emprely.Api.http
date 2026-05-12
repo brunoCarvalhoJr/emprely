@@ -1,0 +1,39 @@
+@Emprely.Api_HostAddress = http://localhost:5262
+@accessToken = cole-o-token-aqui
+
+GET {{Emprely.Api_HostAddress}}/health
+Accept: application/json
+
+###
+
+POST {{Emprely.Api_HostAddress}}/api/auth/register
+Content-Type: application/json
+
+{
+  "nome": "Bruno Carvalho",
+  "email": "bruno@emprely.dev",
+  "senha": "Senha123",
+  "nomeConta": "Emprely"
+}
+
+###
+
+POST {{Emprely.Api_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "bruno@emprely.dev",
+  "senha": "Senha123"
+}
+
+###
+
+GET {{Emprely.Api_HostAddress}}/api/me
+Authorization: Bearer {{accessToken}}
+Accept: application/json
+
+###
+
+GET {{Emprely.Api_HostAddress}}/api/account
+Authorization: Bearer {{accessToken}}
+Accept: application/json

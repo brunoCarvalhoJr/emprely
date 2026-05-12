@@ -1,0 +1,9 @@
+{
+  "name": "@emprely/landing",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Referencia da landing existente do Emprely Orçamentos.",
+  "scripts": {
+    "dev": "echo \"Landing atual fica em D:\\\\Emprely\\\\Projetos\\\\LandingPage\\\\EmprelyLandingPage-WebApp.\""
+  }
+}

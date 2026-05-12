@@ -1,0 +1,17 @@
+---
+description: Regras sempre ativas do monorepo Emprely
+globs:
+  - "**/*"
+alwaysApply: true
+---
+
+# Regras Emprely
+
+- Trabalhe com SDD: analise antes de spec, spec antes de código.
+- Registre análises em `.cursor/analise/` e specs em `spec/`.
+- Use PortuguesIngles em funções, arquivos e variáveis de domínio.
+- Preserve Clean Architecture na API.
+- Preserve React com Vite no web.
+- Não implemente módulos fora do MVP sem spec aprovada.
+- Mantenha multi-tenancy por conta como decisão arquitetural do backend.
+- Landing atual fica referenciada, não migrada automaticamente.
