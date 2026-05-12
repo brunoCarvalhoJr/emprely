@@ -202,6 +202,9 @@ type PerfilContaFormInput = z.infer<typeof perfilContaSchema>;
 type ClienteFormInput = z.infer<typeof clienteSchema>;
 type ServicoFormInput = z.infer<typeof servicoSchema>;
 type PropostaFormInput = z.infer<typeof propostaSchema>;
+type PropostaPreviewInput = Partial<Omit<PropostaFormInput, "itens">> & {
+  itens?: Array<Partial<PropostaFormInput["itens"][number]>>;
+};
 
 const tokenStorageKey = "emprely.accessToken";
 const perfilContaDefaultValues: PerfilContaFormInput = {
@@ -366,12 +369,14 @@ export default function App() {
   const propostaSelecionada = propostas.find(
     (proposta) => proposta.id === propostaSelecionadaId,
   );
-  const propostaItensPreview =
-    useWatch({
-      control: propostaForm.control,
-      name: "itens",
-    }) ?? [];
+  const propostaPreview = useWatch({
+    control: propostaForm.control,
+  });
+  const propostaItensPreview = propostaPreview.itens ?? [];
   const propostaTotalPreview = calcularTotalItens(propostaItensPreview);
+  const clientePreview = clientes.find(
+    (cliente) => cliente.id === propostaPreview.clienteId,
+  );
 
   useEffect(() => {
     if (perfilContaQuery.data) {
@@ -1317,99 +1322,110 @@ export default function App() {
                       </form>
                     </div>
 
-                    <div className="rounded-md border border-border bg-surface p-5">
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                        <div>
-                          <p className="text-sm font-medium text-accent">
-                            Historico ativo
-                          </p>
-                          <h2 className="mt-1 font-heading text-xl font-semibold leading-7">
-                            {propostas.length} proposta{propostas.length === 1 ? "" : "s"}
-                          </h2>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={novaProposta}
-                          className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-white transition hover:bg-blue-700"
-                        >
-                          <Plus size={16} aria-hidden="true" />
-                          Nova proposta
-                        </button>
-                      </div>
+                    <div className="space-y-5">
+                      <PreviewPropostaVisual
+                        perfilConta={perfilConta}
+                        contaNome={conta.nome}
+                        cliente={clientePreview}
+                        proposta={propostaPreview}
+                        total={propostaTotalPreview}
+                      />
 
-                      {propostasQuery.isLoading ? (
-                        <p className="mt-5 text-sm text-muted">
-                          Carregando propostas...
-                        </p>
-                      ) : null}
-
-                      {propostasQuery.isError ? (
-                        <p className="mt-5 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                          Nao foi possivel carregar propostas.
-                        </p>
-                      ) : null}
-
-                      {!propostasQuery.isLoading && propostas.length === 0 ? (
-                        <div className="mt-5 rounded-md border border-dashed border-border p-5 text-sm text-muted">
-                          Nenhuma proposta ativa cadastrada.
-                        </div>
-                      ) : null}
-
-                      <div className="mt-5 space-y-3">
-                        {propostas.map((proposta) => (
-                          <article
-                            key={proposta.id}
-                            className="rounded-md border border-border p-4"
+                      <div className="rounded-md border border-border bg-surface p-5">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-accent">
+                              Historico ativo
+                            </p>
+                            <h2 className="mt-1 font-heading text-xl font-semibold leading-7">
+                              {propostas.length} proposta
+                              {propostas.length === 1 ? "" : "s"}
+                            </h2>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={novaProposta}
+                            className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-white transition hover:bg-blue-700"
                           >
-                            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                              <div>
-                                <h3 className="font-heading text-lg font-semibold">
-                                  {proposta.titulo}
-                                </h3>
-                                <div className="mt-2 space-y-1 text-sm text-muted">
-                                  <p>{proposta.clienteNome}</p>
-                                  <p>
-                                    {proposta.itens.length} item
-                                    {proposta.itens.length === 1 ? "" : "s"} -{" "}
-                                    {formatMoney(proposta.total)}
-                                  </p>
-                                  <p>Status: {proposta.status}</p>
+                            <Plus size={16} aria-hidden="true" />
+                            Nova proposta
+                          </button>
+                        </div>
+
+                        {propostasQuery.isLoading ? (
+                          <p className="mt-5 text-sm text-muted">
+                            Carregando propostas...
+                          </p>
+                        ) : null}
+
+                        {propostasQuery.isError ? (
+                          <p className="mt-5 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                            Nao foi possivel carregar propostas.
+                          </p>
+                        ) : null}
+
+                        {!propostasQuery.isLoading && propostas.length === 0 ? (
+                          <div className="mt-5 rounded-md border border-dashed border-border p-5 text-sm text-muted">
+                            Nenhuma proposta ativa cadastrada.
+                          </div>
+                        ) : null}
+
+                        <div className="mt-5 space-y-3">
+                          {propostas.map((proposta) => (
+                            <article
+                              key={proposta.id}
+                              className="rounded-md border border-border p-4"
+                            >
+                              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                                <div>
+                                  <h3 className="font-heading text-lg font-semibold">
+                                    {proposta.titulo}
+                                  </h3>
+                                  <div className="mt-2 space-y-1 text-sm text-muted">
+                                    <p>{proposta.clienteNome}</p>
+                                    <p>
+                                      {proposta.itens.length} item
+                                      {proposta.itens.length === 1 ? "" : "s"} -{" "}
+                                      {formatMoney(proposta.total)}
+                                    </p>
+                                    <p>Status: {proposta.status}</p>
+                                  </div>
+                                </div>
+                                <div className="flex gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setPropostaSelecionadaId(proposta.id);
+                                      setPropostaMensagem(null);
+                                    }}
+                                    className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-border px-3 text-sm font-semibold transition hover:border-primary hover:text-primary"
+                                  >
+                                    <Edit3 size={16} aria-hidden="true" />
+                                    Editar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={arquivarPropostaMutation.isPending}
+                                    onClick={() =>
+                                      arquivarPropostaMutation.mutate(proposta.id)
+                                    }
+                                    className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-red-200 px-3 text-sm font-semibold text-red-700 transition hover:border-red-400 disabled:cursor-not-allowed disabled:opacity-60"
+                                  >
+                                    <Archive size={16} aria-hidden="true" />
+                                    Arquivar
+                                  </button>
                                 </div>
                               </div>
-                              <div className="flex gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setPropostaSelecionadaId(proposta.id);
-                                    setPropostaMensagem(null);
-                                  }}
-                                  className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-border px-3 text-sm font-semibold transition hover:border-primary hover:text-primary"
-                                >
-                                  <Edit3 size={16} aria-hidden="true" />
-                                  Editar
-                                </button>
-                                <button
-                                  type="button"
-                                  disabled={arquivarPropostaMutation.isPending}
-                                  onClick={() =>
-                                    arquivarPropostaMutation.mutate(proposta.id)
-                                  }
-                                  className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-red-200 px-3 text-sm font-semibold text-red-700 transition hover:border-red-400 disabled:cursor-not-allowed disabled:opacity-60"
-                                >
-                                  <Archive size={16} aria-hidden="true" />
-                                  Arquivar
-                                </button>
-                              </div>
-                            </div>
-                            {proposta.introducao ? (
-                              <p className="mt-3 rounded-md bg-slate-50 px-3 py-2 text-sm text-muted">
-                                {proposta.introducao}
-                              </p>
-                            ) : null}
-                          </article>
-                        ))}
+                              {proposta.introducao ? (
+                                <p className="mt-3 rounded-md bg-slate-50 px-3 py-2 text-sm text-muted">
+                                  {proposta.introducao}
+                                </p>
+                              ) : null}
+                            </article>
+                          ))}
+                        </div>
+                        <MensagemErro error={arquivarPropostaMutation.error} />
                       </div>
-                      <MensagemErro error={arquivarPropostaMutation.error} />
                     </div>
                   </section>
                 ) : null}
@@ -1695,6 +1711,172 @@ function InfoLinha({ label, value }: { label: string; value: string }) {
       <p className="text-xs font-medium uppercase text-muted">{label}</p>
       <p className="mt-1 break-words text-sm font-semibold">{value}</p>
     </div>
+  );
+}
+
+function PreviewPropostaVisual({
+  perfilConta,
+  contaNome,
+  cliente,
+  proposta,
+  total,
+}: {
+  perfilConta: PerfilContaResponse | undefined;
+  contaNome: string;
+  cliente: ClienteResponse | undefined;
+  proposta: PropostaPreviewInput;
+  total: number;
+}) {
+  const corPrimaria = normalizarHexPreview(
+    perfilConta?.corPrimaria ?? "#2563EB",
+  );
+  const corSecundaria = normalizarHexPreview(
+    perfilConta?.corSecundaria ?? "#14B8A6",
+  );
+  const nomeMarca = perfilConta?.nomeComercial?.trim() || contaNome;
+  const titulo = proposta.titulo?.trim() || "Proposta comercial";
+  const introducao =
+    proposta.introducao?.trim() ||
+    "Preencha a introducao para apresentar o contexto da proposta.";
+  const observacoes = proposta.observacoes?.trim();
+  const itens = proposta.itens ?? [];
+  const validadeTexto = formatValidadeProposta(proposta.validadeDias);
+  const contatoMarca = buildContatoMarca(perfilConta);
+
+  return (
+    <section className="rounded-md border border-border bg-surface p-5">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium text-primary">Preview</p>
+          <h2 className="mt-1 font-heading text-xl font-semibold leading-7">
+            Orcamento visual
+          </h2>
+        </div>
+        <FileText className="text-muted" size={22} aria-hidden="true" />
+      </div>
+
+      <div className="mt-5 overflow-hidden rounded-md border border-border bg-white">
+        <div
+          className="relative overflow-hidden px-5 py-5 text-white"
+          style={{
+            background: `linear-gradient(135deg, ${corPrimaria}, ${corSecundaria})`,
+          }}
+        >
+          <div className="absolute right-4 top-4 rounded-md bg-white/15 px-2 py-1 text-xs font-semibold">
+            Emprely Trial
+          </div>
+          <div className="flex min-h-20 items-start gap-3 pr-28">
+            {perfilConta?.logoUrl ? (
+              <img
+                src={perfilConta.logoUrl}
+                alt=""
+                className="h-12 w-12 rounded-md bg-white object-contain p-1"
+              />
+            ) : (
+              <div className="flex h-12 w-12 items-center justify-center rounded-md bg-white/15 text-lg font-semibold">
+                {nomeMarca.slice(0, 1).toUpperCase()}
+              </div>
+            )}
+            <div>
+              <p className="text-sm font-medium opacity-90">{nomeMarca}</p>
+              <h3 className="mt-2 font-heading text-2xl font-semibold leading-8">
+                {titulo}
+              </h3>
+              {contatoMarca ? (
+                <p className="mt-2 text-sm opacity-90">{contatoMarca}</p>
+              ) : null}
+            </div>
+          </div>
+        </div>
+
+        <div className="relative px-5 py-5">
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden">
+            <span className="-rotate-12 select-none text-5xl font-semibold uppercase text-slate-100">
+              Emprely
+            </span>
+          </div>
+          <div className="relative space-y-5">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <InfoLinha
+                label="Cliente"
+                value={cliente?.nome ?? "Cliente nao selecionado"}
+              />
+              <InfoLinha label="Validade" value={validadeTexto} />
+            </div>
+
+            <div>
+              <p className="text-xs font-medium uppercase text-muted">
+                Introducao
+              </p>
+              <p className="mt-2 text-sm leading-6 text-foreground">
+                {introducao}
+              </p>
+            </div>
+
+            <div>
+              <div className="mb-2 flex items-center justify-between border-b border-border pb-2 text-xs font-semibold uppercase text-muted">
+                <span>Itens</span>
+                <span>Total</span>
+              </div>
+              <div className="space-y-3">
+                {itens.length > 0 ? (
+                  itens.map((item, index) => {
+                    const itemTotal = calcularTotalItens([item]);
+
+                    return (
+                      <div
+                        key={`${item.nome}-${index}`}
+                        className="grid gap-2 border-b border-slate-100 pb-3 last:border-b-0 last:pb-0"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold">
+                              {item.nome?.trim() || "Item sem nome"}
+                            </p>
+                            {item.descricao?.trim() ? (
+                              <p className="mt-1 text-xs leading-5 text-muted">
+                                {item.descricao.trim()}
+                              </p>
+                            ) : null}
+                          </div>
+                          <strong className="whitespace-nowrap text-sm">
+                            {formatMoney(itemTotal)}
+                          </strong>
+                        </div>
+                        <p className="text-xs text-muted">
+                          {formatQuantidade(item.quantidade)} x{" "}
+                          {formatMoney(valorSeguro(item.valorUnitario))}
+                        </p>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="rounded-md border border-dashed border-border px-3 py-3 text-sm text-muted">
+                    Adicione itens para montar o orcamento.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between rounded-md bg-slate-950 px-4 py-3 text-white">
+              <span className="text-sm font-medium">Total</span>
+              <strong className="text-xl">{formatMoney(total)}</strong>
+            </div>
+
+            {observacoes ? (
+              <div>
+                <p className="text-xs font-medium uppercase text-muted">
+                  Observacoes
+                </p>
+                <p className="mt-2 text-sm leading-6 text-foreground">
+                  {observacoes}
+                </p>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -2085,13 +2267,47 @@ function calcularTotalItens(
   itens: Array<{ quantidade?: number; valorUnitario?: number }>,
 ): number {
   return itens.reduce((total, item) => {
-    const quantidade = Number.isFinite(item.quantidade) ? item.quantidade ?? 0 : 0;
-    const valorUnitario = Number.isFinite(item.valorUnitario)
-      ? item.valorUnitario ?? 0
-      : 0;
+    const quantidade = valorSeguro(item.quantidade);
+    const valorUnitario = valorSeguro(item.valorUnitario);
 
     return total + quantidade * valorUnitario;
   }, 0);
+}
+
+function valorSeguro(valor: number | undefined): number {
+  return Number.isFinite(valor) ? valor ?? 0 : 0;
+}
+
+function formatQuantidade(valor: number | undefined): string {
+  return new Intl.NumberFormat("pt-BR", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(valorSeguro(valor));
+}
+
+function formatValidadeProposta(validadeDias: number | undefined): string {
+  const dias = valorSeguro(validadeDias);
+
+  if (dias <= 0) {
+    return "Nao definida";
+  }
+
+  return `${dias} dia${dias === 1 ? "" : "s"}`;
+}
+
+function buildContatoMarca(perfilConta: PerfilContaResponse | undefined): string {
+  if (!perfilConta) {
+    return "";
+  }
+
+  return [
+    perfilConta.emailContato,
+    perfilConta.telefoneContato,
+    perfilConta.instagram,
+  ]
+    .map((valor) => valor?.trim())
+    .filter(Boolean)
+    .join(" | ");
 }
 
 function normalizarOpcional(valor: string): string | null {
