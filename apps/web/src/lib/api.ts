@@ -1,4 +1,8 @@
 import type {
+  PerfilContaResponse,
+  UpdatePerfilContaInput,
+} from "@/types/account";
+import type {
   AuthUsuarioResponse,
   LoginUsuarioInput,
   MeUsuarioResponse,
@@ -34,6 +38,32 @@ export async function getUsuarioAtual(token: string): Promise<MeUsuarioResponse>
     "/api/me",
     {
       method: "GET",
+    },
+    { token },
+  );
+}
+
+export async function getPerfilContaAtual(
+  token: string,
+): Promise<PerfilContaResponse> {
+  return apiFetch<PerfilContaResponse>(
+    "/api/account/profile",
+    {
+      method: "GET",
+    },
+    { token },
+  );
+}
+
+export async function updatePerfilConta(
+  input: UpdatePerfilContaInput,
+  token: string,
+): Promise<PerfilContaResponse> {
+  return apiFetch<PerfilContaResponse>(
+    "/api/account/profile",
+    {
+      method: "PUT",
+      body: JSON.stringify(input),
     },
     { token },
   );

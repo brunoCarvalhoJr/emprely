@@ -1,23 +1,34 @@
 import {
   ArrowRight,
   BadgeCheck,
+  Building2,
   FileText,
   PackageCheck,
+  Palette,
+  Save,
+  Settings,
   UsersRound,
 } from "lucide-react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   forwardRef,
+  useEffect,
   useState,
   type InputHTMLAttributes,
 } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
+import type {
+  PerfilContaResponse,
+  UpdatePerfilContaInput,
+} from "@/types/account";
 import {
+  getPerfilContaAtual,
   getUsuarioAtual,
   loginUsuario,
   registerUsuario,
+  updatePerfilConta,
 } from "@/lib/api";
 import type {
   AuthUsuarioResponse,
@@ -28,7 +39,7 @@ import type {
 const metricasDashboard = [
   { label: "Propostas", value: "12", detail: "4 em rascunho" },
   { label: "Clientes", value: "8", detail: "2 adicionados hoje" },
-  { label: "Serviços", value: "16", detail: "Pacotes reutilizáveis" },
+  { label: "Servicos", value: "16", detail: "Pacotes reutilizaveis" },
 ];
 
 const acoesPrincipais = [
@@ -40,12 +51,12 @@ const acoesPrincipais = [
   {
     icon: UsersRound,
     title: "Cadastrar cliente",
-    description: "Guarde contatos e perfis para reaproveitar nas próximas propostas.",
+    description: "Guarde contatos e perfis para reaproveitar nas proximas propostas.",
   },
   {
     icon: PackageCheck,
-    title: "Salvar serviço",
-    description: "Crie pacotes de posts, reels, publis ou tráfego pago.",
+    title: "Salvar servico",
+    description: "Crie pacotes de posts, reels, publis ou trafego pago.",
   },
 ];
 
@@ -61,11 +72,58 @@ const loginSchema = z.object({
   senha: z.string().min(1, "Informe a senha."),
 });
 
+const perfilContaSchema = z.object({
+  nomeComercial: z.string().min(2, "Informe o nome comercial.").max(160),
+  emailContato: z
+    .string()
+    .max(256)
+    .refine(
+      (valor) => valor.length === 0 || z.email().safeParse(valor).success,
+      "Informe um email valido.",
+    ),
+  telefoneContato: z.string().max(40),
+  siteUrl: z
+    .string()
+    .max(300)
+    .refine(
+      (valor) => valor.length === 0 || isUrlValida(valor),
+      "Informe uma URL valida.",
+    ),
+  instagram: z.string().max(80),
+  documento: z.string().max(40),
+  corPrimaria: z
+    .string()
+    .regex(/^#[0-9A-Fa-f]{6}$/, "Use uma cor no formato #RRGGBB."),
+  corSecundaria: z
+    .string()
+    .regex(/^#[0-9A-Fa-f]{6}$/, "Use uma cor no formato #RRGGBB."),
+  logoUrl: z
+    .string()
+    .max(500)
+    .refine(
+      (valor) => valor.length === 0 || isUrlValida(valor),
+      "Informe uma URL valida.",
+    ),
+});
+
 type AuthMode = "cadastro" | "login";
+type PerfilContaFormInput = z.infer<typeof perfilContaSchema>;
 
 const tokenStorageKey = "emprely.accessToken";
+const perfilContaDefaultValues: PerfilContaFormInput = {
+  nomeComercial: "Emprely",
+  emailContato: "",
+  telefoneContato: "",
+  siteUrl: "",
+  instagram: "",
+  documento: "",
+  corPrimaria: "#2563EB",
+  corSecundaria: "#14B8A6",
+  logoUrl: "",
+};
 
 export default function App() {
+  const queryClient = useQueryClient();
   const [authMode, setAuthMode] = useState<AuthMode>("cadastro");
   const [accessToken, setAccessToken] = useState<string | null>(() =>
     window.localStorage.getItem(tokenStorageKey),
@@ -73,10 +131,18 @@ export default function App() {
   const [authUsuario, setAuthUsuario] = useState<AuthUsuarioResponse | null>(
     null,
   );
+  const [perfilMensagem, setPerfilMensagem] = useState<string | null>(null);
 
   const usuarioAtualQuery = useQuery({
     queryKey: ["usuario-atual", accessToken],
     queryFn: () => getUsuarioAtual(accessToken!),
+    enabled: Boolean(accessToken),
+    retry: false,
+  });
+
+  const perfilContaQuery = useQuery({
+    queryKey: ["perfil-conta", accessToken],
+    queryFn: () => getPerfilContaAtual(accessToken!),
     enabled: Boolean(accessToken),
     retry: false,
   });
@@ -99,6 +165,19 @@ export default function App() {
     },
   });
 
+  const perfilForm = useForm<PerfilContaFormInput>({
+    resolver: zodResolver(perfilContaSchema),
+    defaultValues: perfilContaDefaultValues,
+  });
+
+  const { reset: resetPerfilForm } = perfilForm;
+
+  useEffect(() => {
+    if (perfilContaQuery.data) {
+      resetPerfilForm(mapPerfilContaForm(perfilContaQuery.data));
+    }
+  }, [perfilContaQuery.data, resetPerfilForm]);
+
   const registerMutation = useMutation({
     mutationFn: registerUsuario,
     onSuccess: handleAuthSuccess,
@@ -109,20 +188,51 @@ export default function App() {
     onSuccess: handleAuthSuccess,
   });
 
+  const perfilMutation = useMutation({
+    mutationFn: (input: PerfilContaFormInput) =>
+      updatePerfilConta(buildPerfilContaPayload(input), accessToken!),
+    onSuccess: (response) => {
+      queryClient.setQueryData(["perfil-conta", accessToken], response);
+      resetPerfilForm(mapPerfilContaForm(response));
+      setPerfilMensagem("Perfil salvo.");
+    },
+  });
+
   function handleAuthSuccess(response: AuthUsuarioResponse) {
     window.localStorage.setItem(tokenStorageKey, response.accessToken);
     setAccessToken(response.accessToken);
     setAuthUsuario(response);
+    setPerfilMensagem(null);
   }
 
   function logoutUsuario() {
     window.localStorage.removeItem(tokenStorageKey);
     setAccessToken(null);
     setAuthUsuario(null);
+    setPerfilMensagem(null);
+    queryClient.removeQueries({ queryKey: ["usuario-atual"] });
+    queryClient.removeQueries({ queryKey: ["perfil-conta"] });
   }
 
   const usuario = authUsuario?.usuario ?? usuarioAtualQuery.data?.usuario;
   const conta = authUsuario?.conta ?? usuarioAtualQuery.data?.conta;
+  const perfilConta = perfilContaQuery.data;
+  const corPrimaria = useWatch({
+    control: perfilForm.control,
+    name: "corPrimaria",
+  });
+  const corSecundaria = useWatch({
+    control: perfilForm.control,
+    name: "corSecundaria",
+  });
+  const nomeComercialPreview = useWatch({
+    control: perfilForm.control,
+    name: "nomeComercial",
+  });
+  const instagramPreview = useWatch({
+    control: perfilForm.control,
+    name: "instagram",
+  });
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -131,7 +241,7 @@ export default function App() {
           <div>
             <p className="text-sm font-medium text-primary">Emprely</p>
             <h1 className="font-heading text-2xl font-semibold leading-8 md:text-3xl">
-              Orçamentos
+              Orcamentos
             </h1>
           </div>
           {usuario ? (
@@ -151,29 +261,167 @@ export default function App() {
 
         <main className="grid flex-1 gap-5 py-6 lg:grid-cols-[240px_1fr]">
           <nav className="rounded-md border border-border bg-surface p-3">
-            {["Dashboard", "Clientes", "Serviços", "Propostas"].map((item) => (
-              <button
-                key={item}
-                className="flex h-10 w-full items-center rounded-md px-3 text-left text-sm font-medium text-muted transition hover:bg-slate-100 hover:text-foreground"
-              >
-                {item}
-              </button>
-            ))}
+            {["Dashboard", "Clientes", "Servicos", "Propostas", "Conta"].map(
+              (item) => (
+                <button
+                  key={item}
+                  className="flex h-10 w-full items-center rounded-md px-3 text-left text-sm font-medium text-muted transition hover:bg-slate-100 hover:text-foreground"
+                >
+                  {item}
+                </button>
+              ),
+            )}
           </nav>
 
           <section className="space-y-5">
             {usuario && conta ? (
-              <section className="rounded-md border border-border bg-surface p-5">
-                <p className="text-sm font-medium text-accent">Sessão ativa</p>
-                <h2 className="mt-1 font-heading text-xl font-semibold leading-7">
-                  {usuario.nome}
-                </h2>
-                <div className="mt-4 grid gap-3 md:grid-cols-3">
-                  <InfoLinha label="Email" value={usuario.email} />
-                  <InfoLinha label="Conta" value={conta.nome} />
-                  <InfoLinha label="Papel" value={conta.papel} />
-                </div>
-              </section>
+              <>
+                <section className="rounded-md border border-border bg-surface p-5">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-accent">Sessao ativa</p>
+                      <h2 className="mt-1 font-heading text-xl font-semibold leading-7">
+                        {usuario.nome}
+                      </h2>
+                    </div>
+                    <div className="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-medium text-muted">
+                      <Building2 size={18} aria-hidden="true" />
+                      {conta.nome}
+                    </div>
+                  </div>
+                  <div className="mt-4 grid gap-3 md:grid-cols-3">
+                    <InfoLinha label="Email" value={usuario.email} />
+                    <InfoLinha label="Conta" value={conta.nome} />
+                    <InfoLinha label="Papel" value={conta.papel} />
+                  </div>
+                </section>
+
+                <section className="grid gap-5 xl:grid-cols-[1fr_0.8fr]">
+                  <div className="rounded-md border border-border bg-surface p-5">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-primary">
+                          Configuracoes da conta
+                        </p>
+                        <h2 className="mt-1 font-heading text-xl font-semibold leading-7">
+                          Perfil profissional e marca
+                        </h2>
+                      </div>
+                      <Settings className="text-muted" size={22} aria-hidden="true" />
+                    </div>
+
+                    {perfilContaQuery.isLoading ? (
+                      <p className="mt-5 text-sm text-muted">Carregando perfil...</p>
+                    ) : null}
+
+                    {perfilContaQuery.isError ? (
+                      <p className="mt-5 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                        Nao foi possivel carregar o perfil.
+                      </p>
+                    ) : null}
+
+                    <form
+                      className="mt-5 grid gap-4 md:grid-cols-2"
+                      onSubmit={perfilForm.handleSubmit((input) =>
+                        perfilMutation.mutate(input),
+                      )}
+                    >
+                      <CampoTexto
+                        label="Nome comercial"
+                        error={perfilForm.formState.errors.nomeComercial?.message}
+                        {...perfilForm.register("nomeComercial")}
+                      />
+                      <CampoTexto
+                        label="Email de contato"
+                        type="email"
+                        error={perfilForm.formState.errors.emailContato?.message}
+                        {...perfilForm.register("emailContato")}
+                      />
+                      <CampoTexto
+                        label="Telefone"
+                        error={perfilForm.formState.errors.telefoneContato?.message}
+                        {...perfilForm.register("telefoneContato")}
+                      />
+                      <CampoTexto
+                        label="Site"
+                        type="url"
+                        error={perfilForm.formState.errors.siteUrl?.message}
+                        {...perfilForm.register("siteUrl")}
+                      />
+                      <CampoTexto
+                        label="Instagram"
+                        error={perfilForm.formState.errors.instagram?.message}
+                        {...perfilForm.register("instagram")}
+                      />
+                      <CampoTexto
+                        label="Documento"
+                        error={perfilForm.formState.errors.documento?.message}
+                        {...perfilForm.register("documento")}
+                      />
+                      <CampoTexto
+                        label="Cor primaria"
+                        type="color"
+                        error={perfilForm.formState.errors.corPrimaria?.message}
+                        {...perfilForm.register("corPrimaria")}
+                      />
+                      <CampoTexto
+                        label="Cor secundaria"
+                        type="color"
+                        error={perfilForm.formState.errors.corSecundaria?.message}
+                        {...perfilForm.register("corSecundaria")}
+                      />
+                      <div className="md:col-span-2">
+                        <CampoTexto
+                          label="Logo URL"
+                          type="url"
+                          error={perfilForm.formState.errors.logoUrl?.message}
+                          {...perfilForm.register("logoUrl")}
+                        />
+                      </div>
+                      <div className="flex flex-col gap-3 md:col-span-2 sm:flex-row sm:items-center">
+                        <button
+                          type="submit"
+                          disabled={perfilMutation.isPending}
+                          className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          <Save size={18} aria-hidden="true" />
+                          {perfilMutation.isPending ? "Salvando..." : "Salvar perfil"}
+                        </button>
+                        <MensagemSucesso mensagem={perfilMensagem} />
+                        <MensagemErro error={perfilMutation.error} />
+                      </div>
+                    </form>
+                  </div>
+
+                  <aside className="rounded-md border border-border bg-surface p-5">
+                    <div className="flex items-center gap-2">
+                      <Palette className="text-primary" size={22} aria-hidden="true" />
+                      <h2 className="font-heading text-xl font-semibold leading-7">
+                        Marca
+                      </h2>
+                    </div>
+                    <div
+                      className="mt-5 rounded-md border border-border p-4 text-white"
+                      style={{
+                        background: `linear-gradient(135deg, ${corPrimaria}, ${corSecundaria})`,
+                      }}
+                    >
+                      <p className="text-sm font-medium opacity-90">Preview</p>
+                      <strong className="mt-3 block text-2xl">
+                        {nomeComercialPreview || conta.nome}
+                      </strong>
+                      <span className="mt-1 block text-sm opacity-90">
+                        {instagramPreview || "@emprely"}
+                      </span>
+                    </div>
+                    <div className="mt-4 space-y-2 text-sm text-muted">
+                      <p>Primaria: {normalizarHexPreview(corPrimaria)}</p>
+                      <p>Secundaria: {normalizarHexPreview(corSecundaria)}</p>
+                      <p>Atualizado: {formatDataPerfil(perfilConta)}</p>
+                    </div>
+                  </aside>
+                </section>
+              </>
             ) : (
               <section className="grid gap-5 xl:grid-cols-[1fr_0.9fr]">
                 <div className="rounded-md border border-border bg-surface p-5">
@@ -205,7 +453,7 @@ export default function App() {
                   {authMode === "cadastro" ? (
                     <form
                       className="mt-5 space-y-4"
-                      onSubmit={registerForm.handleSubmit(input =>
+                      onSubmit={registerForm.handleSubmit((input) =>
                         registerMutation.mutate(input),
                       )}
                     >
@@ -240,7 +488,7 @@ export default function App() {
                   ) : (
                     <form
                       className="mt-5 space-y-4"
-                      onSubmit={loginForm.handleSubmit(input =>
+                      onSubmit={loginForm.handleSubmit((input) =>
                         loginMutation.mutate(input),
                       )}
                     >
@@ -265,7 +513,7 @@ export default function App() {
                   )}
                   {usuarioAtualQuery.isError ? (
                     <p className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                      Sessão expirada. Entre novamente.
+                      Sessao expirada. Entre novamente.
                     </p>
                   ) : null}
                 </div>
@@ -273,13 +521,15 @@ export default function App() {
                 <div className="rounded-md border border-border bg-surface p-5">
                   <p className="text-sm font-medium text-primary">API local</p>
                   <h2 className="mt-1 font-heading text-xl font-semibold leading-7">
-                    Autenticação e conta
+                    Autenticacao e conta
                   </h2>
                   <div className="mt-5 space-y-3 text-sm text-muted">
                     <p>POST /api/auth/register</p>
                     <p>POST /api/auth/login</p>
                     <p>GET /api/me</p>
                     <p>GET /api/account</p>
+                    <p>GET /api/account/profile</p>
+                    <p>PUT /api/account/profile</p>
                   </div>
                 </div>
               </section>
@@ -290,16 +540,16 @@ export default function App() {
                 <div className="max-w-2xl">
                   <p className="text-sm font-medium text-accent">MVP funcional</p>
                   <h2 className="font-heading text-xl font-semibold leading-7">
-                    Base pronta para cadastrar clientes, serviços e propostas.
+                    Base pronta para cadastrar clientes, servicos e propostas.
                   </h2>
                   <p className="mt-2 text-sm leading-6 text-muted">
-                    O próximo incremento implementa autenticação, conta, perfil
-                    profissional e fluxo guiado de proposta.
+                    O proximo incremento usa este perfil para preencher a proposta
+                    com identidade profissional.
                   </p>
                 </div>
                 <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800">
                   <BadgeCheck size={18} aria-hidden="true" />
-                  Trial com marca d&apos;água
+                  Trial com marca d&apos;agua
                 </div>
               </div>
             </div>
@@ -366,18 +616,23 @@ type CampoTextoProps = InputHTMLAttributes<HTMLInputElement> & {
 };
 
 const CampoTexto = forwardRef<HTMLInputElement, CampoTextoProps>(
-  ({ label, error, ...props }, ref) => {
-  return (
-    <label className="block">
-      <span className="text-sm font-medium text-foreground">{label}</span>
-      <input
-        ref={ref}
-        className="mt-1 h-11 w-full rounded-md border border-border bg-white px-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-blue-100"
-        {...props}
-      />
-      {error ? <span className="mt-1 block text-sm text-red-600">{error}</span> : null}
-    </label>
-  );
+  ({ label, error, type, ...props }, ref) => {
+    return (
+      <label className="block">
+        <span className="text-sm font-medium text-foreground">{label}</span>
+        <input
+          ref={ref}
+          type={type}
+          className={`mt-1 h-11 w-full rounded-md border border-border bg-white px-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-blue-100 ${
+            type === "color" ? "p-1" : ""
+          }`}
+          {...props}
+        />
+        {error ? (
+          <span className="mt-1 block text-sm text-red-600">{error}</span>
+        ) : null}
+      </label>
+    );
   },
 );
 
@@ -407,6 +662,18 @@ function MensagemErro({ error }: { error: Error | null }) {
   );
 }
 
+function MensagemSucesso({ mensagem }: { mensagem: string | null }) {
+  if (!mensagem) {
+    return null;
+  }
+
+  return (
+    <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+      {mensagem}
+    </p>
+  );
+}
+
 function InfoLinha({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-md border border-border px-3 py-2">
@@ -414,4 +681,63 @@ function InfoLinha({ label, value }: { label: string; value: string }) {
       <p className="mt-1 break-words text-sm font-semibold">{value}</p>
     </div>
   );
+}
+
+function mapPerfilContaForm(perfilConta: PerfilContaResponse): PerfilContaFormInput {
+  return {
+    nomeComercial: perfilConta.nomeComercial,
+    emailContato: perfilConta.emailContato ?? "",
+    telefoneContato: perfilConta.telefoneContato ?? "",
+    siteUrl: perfilConta.siteUrl ?? "",
+    instagram: perfilConta.instagram ?? "",
+    documento: perfilConta.documento ?? "",
+    corPrimaria: perfilConta.corPrimaria,
+    corSecundaria: perfilConta.corSecundaria,
+    logoUrl: perfilConta.logoUrl ?? "",
+  };
+}
+
+function buildPerfilContaPayload(
+  input: PerfilContaFormInput,
+): UpdatePerfilContaInput {
+  return {
+    nomeComercial: input.nomeComercial.trim(),
+    emailContato: normalizarOpcional(input.emailContato),
+    telefoneContato: normalizarOpcional(input.telefoneContato),
+    siteUrl: normalizarOpcional(input.siteUrl),
+    instagram: normalizarOpcional(input.instagram),
+    documento: normalizarOpcional(input.documento),
+    corPrimaria: normalizarHexPreview(input.corPrimaria),
+    corSecundaria: normalizarHexPreview(input.corSecundaria),
+    logoUrl: normalizarOpcional(input.logoUrl),
+  };
+}
+
+function normalizarOpcional(valor: string): string | null {
+  const valorNormalizado = valor.trim();
+  return valorNormalizado.length > 0 ? valorNormalizado : null;
+}
+
+function normalizarHexPreview(valor: string): string {
+  return /^#[0-9A-Fa-f]{6}$/.test(valor) ? valor.toUpperCase() : "#000000";
+}
+
+function formatDataPerfil(perfilConta: PerfilContaResponse | undefined): string {
+  if (!perfilConta?.updatedAt) {
+    return "Nao salvo";
+  }
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(new Date(perfilConta.updatedAt));
+}
+
+function isUrlValida(valor: string): boolean {
+  try {
+    const url = new URL(valor);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
 }

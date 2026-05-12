@@ -26,6 +26,8 @@ public sealed class Conta : EntidadeBase
 
     public ICollection<MembroConta> Membros { get; private set; } = new List<MembroConta>();
 
+    public PerfilConta? Perfil { get; private set; }
+
     public static Conta CreateConta(string nome)
     {
         var nomeNormalizado = nome.Trim();
