@@ -1,5 +1,6 @@
 using Emprely.Domain.Clientes;
 using Emprely.Domain.Contas;
+using Emprely.Domain.Propostas;
 using Emprely.Domain.Servicos;
 using Emprely.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
@@ -26,6 +27,10 @@ public sealed class EmprelyDbContext
 
     public DbSet<Servico> Servicos => Set<Servico>();
 
+    public DbSet<Proposta> Propostas => Set<Proposta>();
+
+    public DbSet<PropostaItem> PropostaItens => Set<PropostaItem>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -36,6 +41,8 @@ public sealed class EmprelyDbContext
         ConfigureMembroConta(builder);
         ConfigureCliente(builder);
         ConfigureServico(builder);
+        ConfigureProposta(builder);
+        ConfigurePropostaItem(builder);
     }
 
     private static void ConfigureIdentity(ModelBuilder builder)
@@ -150,6 +157,55 @@ public sealed class EmprelyDbContext
                 .WithMany(conta => conta.Servicos)
                 .HasForeignKey(servico => servico.ContaId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+    }
+
+    private static void ConfigureProposta(ModelBuilder builder)
+    {
+        builder.Entity<Proposta>(entity =>
+        {
+            entity.ToTable("propostas");
+            entity.HasKey(proposta => proposta.Id);
+            entity.Property(proposta => proposta.Titulo).HasMaxLength(160).IsRequired();
+            entity.Property(proposta => proposta.Introducao).HasMaxLength(1000);
+            entity.Property(proposta => proposta.Observacoes).HasMaxLength(1000);
+            entity.Property(proposta => proposta.Status).HasConversion<string>().HasMaxLength(24);
+            entity.Ignore(proposta => proposta.Total);
+            entity.HasIndex(proposta => proposta.ContaId);
+            entity.HasIndex(proposta => proposta.ClienteId);
+            entity.HasIndex(proposta => new { proposta.ContaId, proposta.Status });
+            entity.HasOne(proposta => proposta.Conta)
+                .WithMany(conta => conta.Propostas)
+                .HasForeignKey(proposta => proposta.ContaId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(proposta => proposta.Cliente)
+                .WithMany(cliente => cliente.Propostas)
+                .HasForeignKey(proposta => proposta.ClienteId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+    }
+
+    private static void ConfigurePropostaItem(ModelBuilder builder)
+    {
+        builder.Entity<PropostaItem>(entity =>
+        {
+            entity.ToTable("proposta_itens");
+            entity.HasKey(item => item.Id);
+            entity.Property(item => item.Nome).HasMaxLength(160).IsRequired();
+            entity.Property(item => item.Descricao).HasMaxLength(1000);
+            entity.Property(item => item.Quantidade).HasPrecision(12, 2);
+            entity.Property(item => item.ValorUnitario).HasPrecision(12, 2);
+            entity.Ignore(item => item.Total);
+            entity.HasIndex(item => item.PropostaId);
+            entity.HasIndex(item => item.ServicoId);
+            entity.HasOne(item => item.Proposta)
+                .WithMany(proposta => proposta.Itens)
+                .HasForeignKey(item => item.PropostaId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(item => item.Servico)
+                .WithMany(servico => servico.ItensProposta)
+                .HasForeignKey(item => item.ServicoId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
     }
 }

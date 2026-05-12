@@ -1,5 +1,6 @@
 using Emprely.Domain.Common;
 using Emprely.Domain.Contas;
+using Emprely.Domain.Propostas;
 
 namespace Emprely.Domain.Servicos;
 
@@ -47,6 +48,8 @@ public sealed class Servico : EntidadeBase
     public StatusServico Status { get; private set; }
 
     public Conta? Conta { get; private set; }
+
+    public ICollection<PropostaItem> ItensProposta { get; private set; } = new List<PropostaItem>();
 
     public static Servico CreateServico(
         Guid contaId,

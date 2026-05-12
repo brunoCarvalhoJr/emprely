@@ -23,7 +23,7 @@ import {
   type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
 } from "react";
-import { useForm, useWatch } from "react-hook-form";
+import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import type {
   PerfilContaResponse,
@@ -42,6 +42,10 @@ import {
   registerUsuario,
   updateCliente,
   updatePerfilConta,
+  createProposta,
+  deleteProposta,
+  getPropostasConta,
+  updateProposta,
   updateServico,
 } from "@/lib/api";
 import type {
@@ -61,9 +65,14 @@ import type {
   UnidadeServico,
   UpdateServicoInput,
 } from "@/types/service";
+import type {
+  CreatePropostaInput,
+  PropostaResponse,
+  UpdatePropostaInput,
+} from "@/types/proposal";
 
 const metricasDashboard = [
-  { label: "Propostas", value: "12", detail: "4 em rascunho" },
+  { label: "Propostas", value: "0", detail: "Rascunhos ativos" },
   { label: "Clientes", value: "0", detail: "Base ativa" },
   { label: "Servicos", value: "0", detail: "Pacotes reutilizaveis" },
 ];
@@ -158,11 +167,41 @@ const servicoSchema = z.object({
   tipo: z.enum(["Servico", "Pacote"]),
 });
 
+const propostaItemSchema = z.object({
+  servicoId: z.string(),
+  nome: z.string().min(2, "Informe o nome do item.").max(160),
+  descricao: z.string().max(1000),
+  quantidade: z
+    .number()
+    .min(0.01, "Informe uma quantidade maior que zero.")
+    .max(9999999999.99, "Informe uma quantidade menor."),
+  valorUnitario: z
+    .number()
+    .min(0, "Informe um valor maior ou igual a zero.")
+    .max(9999999999.99, "Informe um valor menor."),
+});
+
+const propostaSchema = z.object({
+  clienteId: z.string().min(1, "Selecione um cliente."),
+  titulo: z.string().min(2, "Informe o titulo da proposta.").max(160),
+  introducao: z.string().max(1000),
+  observacoes: z.string().max(1000),
+  validadeDias: z
+    .number()
+    .min(1, "Validade minima de 1 dia.")
+    .max(365, "Validade maxima de 365 dias."),
+  itens: z
+    .array(propostaItemSchema)
+    .min(1, "Adicione pelo menos um item.")
+    .max(50, "Limite de 50 itens."),
+});
+
 type AuthMode = "cadastro" | "login";
-type AppView = "dashboard" | "clientes" | "servicos" | "conta";
+type AppView = "dashboard" | "clientes" | "servicos" | "propostas" | "conta";
 type PerfilContaFormInput = z.infer<typeof perfilContaSchema>;
 type ClienteFormInput = z.infer<typeof clienteSchema>;
 type ServicoFormInput = z.infer<typeof servicoSchema>;
+type PropostaFormInput = z.infer<typeof propostaSchema>;
 
 const tokenStorageKey = "emprely.accessToken";
 const perfilContaDefaultValues: PerfilContaFormInput = {
@@ -194,6 +233,15 @@ const servicoDefaultValues: ServicoFormInput = {
   tipo: "Servico",
 };
 
+const propostaDefaultValues: PropostaFormInput = {
+  clienteId: "",
+  titulo: "",
+  introducao: "",
+  observacoes: "",
+  validadeDias: 7,
+  itens: [],
+};
+
 export default function App() {
   const queryClient = useQueryClient();
   const [authMode, setAuthMode] = useState<AuthMode>("cadastro");
@@ -213,6 +261,11 @@ export default function App() {
   const [servicoSelecionadoId, setServicoSelecionadoId] = useState<string | null>(
     null,
   );
+  const [propostaMensagem, setPropostaMensagem] = useState<string | null>(null);
+  const [propostaSelecionadaId, setPropostaSelecionadaId] = useState<string | null>(
+    null,
+  );
+  const [servicoParaAdicionarId, setServicoParaAdicionarId] = useState("");
 
   const usuarioAtualQuery = useQuery({
     queryKey: ["usuario-atual", accessToken],
@@ -238,6 +291,13 @@ export default function App() {
   const servicosQuery = useQuery({
     queryKey: ["servicos", accessToken],
     queryFn: () => getServicosConta(accessToken!),
+    enabled: Boolean(accessToken),
+    retry: false,
+  });
+
+  const propostasQuery = useQuery({
+    queryKey: ["propostas", accessToken],
+    queryFn: () => getPropostasConta(accessToken!),
     enabled: Boolean(accessToken),
     retry: false,
   });
@@ -275,9 +335,24 @@ export default function App() {
     defaultValues: servicoDefaultValues,
   });
 
+  const propostaForm = useForm<PropostaFormInput>({
+    resolver: zodResolver(propostaSchema),
+    defaultValues: propostaDefaultValues,
+  });
+
+  const {
+    fields: propostaItemFields,
+    append: appendPropostaItem,
+    remove: removePropostaItem,
+  } = useFieldArray({
+    control: propostaForm.control,
+    name: "itens",
+  });
+
   const { reset: resetPerfilForm } = perfilForm;
   const { reset: resetClienteForm } = clienteForm;
   const { reset: resetServicoForm } = servicoForm;
+  const { reset: resetPropostaForm } = propostaForm;
 
   const clientes = clientesQuery.data ?? [];
   const clienteSelecionado = clientes.find(
@@ -287,6 +362,16 @@ export default function App() {
   const servicoSelecionado = servicos.find(
     (servico) => servico.id === servicoSelecionadoId,
   );
+  const propostas = propostasQuery.data ?? [];
+  const propostaSelecionada = propostas.find(
+    (proposta) => proposta.id === propostaSelecionadaId,
+  );
+  const propostaItensPreview =
+    useWatch({
+      control: propostaForm.control,
+      name: "itens",
+    }) ?? [];
+  const propostaTotalPreview = calcularTotalItens(propostaItensPreview);
 
   useEffect(() => {
     if (perfilContaQuery.data) {
@@ -305,6 +390,12 @@ export default function App() {
       resetServicoForm(mapServicoForm(servicoSelecionado));
     }
   }, [servicoSelecionado, resetServicoForm]);
+
+  useEffect(() => {
+    if (propostaSelecionada) {
+      resetPropostaForm(mapPropostaForm(propostaSelecionada));
+    }
+  }, [propostaSelecionada, resetPropostaForm]);
 
   const registerMutation = useMutation({
     mutationFn: registerUsuario,
@@ -382,6 +473,36 @@ export default function App() {
     },
   });
 
+  const salvarPropostaMutation = useMutation({
+    mutationFn: (input: PropostaFormInput) => {
+      const payload = buildPropostaPayload(input);
+
+      if (propostaSelecionadaId) {
+        return updateProposta(propostaSelecionadaId, payload, accessToken!);
+      }
+
+      return createProposta(payload, accessToken!);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["propostas", accessToken] });
+      resetPropostaForm(propostaDefaultValues);
+      setPropostaSelecionadaId(null);
+      setServicoParaAdicionarId("");
+      setPropostaMensagem("Proposta salva.");
+    },
+  });
+
+  const arquivarPropostaMutation = useMutation({
+    mutationFn: (id: string) => deleteProposta(id, accessToken!),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["propostas", accessToken] });
+      resetPropostaForm(propostaDefaultValues);
+      setPropostaSelecionadaId(null);
+      setServicoParaAdicionarId("");
+      setPropostaMensagem("Proposta arquivada.");
+    },
+  });
+
   function handleAuthSuccess(response: AuthUsuarioResponse) {
     window.localStorage.setItem(tokenStorageKey, response.accessToken);
     setAccessToken(response.accessToken);
@@ -389,6 +510,7 @@ export default function App() {
     setPerfilMensagem(null);
     setClienteMensagem(null);
     setServicoMensagem(null);
+    setPropostaMensagem(null);
     setAppView("dashboard");
   }
 
@@ -399,13 +521,17 @@ export default function App() {
     setPerfilMensagem(null);
     setClienteMensagem(null);
     setServicoMensagem(null);
+    setPropostaMensagem(null);
     setClienteSelecionadoId(null);
     setServicoSelecionadoId(null);
+    setPropostaSelecionadaId(null);
+    setServicoParaAdicionarId("");
     setAppView("dashboard");
     queryClient.removeQueries({ queryKey: ["usuario-atual"] });
     queryClient.removeQueries({ queryKey: ["perfil-conta"] });
     queryClient.removeQueries({ queryKey: ["clientes"] });
     queryClient.removeQueries({ queryKey: ["servicos"] });
+    queryClient.removeQueries({ queryKey: ["propostas"] });
   }
 
   function novoCliente() {
@@ -418,6 +544,40 @@ export default function App() {
     setServicoSelecionadoId(null);
     setServicoMensagem(null);
     resetServicoForm(servicoDefaultValues);
+  }
+
+  function novaProposta() {
+    setPropostaSelecionadaId(null);
+    setPropostaMensagem(null);
+    setServicoParaAdicionarId("");
+    resetPropostaForm(propostaDefaultValues);
+  }
+
+  function adicionarServicoProposta() {
+    const servico = servicos.find((item) => item.id === servicoParaAdicionarId);
+
+    if (!servico) {
+      return;
+    }
+
+    appendPropostaItem({
+      servicoId: servico.id,
+      nome: servico.nome,
+      descricao: servico.descricao ?? "",
+      quantidade: 1,
+      valorUnitario: servico.preco,
+    });
+    setServicoParaAdicionarId("");
+  }
+
+  function adicionarItemLivreProposta() {
+    appendPropostaItem({
+      servicoId: "",
+      nome: "Item personalizado",
+      descricao: "",
+      quantidade: 1,
+      valorUnitario: 0,
+    });
   }
 
   const usuario = authUsuario?.usuario ?? usuarioAtualQuery.data?.usuario;
@@ -471,14 +631,14 @@ export default function App() {
               { label: "Dashboard", view: "dashboard" as const },
               { label: "Clientes", view: "clientes" as const },
               { label: "Servicos", view: "servicos" as const },
-              { label: "Propostas", view: "dashboard" as const },
+              { label: "Propostas", view: "propostas" as const },
               { label: "Conta", view: "conta" as const },
             ].map((item) => (
               <button
                 key={item.label}
                 onClick={() => setAppView(item.view)}
                 className={`flex h-10 w-full items-center rounded-md px-3 text-left text-sm font-medium transition ${
-                  appView === item.view && item.label !== "Propostas"
+                  appView === item.view
                     ? "bg-slate-100 text-foreground"
                     : "text-muted hover:bg-slate-100 hover:text-foreground"
                 }`}
@@ -895,6 +1055,365 @@ export default function App() {
                   </section>
                 ) : null}
 
+                {appView === "propostas" ? (
+                  <section className="grid gap-5 xl:grid-cols-[1fr_0.9fr]">
+                    <div className="rounded-md border border-border bg-surface p-5">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-primary">
+                            Propostas
+                          </p>
+                          <h2 className="mt-1 font-heading text-xl font-semibold leading-7">
+                            {propostaSelecionada
+                              ? "Editar proposta"
+                              : "Nova proposta"}
+                          </h2>
+                        </div>
+                        {propostaSelecionada ? (
+                          <button
+                            type="button"
+                            onClick={novaProposta}
+                            className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-border px-3 text-sm font-semibold transition hover:border-primary hover:text-primary"
+                          >
+                            <Plus size={16} aria-hidden="true" />
+                            Nova
+                          </button>
+                        ) : null}
+                      </div>
+
+                      {clientes.length === 0 ? (
+                        <p className="mt-5 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                          Cadastre um cliente antes de criar propostas.
+                        </p>
+                      ) : null}
+
+                      {servicos.length === 0 ? (
+                        <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                          Cadastre um servico ou use item livre para montar o primeiro rascunho.
+                        </p>
+                      ) : null}
+
+                      <form
+                        className="mt-5 space-y-4"
+                        onSubmit={propostaForm.handleSubmit((input) =>
+                          salvarPropostaMutation.mutate(input),
+                        )}
+                      >
+                        <div className="grid gap-4 md:grid-cols-[1fr_160px]">
+                          <CampoSelect
+                            label="Cliente"
+                            error={propostaForm.formState.errors.clienteId?.message}
+                            {...propostaForm.register("clienteId")}
+                          >
+                            <option value="">Selecione</option>
+                            {clientes.map((cliente) => (
+                              <option key={cliente.id} value={cliente.id}>
+                                {cliente.nome}
+                              </option>
+                            ))}
+                          </CampoSelect>
+                          <CampoTexto
+                            label="Validade"
+                            type="number"
+                            min="1"
+                            max="365"
+                            error={propostaForm.formState.errors.validadeDias?.message}
+                            {...propostaForm.register("validadeDias", {
+                              valueAsNumber: true,
+                            })}
+                          />
+                        </div>
+                        <CampoTexto
+                          label="Titulo"
+                          error={propostaForm.formState.errors.titulo?.message}
+                          {...propostaForm.register("titulo")}
+                        />
+                        <CampoTextarea
+                          label="Introducao"
+                          rows={3}
+                          error={propostaForm.formState.errors.introducao?.message}
+                          {...propostaForm.register("introducao")}
+                        />
+                        <CampoTextarea
+                          label="Observacoes"
+                          rows={3}
+                          error={propostaForm.formState.errors.observacoes?.message}
+                          {...propostaForm.register("observacoes")}
+                        />
+
+                        <div className="rounded-md border border-border p-4">
+                          <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+                            <div className="flex-1">
+                              <CampoSelect
+                                label="Adicionar do catalogo"
+                                value={servicoParaAdicionarId}
+                                onChange={(event) =>
+                                  setServicoParaAdicionarId(event.target.value)
+                                }
+                              >
+                                <option value="">Selecione um servico</option>
+                                {servicos.map((servico) => (
+                                  <option key={servico.id} value={servico.id}>
+                                    {servico.nome} - {formatMoney(servico.preco)}
+                                  </option>
+                                ))}
+                              </CampoSelect>
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={adicionarServicoProposta}
+                                disabled={!servicoParaAdicionarId}
+                                className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                <Plus size={16} aria-hidden="true" />
+                                Adicionar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={adicionarItemLivreProposta}
+                                className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-border px-4 text-sm font-semibold transition hover:border-primary hover:text-primary"
+                              >
+                                <Plus size={16} aria-hidden="true" />
+                                Livre
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="mt-4 space-y-3">
+                            {propostaItemFields.map((field, index) => {
+                              const itemPreview = propostaItensPreview[index];
+                              const itemTotal = calcularTotalItens(
+                                itemPreview ? [itemPreview] : [],
+                              );
+
+                              return (
+                                <article
+                                  key={field.id}
+                                  className="rounded-md border border-border p-3"
+                                >
+                                  <input
+                                    type="hidden"
+                                    {...propostaForm.register(
+                                      `itens.${index}.servicoId` as const,
+                                    )}
+                                  />
+                                  <div className="grid gap-3 md:grid-cols-[1fr_110px_140px]">
+                                    <CampoTexto
+                                      label="Item"
+                                      error={
+                                        propostaForm.formState.errors.itens?.[index]
+                                          ?.nome?.message
+                                      }
+                                      {...propostaForm.register(
+                                        `itens.${index}.nome` as const,
+                                      )}
+                                    />
+                                    <CampoTexto
+                                      label="Qtd"
+                                      type="number"
+                                      min="0.01"
+                                      step="0.01"
+                                      error={
+                                        propostaForm.formState.errors.itens?.[index]
+                                          ?.quantidade?.message
+                                      }
+                                      {...propostaForm.register(
+                                        `itens.${index}.quantidade` as const,
+                                        { valueAsNumber: true },
+                                      )}
+                                    />
+                                    <CampoTexto
+                                      label="Valor"
+                                      type="number"
+                                      min="0"
+                                      step="0.01"
+                                      error={
+                                        propostaForm.formState.errors.itens?.[index]
+                                          ?.valorUnitario?.message
+                                      }
+                                      {...propostaForm.register(
+                                        `itens.${index}.valorUnitario` as const,
+                                        { valueAsNumber: true },
+                                      )}
+                                    />
+                                  </div>
+                                  <div className="mt-3">
+                                    <CampoTextarea
+                                      label="Descricao"
+                                      rows={2}
+                                      error={
+                                        propostaForm.formState.errors.itens?.[index]
+                                          ?.descricao?.message
+                                      }
+                                      {...propostaForm.register(
+                                        `itens.${index}.descricao` as const,
+                                      )}
+                                    />
+                                  </div>
+                                  <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                    <span className="text-sm font-semibold text-muted">
+                                      Total do item: {formatMoney(itemTotal)}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => removePropostaItem(index)}
+                                      className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-red-200 px-3 text-sm font-semibold text-red-700 transition hover:border-red-400"
+                                    >
+                                      <X size={16} aria-hidden="true" />
+                                      Remover
+                                    </button>
+                                  </div>
+                                </article>
+                              );
+                            })}
+                          </div>
+
+                          {typeof propostaForm.formState.errors.itens?.message ===
+                          "string" ? (
+                            <span className="mt-3 block text-sm text-red-600">
+                              {propostaForm.formState.errors.itens.message}
+                            </span>
+                          ) : null}
+                        </div>
+
+                        <div className="flex flex-col gap-3 rounded-md bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-muted">
+                              Total da proposta
+                            </p>
+                            <strong className="mt-1 block text-2xl font-semibold">
+                              {formatMoney(propostaTotalPreview)}
+                            </strong>
+                          </div>
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                            <button
+                              type="submit"
+                              disabled={
+                                salvarPropostaMutation.isPending ||
+                                clientes.length === 0
+                              }
+                              className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              <Save size={18} aria-hidden="true" />
+                              {salvarPropostaMutation.isPending
+                                ? "Salvando..."
+                                : "Salvar proposta"}
+                            </button>
+                            {propostaSelecionada ? (
+                              <button
+                                type="button"
+                                onClick={novaProposta}
+                                className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-border px-4 text-sm font-semibold transition hover:border-primary hover:text-primary"
+                              >
+                                <X size={18} aria-hidden="true" />
+                                Cancelar
+                              </button>
+                            ) : null}
+                          </div>
+                        </div>
+                        <MensagemSucesso mensagem={propostaMensagem} />
+                        <MensagemErro error={salvarPropostaMutation.error} />
+                      </form>
+                    </div>
+
+                    <div className="rounded-md border border-border bg-surface p-5">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-accent">
+                            Historico ativo
+                          </p>
+                          <h2 className="mt-1 font-heading text-xl font-semibold leading-7">
+                            {propostas.length} proposta{propostas.length === 1 ? "" : "s"}
+                          </h2>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={novaProposta}
+                          className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-white transition hover:bg-blue-700"
+                        >
+                          <Plus size={16} aria-hidden="true" />
+                          Nova proposta
+                        </button>
+                      </div>
+
+                      {propostasQuery.isLoading ? (
+                        <p className="mt-5 text-sm text-muted">
+                          Carregando propostas...
+                        </p>
+                      ) : null}
+
+                      {propostasQuery.isError ? (
+                        <p className="mt-5 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                          Nao foi possivel carregar propostas.
+                        </p>
+                      ) : null}
+
+                      {!propostasQuery.isLoading && propostas.length === 0 ? (
+                        <div className="mt-5 rounded-md border border-dashed border-border p-5 text-sm text-muted">
+                          Nenhuma proposta ativa cadastrada.
+                        </div>
+                      ) : null}
+
+                      <div className="mt-5 space-y-3">
+                        {propostas.map((proposta) => (
+                          <article
+                            key={proposta.id}
+                            className="rounded-md border border-border p-4"
+                          >
+                            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                              <div>
+                                <h3 className="font-heading text-lg font-semibold">
+                                  {proposta.titulo}
+                                </h3>
+                                <div className="mt-2 space-y-1 text-sm text-muted">
+                                  <p>{proposta.clienteNome}</p>
+                                  <p>
+                                    {proposta.itens.length} item
+                                    {proposta.itens.length === 1 ? "" : "s"} -{" "}
+                                    {formatMoney(proposta.total)}
+                                  </p>
+                                  <p>Status: {proposta.status}</p>
+                                </div>
+                              </div>
+                              <div className="flex gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setPropostaSelecionadaId(proposta.id);
+                                    setPropostaMensagem(null);
+                                  }}
+                                  className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-border px-3 text-sm font-semibold transition hover:border-primary hover:text-primary"
+                                >
+                                  <Edit3 size={16} aria-hidden="true" />
+                                  Editar
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={arquivarPropostaMutation.isPending}
+                                  onClick={() =>
+                                    arquivarPropostaMutation.mutate(proposta.id)
+                                  }
+                                  className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-red-200 px-3 text-sm font-semibold text-red-700 transition hover:border-red-400 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  <Archive size={16} aria-hidden="true" />
+                                  Arquivar
+                                </button>
+                              </div>
+                            </div>
+                            {proposta.introducao ? (
+                              <p className="mt-3 rounded-md bg-slate-50 px-3 py-2 text-sm text-muted">
+                                {proposta.introducao}
+                              </p>
+                            ) : null}
+                          </article>
+                        ))}
+                      </div>
+                      <MensagemErro error={arquivarPropostaMutation.error} />
+                    </div>
+                  </section>
+                ) : null}
+
                 {appView === "conta" ? (
                   <section className="grid gap-5 xl:grid-cols-[1fr_0.8fr]">
                     <div className="rounded-md border border-border bg-surface p-5">
@@ -1027,8 +1546,10 @@ export default function App() {
 
                 {appView === "dashboard" ? (
                   <DashboardContent
+                    propostasTotal={propostas.length}
                     clientesTotal={clientes.length}
                     servicosTotal={servicos.length}
+                    onNovaProposta={() => setAppView("propostas")}
                     onCadastrarCliente={() => setAppView("clientes")}
                     onSalvarServico={() => setAppView("servicos")}
                   />
@@ -1178,18 +1699,27 @@ function InfoLinha({ label, value }: { label: string; value: string }) {
 }
 
 function DashboardContent({
+  propostasTotal,
   clientesTotal,
   servicosTotal,
+  onNovaProposta,
   onCadastrarCliente,
   onSalvarServico,
 }: {
+  propostasTotal: number;
   clientesTotal: number;
   servicosTotal: number;
+  onNovaProposta: () => void;
   onCadastrarCliente: () => void;
   onSalvarServico: () => void;
 }) {
   const metricas = metricasDashboard.map((metrica) =>
-    atualizarMetricaDashboard(metrica, clientesTotal, servicosTotal),
+    atualizarMetricaDashboard(
+      metrica,
+      propostasTotal,
+      clientesTotal,
+      servicosTotal,
+    ),
   );
 
   return (
@@ -1233,6 +1763,7 @@ function DashboardContent({
       <div className="grid gap-4 xl:grid-cols-3">
         {acoesPrincipais.map((acao) => {
           const Icon = acao.icon;
+          const isProposta = acao.title === "Nova proposta";
           const isCliente = acao.title === "Cadastrar cliente";
           const isServico = acao.title === "Salvar servico";
 
@@ -1252,7 +1783,13 @@ function DashboardContent({
               </div>
               <button
                 onClick={
-                  isCliente ? onCadastrarCliente : isServico ? onSalvarServico : undefined
+                  isProposta
+                    ? onNovaProposta
+                    : isCliente
+                      ? onCadastrarCliente
+                      : isServico
+                        ? onSalvarServico
+                        : undefined
                 }
                 className="mt-5 inline-flex h-10 items-center gap-2 self-start rounded-md border border-border px-3 text-sm font-semibold transition hover:border-primary hover:text-primary"
               >
@@ -1269,9 +1806,18 @@ function DashboardContent({
 
 function atualizarMetricaDashboard(
   metrica: (typeof metricasDashboard)[number],
+  propostasTotal: number,
   clientesTotal: number,
   servicosTotal: number,
 ): (typeof metricasDashboard)[number] {
+  if (metrica.label === "Propostas") {
+    return {
+      ...metrica,
+      value: propostasTotal.toString(),
+      detail: "Rascunhos ativos",
+    };
+  }
+
   if (metrica.label === "Clientes") {
     return {
       ...metrica,
@@ -1415,6 +1961,8 @@ function AuthContent({
           <p>POST /api/customers</p>
           <p>GET /api/services</p>
           <p>POST /api/services</p>
+          <p>GET /api/proposals</p>
+          <p>POST /api/proposals</p>
         </div>
       </div>
     </section>
@@ -1495,6 +2043,55 @@ function buildServicoPayload(
     unidade: input.unidade as UnidadeServico,
     tipo: input.tipo as TipoServico,
   };
+}
+
+function mapPropostaForm(proposta: PropostaResponse): PropostaFormInput {
+  return {
+    clienteId: proposta.clienteId,
+    titulo: proposta.titulo,
+    introducao: proposta.introducao ?? "",
+    observacoes: proposta.observacoes ?? "",
+    validadeDias: proposta.validadeDias ?? 7,
+    itens: proposta.itens.map((item) => ({
+      servicoId: item.servicoId ?? "",
+      nome: item.nome,
+      descricao: item.descricao ?? "",
+      quantidade: item.quantidade,
+      valorUnitario: item.valorUnitario,
+    })),
+  };
+}
+
+function buildPropostaPayload(
+  input: PropostaFormInput,
+): CreatePropostaInput | UpdatePropostaInput {
+  return {
+    clienteId: input.clienteId,
+    titulo: input.titulo.trim(),
+    introducao: normalizarOpcional(input.introducao),
+    observacoes: normalizarOpcional(input.observacoes),
+    validadeDias: input.validadeDias,
+    itens: input.itens.map((item) => ({
+      servicoId: normalizarOpcional(item.servicoId),
+      nome: item.nome.trim(),
+      descricao: normalizarOpcional(item.descricao),
+      quantidade: item.quantidade,
+      valorUnitario: item.valorUnitario,
+    })),
+  };
+}
+
+function calcularTotalItens(
+  itens: Array<{ quantidade?: number; valorUnitario?: number }>,
+): number {
+  return itens.reduce((total, item) => {
+    const quantidade = Number.isFinite(item.quantidade) ? item.quantidade ?? 0 : 0;
+    const valorUnitario = Number.isFinite(item.valorUnitario)
+      ? item.valorUnitario ?? 0
+      : 0;
+
+    return total + quantidade * valorUnitario;
+  }, 0);
 }
 
 function normalizarOpcional(valor: string): string | null {

@@ -102,3 +102,32 @@ Content-Type: application/json
   "unidade": "Mensal",
   "tipo": "Pacote"
 }
+
+###
+
+GET {{Emprely.Api_HostAddress}}/api/proposals
+Authorization: Bearer {{accessToken}}
+Accept: application/json
+
+###
+
+POST {{Emprely.Api_HostAddress}}/api/proposals
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "clienteId": "cole-o-cliente-id-aqui",
+  "titulo": "Proposta Social Media",
+  "introducao": "Plano mensal para presenca digital.",
+  "observacoes": "Validade de 7 dias.",
+  "validadeDias": 7,
+  "itens": [
+    {
+      "servicoId": "cole-o-servico-id-aqui",
+      "nome": "Pacote Social Media",
+      "descricao": "Planejamento, criativos e publicacao mensal.",
+      "quantidade": 1,
+      "valorUnitario": 1200.00
+    }
+  ]
+}

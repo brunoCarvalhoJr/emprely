@@ -18,6 +18,11 @@ import type {
   ServicoResponse,
   UpdateServicoInput,
 } from "@/types/service";
+import type {
+  CreatePropostaInput,
+  PropostaResponse,
+  UpdatePropostaInput,
+} from "@/types/proposal";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5262";
 
@@ -174,6 +179,57 @@ export async function updateServico(
 export async function deleteServico(id: string, token: string): Promise<void> {
   return apiFetch<void>(
     `/api/services/${id}`,
+    {
+      method: "DELETE",
+    },
+    { token },
+  );
+}
+
+export async function getPropostasConta(
+  token: string,
+): Promise<PropostaResponse[]> {
+  return apiFetch<PropostaResponse[]>(
+    "/api/proposals",
+    {
+      method: "GET",
+    },
+    { token },
+  );
+}
+
+export async function createProposta(
+  input: CreatePropostaInput,
+  token: string,
+): Promise<PropostaResponse> {
+  return apiFetch<PropostaResponse>(
+    "/api/proposals",
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+    { token },
+  );
+}
+
+export async function updateProposta(
+  id: string,
+  input: UpdatePropostaInput,
+  token: string,
+): Promise<PropostaResponse> {
+  return apiFetch<PropostaResponse>(
+    `/api/proposals/${id}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(input),
+    },
+    { token },
+  );
+}
+
+export async function deleteProposta(id: string, token: string): Promise<void> {
+  return apiFetch<void>(
+    `/api/proposals/${id}`,
     {
       method: "DELETE",
     },

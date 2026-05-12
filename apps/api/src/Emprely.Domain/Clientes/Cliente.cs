@@ -1,5 +1,6 @@
 using Emprely.Domain.Common;
 using Emprely.Domain.Contas;
+using Emprely.Domain.Propostas;
 
 namespace Emprely.Domain.Clientes;
 
@@ -42,6 +43,8 @@ public sealed class Cliente : EntidadeBase
     public StatusCliente Status { get; private set; }
 
     public Conta? Conta { get; private set; }
+
+    public ICollection<Proposta> Propostas { get; private set; } = new List<Proposta>();
 
     public static Cliente CreateCliente(
         Guid contaId,
