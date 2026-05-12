@@ -8,6 +8,11 @@ import type {
   MeUsuarioResponse,
   RegisterUsuarioInput,
 } from "@/types/auth";
+import type {
+  ClienteResponse,
+  CreateClienteInput,
+  UpdateClienteInput,
+} from "@/types/customer";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5262";
 
@@ -69,6 +74,57 @@ export async function updatePerfilConta(
   );
 }
 
+export async function getClientesConta(
+  token: string,
+): Promise<ClienteResponse[]> {
+  return apiFetch<ClienteResponse[]>(
+    "/api/customers",
+    {
+      method: "GET",
+    },
+    { token },
+  );
+}
+
+export async function createCliente(
+  input: CreateClienteInput,
+  token: string,
+): Promise<ClienteResponse> {
+  return apiFetch<ClienteResponse>(
+    "/api/customers",
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+    { token },
+  );
+}
+
+export async function updateCliente(
+  id: string,
+  input: UpdateClienteInput,
+  token: string,
+): Promise<ClienteResponse> {
+  return apiFetch<ClienteResponse>(
+    `/api/customers/${id}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(input),
+    },
+    { token },
+  );
+}
+
+export async function deleteCliente(id: string, token: string): Promise<void> {
+  return apiFetch<void>(
+    `/api/customers/${id}`,
+    {
+      method: "DELETE",
+    },
+    { token },
+  );
+}
+
 async function apiFetch<TResponse>(
   path: string,
   init: RequestInit,
@@ -85,6 +141,10 @@ async function apiFetch<TResponse>(
 
   if (!response.ok) {
     throw new Error(await getMensagemErroApi(response));
+  }
+
+  if (response.status === 204) {
+    return undefined as TResponse;
   }
 
   return response.json() as Promise<TResponse>;

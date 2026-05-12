@@ -1,0 +1,45 @@
+using Emprely.Domain.Clientes;
+
+namespace Emprely.UnitTests.Clientes;
+
+public sealed class ClienteTests
+{
+    [Fact]
+    public void CreateCliente_DeveNormalizarCampos()
+    {
+        var contaId = Guid.CreateVersion7();
+
+        var cliente = Cliente.CreateCliente(
+            contaId,
+            " Maria Cliente ",
+            " MARIA@CLIENTE.COM ",
+            " +55 11 99999-9999 ",
+            " 123.456.789-00 ",
+            " Cliente recorrente ");
+
+        Assert.Equal(contaId, cliente.ContaId);
+        Assert.Equal("Maria Cliente", cliente.Nome);
+        Assert.Equal("maria@cliente.com", cliente.Email);
+        Assert.Equal("+55 11 99999-9999", cliente.Telefone);
+        Assert.Equal("123.456.789-00", cliente.Documento);
+        Assert.Equal("Cliente recorrente", cliente.Observacoes);
+        Assert.Equal(StatusCliente.Ativo, cliente.Status);
+    }
+
+    [Fact]
+    public void ArquivarCliente_DeveMudarStatus()
+    {
+        var cliente = Cliente.CreateCliente(
+            Guid.CreateVersion7(),
+            "Maria Cliente",
+            null,
+            null,
+            null,
+            null);
+
+        cliente.ArquivarCliente();
+
+        Assert.Equal(StatusCliente.Arquivado, cliente.Status);
+        Assert.NotNull(cliente.UpdatedAt);
+    }
+}

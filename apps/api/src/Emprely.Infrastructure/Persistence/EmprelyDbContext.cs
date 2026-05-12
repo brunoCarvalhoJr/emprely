@@ -1,3 +1,4 @@
+using Emprely.Domain.Clientes;
 using Emprely.Domain.Contas;
 using Emprely.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
@@ -20,6 +21,8 @@ public sealed class EmprelyDbContext
 
     public DbSet<PerfilConta> PerfisConta => Set<PerfilConta>();
 
+    public DbSet<Cliente> Clientes => Set<Cliente>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -28,6 +31,7 @@ public sealed class EmprelyDbContext
         ConfigureConta(builder);
         ConfigurePerfilConta(builder);
         ConfigureMembroConta(builder);
+        ConfigureCliente(builder);
     }
 
     private static void ConfigureIdentity(ModelBuilder builder)
@@ -98,6 +102,27 @@ public sealed class EmprelyDbContext
             entity.HasOne(perfil => perfil.Conta)
                 .WithOne(conta => conta.Perfil)
                 .HasForeignKey<PerfilConta>(perfil => perfil.ContaId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+    }
+
+    private static void ConfigureCliente(ModelBuilder builder)
+    {
+        builder.Entity<Cliente>(entity =>
+        {
+            entity.ToTable("clientes");
+            entity.HasKey(cliente => cliente.Id);
+            entity.Property(cliente => cliente.Nome).HasMaxLength(160).IsRequired();
+            entity.Property(cliente => cliente.Email).HasMaxLength(256);
+            entity.Property(cliente => cliente.Telefone).HasMaxLength(40);
+            entity.Property(cliente => cliente.Documento).HasMaxLength(40);
+            entity.Property(cliente => cliente.Observacoes).HasMaxLength(1000);
+            entity.Property(cliente => cliente.Status).HasConversion<string>().HasMaxLength(24);
+            entity.HasIndex(cliente => cliente.ContaId);
+            entity.HasIndex(cliente => new { cliente.ContaId, cliente.Nome });
+            entity.HasOne(cliente => cliente.Conta)
+                .WithMany(conta => conta.Clientes)
+                .HasForeignKey(cliente => cliente.ContaId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }

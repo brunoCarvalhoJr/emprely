@@ -61,3 +61,23 @@ Content-Type: application/json
   "corSecundaria": "#14B8A6",
   "logoUrl": "https://emprely.com/logo.png"
 }
+
+###
+
+GET {{Emprely.Api_HostAddress}}/api/customers
+Authorization: Bearer {{accessToken}}
+Accept: application/json
+
+###
+
+POST {{Emprely.Api_HostAddress}}/api/customers
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "nome": "Maria Cliente",
+  "email": "maria@cliente.com",
+  "telefone": "+55 11 99999-9999",
+  "documento": "123.456.789-00",
+  "observacoes": "Cliente recorrente de social media."
+}
