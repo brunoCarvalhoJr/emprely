@@ -81,3 +81,24 @@ Content-Type: application/json
   "documento": "123.456.789-00",
   "observacoes": "Cliente recorrente de social media."
 }
+
+###
+
+GET {{Emprely.Api_HostAddress}}/api/services
+Authorization: Bearer {{accessToken}}
+Accept: application/json
+
+###
+
+POST {{Emprely.Api_HostAddress}}/api/services
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "nome": "Pacote Social Media",
+  "descricao": "Planejamento, criativos e publicacao mensal.",
+  "categoria": "Social Media",
+  "preco": 1200.00,
+  "unidade": "Mensal",
+  "tipo": "Pacote"
+}

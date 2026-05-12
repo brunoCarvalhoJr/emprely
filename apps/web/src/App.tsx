@@ -20,6 +20,7 @@ import {
   useEffect,
   useState,
   type InputHTMLAttributes,
+  type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
 } from "react";
 import { useForm, useWatch } from "react-hook-form";
@@ -30,14 +31,18 @@ import type {
 } from "@/types/account";
 import {
   createCliente,
+  createServico,
   deleteCliente,
+  deleteServico,
   getClientesConta,
   getPerfilContaAtual,
+  getServicosConta,
   getUsuarioAtual,
   loginUsuario,
   registerUsuario,
   updateCliente,
   updatePerfilConta,
+  updateServico,
 } from "@/lib/api";
 import type {
   AuthUsuarioResponse,
@@ -49,11 +54,18 @@ import type {
   CreateClienteInput,
   UpdateClienteInput,
 } from "@/types/customer";
+import type {
+  CreateServicoInput,
+  ServicoResponse,
+  TipoServico,
+  UnidadeServico,
+  UpdateServicoInput,
+} from "@/types/service";
 
 const metricasDashboard = [
   { label: "Propostas", value: "12", detail: "4 em rascunho" },
   { label: "Clientes", value: "0", detail: "Base ativa" },
-  { label: "Servicos", value: "16", detail: "Pacotes reutilizaveis" },
+  { label: "Servicos", value: "0", detail: "Pacotes reutilizaveis" },
 ];
 
 const acoesPrincipais = [
@@ -134,10 +146,23 @@ const clienteSchema = z.object({
   observacoes: z.string().max(1000),
 });
 
+const servicoSchema = z.object({
+  nome: z.string().min(2, "Informe o nome do servico.").max(160),
+  descricao: z.string().max(1000),
+  categoria: z.string().max(80),
+  preco: z
+    .number()
+    .min(0, "Informe um preco maior ou igual a zero.")
+    .max(9999999999.99, "Informe um preco menor."),
+  unidade: z.enum(["Unico", "Mensal", "PorHora", "PorItem"]),
+  tipo: z.enum(["Servico", "Pacote"]),
+});
+
 type AuthMode = "cadastro" | "login";
-type AppView = "dashboard" | "clientes" | "conta";
+type AppView = "dashboard" | "clientes" | "servicos" | "conta";
 type PerfilContaFormInput = z.infer<typeof perfilContaSchema>;
 type ClienteFormInput = z.infer<typeof clienteSchema>;
+type ServicoFormInput = z.infer<typeof servicoSchema>;
 
 const tokenStorageKey = "emprely.accessToken";
 const perfilContaDefaultValues: PerfilContaFormInput = {
@@ -160,6 +185,15 @@ const clienteDefaultValues: ClienteFormInput = {
   observacoes: "",
 };
 
+const servicoDefaultValues: ServicoFormInput = {
+  nome: "",
+  descricao: "",
+  categoria: "",
+  preco: 0,
+  unidade: "Unico",
+  tipo: "Servico",
+};
+
 export default function App() {
   const queryClient = useQueryClient();
   const [authMode, setAuthMode] = useState<AuthMode>("cadastro");
@@ -173,6 +207,10 @@ export default function App() {
   const [perfilMensagem, setPerfilMensagem] = useState<string | null>(null);
   const [clienteMensagem, setClienteMensagem] = useState<string | null>(null);
   const [clienteSelecionadoId, setClienteSelecionadoId] = useState<string | null>(
+    null,
+  );
+  const [servicoMensagem, setServicoMensagem] = useState<string | null>(null);
+  const [servicoSelecionadoId, setServicoSelecionadoId] = useState<string | null>(
     null,
   );
 
@@ -193,6 +231,13 @@ export default function App() {
   const clientesQuery = useQuery({
     queryKey: ["clientes", accessToken],
     queryFn: () => getClientesConta(accessToken!),
+    enabled: Boolean(accessToken),
+    retry: false,
+  });
+
+  const servicosQuery = useQuery({
+    queryKey: ["servicos", accessToken],
+    queryFn: () => getServicosConta(accessToken!),
     enabled: Boolean(accessToken),
     retry: false,
   });
@@ -225,12 +270,22 @@ export default function App() {
     defaultValues: clienteDefaultValues,
   });
 
+  const servicoForm = useForm<ServicoFormInput>({
+    resolver: zodResolver(servicoSchema),
+    defaultValues: servicoDefaultValues,
+  });
+
   const { reset: resetPerfilForm } = perfilForm;
   const { reset: resetClienteForm } = clienteForm;
+  const { reset: resetServicoForm } = servicoForm;
 
   const clientes = clientesQuery.data ?? [];
   const clienteSelecionado = clientes.find(
     (cliente) => cliente.id === clienteSelecionadoId,
+  );
+  const servicos = servicosQuery.data ?? [];
+  const servicoSelecionado = servicos.find(
+    (servico) => servico.id === servicoSelecionadoId,
   );
 
   useEffect(() => {
@@ -244,6 +299,12 @@ export default function App() {
       resetClienteForm(mapClienteForm(clienteSelecionado));
     }
   }, [clienteSelecionado, resetClienteForm]);
+
+  useEffect(() => {
+    if (servicoSelecionado) {
+      resetServicoForm(mapServicoForm(servicoSelecionado));
+    }
+  }, [servicoSelecionado, resetServicoForm]);
 
   const registerMutation = useMutation({
     mutationFn: registerUsuario,
@@ -293,12 +354,41 @@ export default function App() {
     },
   });
 
+  const salvarServicoMutation = useMutation({
+    mutationFn: (input: ServicoFormInput) => {
+      const payload = buildServicoPayload(input);
+
+      if (servicoSelecionadoId) {
+        return updateServico(servicoSelecionadoId, payload, accessToken!);
+      }
+
+      return createServico(payload, accessToken!);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["servicos", accessToken] });
+      resetServicoForm(servicoDefaultValues);
+      setServicoSelecionadoId(null);
+      setServicoMensagem("Servico salvo.");
+    },
+  });
+
+  const arquivarServicoMutation = useMutation({
+    mutationFn: (id: string) => deleteServico(id, accessToken!),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["servicos", accessToken] });
+      resetServicoForm(servicoDefaultValues);
+      setServicoSelecionadoId(null);
+      setServicoMensagem("Servico arquivado.");
+    },
+  });
+
   function handleAuthSuccess(response: AuthUsuarioResponse) {
     window.localStorage.setItem(tokenStorageKey, response.accessToken);
     setAccessToken(response.accessToken);
     setAuthUsuario(response);
     setPerfilMensagem(null);
     setClienteMensagem(null);
+    setServicoMensagem(null);
     setAppView("dashboard");
   }
 
@@ -308,17 +398,26 @@ export default function App() {
     setAuthUsuario(null);
     setPerfilMensagem(null);
     setClienteMensagem(null);
+    setServicoMensagem(null);
     setClienteSelecionadoId(null);
+    setServicoSelecionadoId(null);
     setAppView("dashboard");
     queryClient.removeQueries({ queryKey: ["usuario-atual"] });
     queryClient.removeQueries({ queryKey: ["perfil-conta"] });
     queryClient.removeQueries({ queryKey: ["clientes"] });
+    queryClient.removeQueries({ queryKey: ["servicos"] });
   }
 
   function novoCliente() {
     setClienteSelecionadoId(null);
     setClienteMensagem(null);
     resetClienteForm(clienteDefaultValues);
+  }
+
+  function novoServico() {
+    setServicoSelecionadoId(null);
+    setServicoMensagem(null);
+    resetServicoForm(servicoDefaultValues);
   }
 
   const usuario = authUsuario?.usuario ?? usuarioAtualQuery.data?.usuario;
@@ -371,7 +470,7 @@ export default function App() {
             {[
               { label: "Dashboard", view: "dashboard" as const },
               { label: "Clientes", view: "clientes" as const },
-              { label: "Servicos", view: "dashboard" as const },
+              { label: "Servicos", view: "servicos" as const },
               { label: "Propostas", view: "dashboard" as const },
               { label: "Conta", view: "conta" as const },
             ].map((item) => (
@@ -379,7 +478,7 @@ export default function App() {
                 key={item.label}
                 onClick={() => setAppView(item.view)}
                 className={`flex h-10 w-full items-center rounded-md px-3 text-left text-sm font-medium transition ${
-                  appView === item.view && item.label !== "Servicos" && item.label !== "Propostas"
+                  appView === item.view && item.label !== "Propostas"
                     ? "bg-slate-100 text-foreground"
                     : "text-muted hover:bg-slate-100 hover:text-foreground"
                 }`}
@@ -591,6 +690,211 @@ export default function App() {
                   </section>
                 ) : null}
 
+                {appView === "servicos" ? (
+                  <section className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
+                    <div className="rounded-md border border-border bg-surface p-5">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-primary">
+                            Servicos
+                          </p>
+                          <h2 className="mt-1 font-heading text-xl font-semibold leading-7">
+                            {servicoSelecionado ? "Editar servico" : "Novo servico"}
+                          </h2>
+                        </div>
+                        {servicoSelecionado ? (
+                          <button
+                            type="button"
+                            onClick={novoServico}
+                            className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-border px-3 text-sm font-semibold transition hover:border-primary hover:text-primary"
+                          >
+                            <Plus size={16} aria-hidden="true" />
+                            Novo
+                          </button>
+                        ) : null}
+                      </div>
+
+                      <form
+                        className="mt-5 space-y-4"
+                        onSubmit={servicoForm.handleSubmit((input) =>
+                          salvarServicoMutation.mutate(input),
+                        )}
+                      >
+                        <CampoTexto
+                          label="Nome"
+                          error={servicoForm.formState.errors.nome?.message}
+                          {...servicoForm.register("nome")}
+                        />
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <CampoTexto
+                            label="Categoria"
+                            error={servicoForm.formState.errors.categoria?.message}
+                            {...servicoForm.register("categoria")}
+                          />
+                          <CampoTexto
+                            label="Preco"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            error={servicoForm.formState.errors.preco?.message}
+                            {...servicoForm.register("preco", {
+                              valueAsNumber: true,
+                            })}
+                          />
+                        </div>
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <CampoSelect
+                            label="Unidade"
+                            error={servicoForm.formState.errors.unidade?.message}
+                            {...servicoForm.register("unidade")}
+                          >
+                            <option value="Unico">Unico</option>
+                            <option value="Mensal">Mensal</option>
+                            <option value="PorHora">Por hora</option>
+                            <option value="PorItem">Por item</option>
+                          </CampoSelect>
+                          <CampoSelect
+                            label="Tipo"
+                            error={servicoForm.formState.errors.tipo?.message}
+                            {...servicoForm.register("tipo")}
+                          >
+                            <option value="Servico">Servico</option>
+                            <option value="Pacote">Pacote</option>
+                          </CampoSelect>
+                        </div>
+                        <CampoTextarea
+                          label="Descricao"
+                          rows={4}
+                          error={servicoForm.formState.errors.descricao?.message}
+                          {...servicoForm.register("descricao")}
+                        />
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                          <button
+                            type="submit"
+                            disabled={salvarServicoMutation.isPending}
+                            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            <Save size={18} aria-hidden="true" />
+                            {salvarServicoMutation.isPending
+                              ? "Salvando..."
+                              : "Salvar servico"}
+                          </button>
+                          {servicoSelecionado ? (
+                            <button
+                              type="button"
+                              onClick={novoServico}
+                              className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-border px-4 text-sm font-semibold transition hover:border-primary hover:text-primary"
+                            >
+                              <X size={18} aria-hidden="true" />
+                              Cancelar
+                            </button>
+                          ) : null}
+                        </div>
+                        <MensagemSucesso mensagem={servicoMensagem} />
+                        <MensagemErro error={salvarServicoMutation.error} />
+                      </form>
+                    </div>
+
+                    <div className="rounded-md border border-border bg-surface p-5">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-accent">
+                            Catalogo ativo
+                          </p>
+                          <h2 className="mt-1 font-heading text-xl font-semibold leading-7">
+                            {servicos.length} servico{servicos.length === 1 ? "" : "s"}
+                          </h2>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={novoServico}
+                          className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-white transition hover:bg-blue-700"
+                        >
+                          <Plus size={16} aria-hidden="true" />
+                          Novo servico
+                        </button>
+                      </div>
+
+                      {servicosQuery.isLoading ? (
+                        <p className="mt-5 text-sm text-muted">
+                          Carregando servicos...
+                        </p>
+                      ) : null}
+
+                      {servicosQuery.isError ? (
+                        <p className="mt-5 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                          Nao foi possivel carregar servicos.
+                        </p>
+                      ) : null}
+
+                      {!servicosQuery.isLoading && servicos.length === 0 ? (
+                        <div className="mt-5 rounded-md border border-dashed border-border p-5 text-sm text-muted">
+                          Nenhum servico ativo cadastrado.
+                        </div>
+                      ) : null}
+
+                      <div className="mt-5 space-y-3">
+                        {servicos.map((servico) => (
+                          <article
+                            key={servico.id}
+                            className="rounded-md border border-border p-4"
+                          >
+                            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                              <div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <h3 className="font-heading text-lg font-semibold">
+                                    {servico.nome}
+                                  </h3>
+                                  <span className="rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-muted">
+                                    {servico.tipo}
+                                  </span>
+                                </div>
+                                <div className="mt-2 space-y-1 text-sm text-muted">
+                                  <p>{servico.categoria ?? "Categoria nao informada"}</p>
+                                  <p>
+                                    {formatMoney(servico.preco)} /{" "}
+                                    {formatUnidadeServico(servico.unidade)}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setServicoSelecionadoId(servico.id);
+                                    setServicoMensagem(null);
+                                  }}
+                                  className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-border px-3 text-sm font-semibold transition hover:border-primary hover:text-primary"
+                                >
+                                  <Edit3 size={16} aria-hidden="true" />
+                                  Editar
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={arquivarServicoMutation.isPending}
+                                  onClick={() =>
+                                    arquivarServicoMutation.mutate(servico.id)
+                                  }
+                                  className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-red-200 px-3 text-sm font-semibold text-red-700 transition hover:border-red-400 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  <Archive size={16} aria-hidden="true" />
+                                  Arquivar
+                                </button>
+                              </div>
+                            </div>
+                            {servico.descricao ? (
+                              <p className="mt-3 rounded-md bg-slate-50 px-3 py-2 text-sm text-muted">
+                                {servico.descricao}
+                              </p>
+                            ) : null}
+                          </article>
+                        ))}
+                      </div>
+                      <MensagemErro error={arquivarServicoMutation.error} />
+                    </div>
+                  </section>
+                ) : null}
+
                 {appView === "conta" ? (
                   <section className="grid gap-5 xl:grid-cols-[1fr_0.8fr]">
                     <div className="rounded-md border border-border bg-surface p-5">
@@ -724,7 +1028,9 @@ export default function App() {
                 {appView === "dashboard" ? (
                   <DashboardContent
                     clientesTotal={clientes.length}
+                    servicosTotal={servicos.length}
                     onCadastrarCliente={() => setAppView("clientes")}
+                    onSalvarServico={() => setAppView("servicos")}
                   />
                 ) : null}
               </>
@@ -773,6 +1079,33 @@ const CampoTexto = forwardRef<HTMLInputElement, CampoTextoProps>(
 );
 
 CampoTexto.displayName = "CampoTexto";
+
+type CampoSelectProps = SelectHTMLAttributes<HTMLSelectElement> & {
+  label: string;
+  error?: string;
+};
+
+const CampoSelect = forwardRef<HTMLSelectElement, CampoSelectProps>(
+  ({ label, error, children, ...props }, ref) => {
+    return (
+      <label className="block">
+        <span className="text-sm font-medium text-foreground">{label}</span>
+        <select
+          ref={ref}
+          className="mt-1 h-11 w-full rounded-md border border-border bg-white px-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-blue-100"
+          {...props}
+        >
+          {children}
+        </select>
+        {error ? (
+          <span className="mt-1 block text-sm text-red-600">{error}</span>
+        ) : null}
+      </label>
+    );
+  },
+);
+
+CampoSelect.displayName = "CampoSelect";
 
 type CampoTextareaProps = TextareaHTMLAttributes<HTMLTextAreaElement> & {
   label: string;
@@ -846,19 +1179,17 @@ function InfoLinha({ label, value }: { label: string; value: string }) {
 
 function DashboardContent({
   clientesTotal,
+  servicosTotal,
   onCadastrarCliente,
+  onSalvarServico,
 }: {
   clientesTotal: number;
+  servicosTotal: number;
   onCadastrarCliente: () => void;
+  onSalvarServico: () => void;
 }) {
   const metricas = metricasDashboard.map((metrica) =>
-    metrica.label === "Clientes"
-      ? {
-          ...metrica,
-          value: clientesTotal.toString(),
-          detail: "Clientes ativos",
-        }
-      : metrica,
+    atualizarMetricaDashboard(metrica, clientesTotal, servicosTotal),
   );
 
   return (
@@ -903,6 +1234,7 @@ function DashboardContent({
         {acoesPrincipais.map((acao) => {
           const Icon = acao.icon;
           const isCliente = acao.title === "Cadastrar cliente";
+          const isServico = acao.title === "Salvar servico";
 
           return (
             <article
@@ -919,7 +1251,9 @@ function DashboardContent({
                 </p>
               </div>
               <button
-                onClick={isCliente ? onCadastrarCliente : undefined}
+                onClick={
+                  isCliente ? onCadastrarCliente : isServico ? onSalvarServico : undefined
+                }
                 className="mt-5 inline-flex h-10 items-center gap-2 self-start rounded-md border border-border px-3 text-sm font-semibold transition hover:border-primary hover:text-primary"
               >
                 Abrir
@@ -931,6 +1265,30 @@ function DashboardContent({
       </div>
     </>
   );
+}
+
+function atualizarMetricaDashboard(
+  metrica: (typeof metricasDashboard)[number],
+  clientesTotal: number,
+  servicosTotal: number,
+): (typeof metricasDashboard)[number] {
+  if (metrica.label === "Clientes") {
+    return {
+      ...metrica,
+      value: clientesTotal.toString(),
+      detail: "Clientes ativos",
+    };
+  }
+
+  if (metrica.label === "Servicos") {
+    return {
+      ...metrica,
+      value: servicosTotal.toString(),
+      detail: "Servicos ativos",
+    };
+  }
+
+  return metrica;
 }
 
 function AuthContent({
@@ -1044,7 +1402,7 @@ function AuthContent({
       <div className="rounded-md border border-border bg-surface p-5">
         <p className="text-sm font-medium text-primary">API local</p>
         <h2 className="mt-1 font-heading text-xl font-semibold leading-7">
-          Autenticacao, conta e clientes
+          Autenticacao, conta, clientes e servicos
         </h2>
         <div className="mt-5 space-y-3 text-sm text-muted">
           <p>POST /api/auth/register</p>
@@ -1055,6 +1413,8 @@ function AuthContent({
           <p>PUT /api/account/profile</p>
           <p>GET /api/customers</p>
           <p>POST /api/customers</p>
+          <p>GET /api/services</p>
+          <p>POST /api/services</p>
         </div>
       </div>
     </section>
@@ -1113,9 +1473,51 @@ function buildClientePayload(
   };
 }
 
+function mapServicoForm(servico: ServicoResponse): ServicoFormInput {
+  return {
+    nome: servico.nome,
+    descricao: servico.descricao ?? "",
+    categoria: servico.categoria ?? "",
+    preco: servico.preco,
+    unidade: servico.unidade,
+    tipo: servico.tipo,
+  };
+}
+
+function buildServicoPayload(
+  input: ServicoFormInput,
+): CreateServicoInput | UpdateServicoInput {
+  return {
+    nome: input.nome.trim(),
+    descricao: normalizarOpcional(input.descricao),
+    categoria: normalizarOpcional(input.categoria),
+    preco: input.preco,
+    unidade: input.unidade as UnidadeServico,
+    tipo: input.tipo as TipoServico,
+  };
+}
+
 function normalizarOpcional(valor: string): string | null {
   const valorNormalizado = valor.trim();
   return valorNormalizado.length > 0 ? valorNormalizado : null;
+}
+
+function formatMoney(valor: number): string {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(valor);
+}
+
+function formatUnidadeServico(unidade: UnidadeServico): string {
+  const labels: Record<UnidadeServico, string> = {
+    Unico: "unico",
+    Mensal: "mensal",
+    PorHora: "hora",
+    PorItem: "item",
+  };
+
+  return labels[unidade];
 }
 
 function normalizarHexPreview(valor: string): string {

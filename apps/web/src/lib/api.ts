@@ -13,6 +13,11 @@ import type {
   CreateClienteInput,
   UpdateClienteInput,
 } from "@/types/customer";
+import type {
+  CreateServicoInput,
+  ServicoResponse,
+  UpdateServicoInput,
+} from "@/types/service";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5262";
 
@@ -118,6 +123,57 @@ export async function updateCliente(
 export async function deleteCliente(id: string, token: string): Promise<void> {
   return apiFetch<void>(
     `/api/customers/${id}`,
+    {
+      method: "DELETE",
+    },
+    { token },
+  );
+}
+
+export async function getServicosConta(
+  token: string,
+): Promise<ServicoResponse[]> {
+  return apiFetch<ServicoResponse[]>(
+    "/api/services",
+    {
+      method: "GET",
+    },
+    { token },
+  );
+}
+
+export async function createServico(
+  input: CreateServicoInput,
+  token: string,
+): Promise<ServicoResponse> {
+  return apiFetch<ServicoResponse>(
+    "/api/services",
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+    { token },
+  );
+}
+
+export async function updateServico(
+  id: string,
+  input: UpdateServicoInput,
+  token: string,
+): Promise<ServicoResponse> {
+  return apiFetch<ServicoResponse>(
+    `/api/services/${id}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(input),
+    },
+    { token },
+  );
+}
+
+export async function deleteServico(id: string, token: string): Promise<void> {
+  return apiFetch<void>(
+    `/api/services/${id}`,
     {
       method: "DELETE",
     },

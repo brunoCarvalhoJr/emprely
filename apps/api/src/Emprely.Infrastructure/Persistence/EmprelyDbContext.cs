@@ -1,5 +1,6 @@
 using Emprely.Domain.Clientes;
 using Emprely.Domain.Contas;
+using Emprely.Domain.Servicos;
 using Emprely.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -23,6 +24,8 @@ public sealed class EmprelyDbContext
 
     public DbSet<Cliente> Clientes => Set<Cliente>();
 
+    public DbSet<Servico> Servicos => Set<Servico>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -32,6 +35,7 @@ public sealed class EmprelyDbContext
         ConfigurePerfilConta(builder);
         ConfigureMembroConta(builder);
         ConfigureCliente(builder);
+        ConfigureServico(builder);
     }
 
     private static void ConfigureIdentity(ModelBuilder builder)
@@ -123,6 +127,28 @@ public sealed class EmprelyDbContext
             entity.HasOne(cliente => cliente.Conta)
                 .WithMany(conta => conta.Clientes)
                 .HasForeignKey(cliente => cliente.ContaId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+    }
+
+    private static void ConfigureServico(ModelBuilder builder)
+    {
+        builder.Entity<Servico>(entity =>
+        {
+            entity.ToTable("servicos");
+            entity.HasKey(servico => servico.Id);
+            entity.Property(servico => servico.Nome).HasMaxLength(160).IsRequired();
+            entity.Property(servico => servico.Descricao).HasMaxLength(1000);
+            entity.Property(servico => servico.Categoria).HasMaxLength(80);
+            entity.Property(servico => servico.Preco).HasPrecision(12, 2);
+            entity.Property(servico => servico.Unidade).HasConversion<string>().HasMaxLength(24);
+            entity.Property(servico => servico.Tipo).HasConversion<string>().HasMaxLength(24);
+            entity.Property(servico => servico.Status).HasConversion<string>().HasMaxLength(24);
+            entity.HasIndex(servico => servico.ContaId);
+            entity.HasIndex(servico => new { servico.ContaId, servico.Nome });
+            entity.HasOne(servico => servico.Conta)
+                .WithMany(conta => conta.Servicos)
+                .HasForeignKey(servico => servico.ContaId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }
