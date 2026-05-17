@@ -1,6 +1,7 @@
 using Emprely.Application.Auth;
 using Emprely.Contracts.Proposals;
 using Emprely.Domain.Clientes;
+using Emprely.Domain.Contas;
 using Emprely.Domain.Propostas;
 using Emprely.Domain.Servicos;
 using Emprely.Infrastructure.Persistence;
@@ -15,6 +16,9 @@ namespace Emprely.Api.Controllers;
 [Route("api/proposals")]
 public sealed class ProposalsController : ControllerBase
 {
+    private const int TituloPropostaMaxLength = 160;
+    private const string TituloCopiaSuffix = " (copia)";
+
     private readonly ICurrentContaContext currentContaContext;
     private readonly EmprelyDbContext dbContext;
 
@@ -61,19 +65,42 @@ public sealed class ProposalsController : ControllerBase
         CreatePropostaRequest request,
         CancellationToken cancellationToken)
     {
-        if (!await ValidateReferenciasProposta(request.ClienteId, request.Itens, cancellationToken))
+        if (!TryParseTemplateVisualProposta(request.TemplateVisual, out var templateVisual))
+        {
+            ModelState.AddModelError(nameof(CreatePropostaRequest.TemplateVisual), "Template visual invalido.");
+        }
+
+        if (!await ValidateReferenciasProposta(request.ClienteId, request.Itens, cancellationToken) || !ModelState.IsValid)
         {
             return ValidationProblem(ModelState);
         }
 
-        var proposta = Proposta.CreateProposta(
-            currentContaContext.ContaId,
-            request.ClienteId,
-            request.Titulo,
-            request.Introducao,
-            request.Observacoes,
-            request.ValidadeDias,
-            BuildItensDados(request.Itens));
+        Proposta proposta;
+
+        try
+        {
+            proposta = Proposta.CreateProposta(
+                currentContaContext.ContaId,
+                await GetNextNumeroProposta(cancellationToken),
+                request.ClienteId,
+                request.Titulo,
+                request.Introducao,
+                request.Observacoes,
+                request.ValidadeDias,
+                BuildItensDados(request.Itens),
+                templateVisual,
+                request.DescontoValor,
+                request.CondicoesPagamento,
+                request.ItensInclusos,
+                request.ItensNaoInclusos,
+                request.Cronograma,
+                request.Beneficios);
+        }
+        catch (ArgumentException exception)
+        {
+            ModelState.AddModelError(nameof(CreatePropostaRequest), exception.Message);
+            return ValidationProblem(ModelState);
+        }
 
         dbContext.Propostas.Add(proposta);
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -94,7 +121,12 @@ public sealed class ProposalsController : ControllerBase
         UpdatePropostaRequest request,
         CancellationToken cancellationToken)
     {
-        if (!await ValidateReferenciasProposta(request.ClienteId, request.Itens, cancellationToken))
+        if (!TryParseTemplateVisualProposta(request.TemplateVisual, out var templateVisual))
+        {
+            ModelState.AddModelError(nameof(UpdatePropostaRequest.TemplateVisual), "Template visual invalido.");
+        }
+
+        if (!await ValidateReferenciasProposta(request.ClienteId, request.Itens, cancellationToken) || !ModelState.IsValid)
         {
             return ValidationProblem(ModelState);
         }
@@ -108,13 +140,28 @@ public sealed class ProposalsController : ControllerBase
 
         var itensAnteriores = proposta.Itens.ToList();
 
-        proposta.AtualizarProposta(
-            request.ClienteId,
-            request.Titulo,
-            request.Introducao,
-            request.Observacoes,
-            request.ValidadeDias,
-            BuildItensDados(request.Itens));
+        try
+        {
+            proposta.AtualizarProposta(
+                request.ClienteId,
+                request.Titulo,
+                request.Introducao,
+                request.Observacoes,
+                request.ValidadeDias,
+                BuildItensDados(request.Itens),
+                templateVisual,
+                request.DescontoValor,
+                request.CondicoesPagamento,
+                request.ItensInclusos,
+                request.ItensNaoInclusos,
+                request.Cronograma,
+                request.Beneficios);
+        }
+        catch (ArgumentException exception)
+        {
+            ModelState.AddModelError(nameof(UpdatePropostaRequest), exception.Message);
+            return ValidationProblem(ModelState);
+        }
 
         dbContext.PropostaItens.RemoveRange(itensAnteriores);
 
@@ -126,6 +173,79 @@ public sealed class ProposalsController : ControllerBase
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return Ok(BuildPropostaResponse(proposta));
+    }
+
+    [HttpPost("{id:guid}/generate")]
+    public async Task<ActionResult<PropostaResponse>> GenerateProposta(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var bloqueioComercial = await ValidateContaCanUseFluxoComercialProposta(cancellationToken);
+        if (bloqueioComercial is not null)
+        {
+            return bloqueioComercial;
+        }
+
+        return await AlterarStatusProposta(id, proposta => proposta.GerarProposta(), cancellationToken);
+    }
+
+    [HttpPost("{id:guid}/duplicate")]
+    public async Task<ActionResult<PropostaResponse>> DuplicateProposta(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var proposta = await FindPropostaConta(id, cancellationToken);
+
+        if (proposta is null || proposta.Status == StatusProposta.Arquivada)
+        {
+            return NotFound();
+        }
+
+        var copia = proposta.DuplicarProposta(
+            BuildTituloCopiaProposta(proposta.Titulo),
+            await GetNextNumeroProposta(cancellationToken));
+
+        dbContext.Propostas.Add(copia);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        var propostaSalva = await FindPropostaConta(copia.Id, cancellationToken)
+            ?? throw new InvalidOperationException("Proposta duplicada nao encontrada.");
+        var response = BuildPropostaResponse(propostaSalva);
+
+        return CreatedAtAction(
+            nameof(GetProposta),
+            new { id = copia.Id },
+            response);
+    }
+
+    [HttpPost("{id:guid}/send")]
+    public async Task<ActionResult<PropostaResponse>> SendProposta(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var bloqueioComercial = await ValidateContaCanUseFluxoComercialProposta(cancellationToken);
+        if (bloqueioComercial is not null)
+        {
+            return bloqueioComercial;
+        }
+
+        return await AlterarStatusProposta(id, proposta => proposta.EnviarProposta(), cancellationToken);
+    }
+
+    [HttpPost("{id:guid}/accept")]
+    public async Task<ActionResult<PropostaResponse>> AcceptProposta(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        return await AlterarStatusProposta(id, proposta => proposta.AceitarProposta(), cancellationToken);
+    }
+
+    [HttpPost("{id:guid}/reject")]
+    public async Task<ActionResult<PropostaResponse>> RejectProposta(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        return await AlterarStatusProposta(id, proposta => proposta.RecusarProposta(), cancellationToken);
     }
 
     [HttpDelete("{id:guid}")]
@@ -156,6 +276,63 @@ public sealed class ProposalsController : ControllerBase
                     proposta.Id == id &&
                     proposta.ContaId == currentContaContext.ContaId,
                 cancellationToken);
+    }
+
+    private Task<Conta?> FindContaAtual(CancellationToken cancellationToken)
+    {
+        return dbContext.Contas.FirstOrDefaultAsync(
+            conta => conta.Id == currentContaContext.ContaId,
+            cancellationToken);
+    }
+
+    private async Task<ActionResult<PropostaResponse>?> ValidateContaCanUseFluxoComercialProposta(
+        CancellationToken cancellationToken)
+    {
+        var conta = await FindContaAtual(cancellationToken);
+
+        if (conta is null)
+        {
+            return NotFound();
+        }
+
+        if (conta.CanGenerateProposta(DateTimeOffset.UtcNow))
+        {
+            return null;
+        }
+
+        return StatusCode(
+            StatusCodes.Status403Forbidden,
+            new
+            {
+                message = "Trial expirado. Ative o Plano Fundador para gerar, imprimir ou compartilhar propostas.",
+            });
+    }
+
+    private async Task<ActionResult<PropostaResponse>> AlterarStatusProposta(
+        Guid id,
+        Action<Proposta> alterarStatus,
+        CancellationToken cancellationToken)
+    {
+        var proposta = await FindPropostaConta(id, cancellationToken);
+
+        if (proposta is null || proposta.Status == StatusProposta.Arquivada)
+        {
+            return NotFound();
+        }
+
+        try
+        {
+            alterarStatus(proposta);
+        }
+        catch (InvalidOperationException exception)
+        {
+            ModelState.AddModelError(nameof(Proposta), exception.Message);
+            return ValidationProblem(ModelState);
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return Ok(BuildPropostaResponse(proposta));
     }
 
     private async Task<bool> ValidateReferenciasProposta(
@@ -216,6 +393,7 @@ public sealed class ProposalsController : ControllerBase
     {
         return new PropostaResponse(
             proposta.Id,
+            proposta.Numero,
             proposta.ClienteId,
             proposta.Cliente?.Nome ?? string.Empty,
             proposta.Titulo,
@@ -223,6 +401,14 @@ public sealed class ProposalsController : ControllerBase
             proposta.Observacoes,
             proposta.ValidadeDias,
             proposta.Status.ToString(),
+            proposta.TemplateVisual.ToString(),
+            proposta.Subtotal,
+            proposta.DescontoValor,
+            proposta.CondicoesPagamento,
+            QuebrarLinhas(proposta.ItensInclusosTexto),
+            QuebrarLinhas(proposta.ItensNaoInclusosTexto),
+            QuebrarLinhas(proposta.CronogramaTexto),
+            QuebrarLinhas(proposta.BeneficiosTexto),
             proposta.Total,
             proposta.Itens
                 .OrderBy(item => item.Ordem)
@@ -230,6 +416,63 @@ public sealed class ProposalsController : ControllerBase
                 .ToList(),
             proposta.CreatedAt,
             proposta.UpdatedAt);
+    }
+
+    private static bool TryParseTemplateVisualProposta(
+        string? valor,
+        out TemplateVisualProposta templateVisual)
+    {
+        if (string.IsNullOrWhiteSpace(valor))
+        {
+            templateVisual = TemplateVisualProposta.ComercialMinimalista;
+            return true;
+        }
+
+        var valorNormalizado = valor.Trim();
+
+        if (string.Equals(valorNormalizado, "PadraoEnxuto", StringComparison.OrdinalIgnoreCase))
+        {
+            templateVisual = TemplateVisualProposta.ComercialMinimalista;
+            return true;
+        }
+
+        return Enum.TryParse(valorNormalizado, ignoreCase: true, out templateVisual)
+            && Enum.IsDefined(templateVisual);
+    }
+
+    private static IReadOnlyList<string> QuebrarLinhas(string? texto)
+    {
+        if (string.IsNullOrWhiteSpace(texto))
+        {
+            return Array.Empty<string>();
+        }
+
+        return texto
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
+    }
+
+    private async Task<int> GetNextNumeroProposta(CancellationToken cancellationToken)
+    {
+        var ultimoNumero = await dbContext.Propostas
+            .Where(proposta => proposta.ContaId == currentContaContext.ContaId)
+            .Select(proposta => (int?)proposta.Numero)
+            .MaxAsync(cancellationToken);
+
+        return (ultimoNumero ?? 0) + 1;
+    }
+
+    private static string BuildTituloCopiaProposta(string titulo)
+    {
+        var tituloBase = titulo.Trim();
+        var tamanhoMaximoBase = TituloPropostaMaxLength - TituloCopiaSuffix.Length;
+
+        if (tituloBase.Length > tamanhoMaximoBase)
+        {
+            tituloBase = tituloBase[..tamanhoMaximoBase].TrimEnd();
+        }
+
+        return $"{tituloBase}{TituloCopiaSuffix}";
     }
 
     private static PropostaItemResponse BuildPropostaItemResponse(PropostaItem item)

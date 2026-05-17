@@ -9,8 +9,18 @@ export type PerfilContaResponse = {
   documento: string | null;
   corPrimaria: string;
   corSecundaria: string;
+  corSistemaPrimaria: string;
+  corSistemaSecundaria: string;
   logoUrl: string | null;
+  templateVisualPadrao: string;
   updatedAt: string | null;
+};
+
+export type LogoPerfilUploadResponse = {
+  logoUrl: string;
+  tamanhoOriginalBytes: number;
+  largura: number;
+  altura: number;
 };
 
 export type UpdatePerfilContaInput = {
@@ -22,5 +32,8 @@ export type UpdatePerfilContaInput = {
   documento: string | null;
   corPrimaria: string;
   corSecundaria: string;
+  corSistemaPrimaria: string;
+  corSistemaSecundaria: string;
   logoUrl: string | null;
+  templateVisualPadrao: string;
 };

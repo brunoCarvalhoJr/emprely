@@ -1,8 +1,8 @@
 # Landing referenciada
 
-## Decisão
+## Decisao
 
-`apps/landing` não contém uma cópia da landing nesta etapa.
+`apps/landing` nao contem uma copia da landing nesta etapa.
 
 A landing atual permanece em:
 
@@ -10,10 +10,15 @@ A landing atual permanece em:
 D:\Emprely\Projetos\LandingPage\EmprelyLandingPage-WebApp
 ```
 
+Dominios publicados:
+
+- `https://www.emprely.com.br`
+- `https://emprely.com.br`
+
 ## Motivo
 
-A Landing V1 já existe, está fora deste monorepo e serve como base institucional enquanto o MVP funcional gera prints reais para a Landing V2.
+A Landing V1 ja existe, esta fora deste monorepo e serve como base institucional enquanto o MVP funcional gera prints reais para a Landing V2.
 
-## Critério para migração futura
+## Criterio para migracao futura
 
-Migrar para `apps/landing` somente quando houver decisão explícita de consolidar a landing no monorepo.
+Migrar para `apps/landing` somente quando houver decisao explicita de consolidar a landing no monorepo.

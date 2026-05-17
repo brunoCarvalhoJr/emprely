@@ -3,11 +3,16 @@
 Thumbs.db
 .idea/
 .vscode/
+.vs/
 
 # Environment
 .env
 .env.*
+*.env
 !.env.example
+!**/.env.example
+!*.env.example
+!**/*.env.example
 
 # Node/pnpm
 node_modules/
@@ -24,9 +29,11 @@ obj/
 TestResults/
 *.user
 *.suo
+apps/api/src/Emprely.Api/wwwroot/uploads/
 
 # Infra/local
 *.tfstate
 *.tfstate.*
 .terraform/
 docker-data/
+tmp/

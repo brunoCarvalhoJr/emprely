@@ -17,7 +17,7 @@ namespace Emprely.Infrastructure.Persistence.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.15")
+                .HasAnnotation("ProductVersion", "9.0.16")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -86,6 +86,14 @@ namespace Emprely.Infrastructure.Persistence.Migrations
                         .HasMaxLength(160)
                         .HasColumnType("character varying(160)");
 
+                    b.Property<string>("Plano")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)");
+
+                    b.Property<DateTimeOffset?>("PlanoFundadorAtivadoAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Slug")
                         .IsRequired()
                         .HasMaxLength(80)
@@ -95,6 +103,9 @@ namespace Emprely.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(24)
                         .HasColumnType("character varying(24)");
+
+                    b.Property<DateTimeOffset>("TrialEndsAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTimeOffset?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -164,6 +175,16 @@ namespace Emprely.Infrastructure.Persistence.Migrations
                         .HasMaxLength(7)
                         .HasColumnType("character varying(7)");
 
+                    b.Property<string>("CorSistemaPrimaria")
+                        .IsRequired()
+                        .HasMaxLength(7)
+                        .HasColumnType("character varying(7)");
+
+                    b.Property<string>("CorSistemaSecundaria")
+                        .IsRequired()
+                        .HasMaxLength(7)
+                        .HasColumnType("character varying(7)");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -196,6 +217,11 @@ namespace Emprely.Infrastructure.Persistence.Migrations
                         .HasMaxLength(40)
                         .HasColumnType("character varying(40)");
 
+                    b.Property<string>("TemplateVisualPadrao")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
                     b.Property<DateTimeOffset?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -213,8 +239,16 @@ namespace Emprely.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("BeneficiosTexto")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
                     b.Property<Guid>("ClienteId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("CondicoesPagamento")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
 
                     b.Property<Guid>("ContaId")
                         .HasColumnType("uuid");
@@ -222,9 +256,28 @@ namespace Emprely.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("CronogramaTexto")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<decimal>("DescontoValor")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)");
+
                     b.Property<string>("Introducao")
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("ItensInclusosTexto")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<string>("ItensNaoInclusosTexto")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<int>("Numero")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Observacoes")
                         .HasMaxLength(1000)
@@ -234,6 +287,11 @@ namespace Emprely.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(24)
                         .HasColumnType("character varying(24)");
+
+                    b.Property<string>("TemplateVisual")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
 
                     b.Property<string>("Titulo")
                         .IsRequired()
@@ -251,6 +309,9 @@ namespace Emprely.Infrastructure.Persistence.Migrations
                     b.HasIndex("ClienteId");
 
                     b.HasIndex("ContaId");
+
+                    b.HasIndex("ContaId", "Numero")
+                        .IsUnique();
 
                     b.HasIndex("ContaId", "Status");
 

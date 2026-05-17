@@ -3,8 +3,9 @@ namespace Emprely.Domain.Propostas;
 public enum StatusProposta
 {
     Rascunho = 1,
-    Enviada = 2,
-    Aceita = 3,
-    Recusada = 4,
-    Arquivada = 5
+    Gerada = 2,
+    Enviada = 3,
+    Aceita = 4,
+    Recusada = 5,
+    Arquivada = 6
 }

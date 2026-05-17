@@ -1,17 +1,23 @@
 using Emprely.Domain.Common;
+using Emprely.Domain.Propostas;
 
 namespace Emprely.Domain.Contas;
 
 public sealed class PerfilConta : EntidadeBase
 {
-    public const string CorPrimariaPadrao = "#2563EB";
-    public const string CorSecundariaPadrao = "#14B8A6";
+    public const string CorPrimariaPadrao = "#6E38FF";
+    public const string CorSecundariaPadrao = "#13C7BD";
+    public const string CorSistemaPrimariaPadrao = "#6E38FF";
+    public const string CorSistemaSecundariaPadrao = "#13C7BD";
 
     private PerfilConta()
     {
         NomeComercial = string.Empty;
         CorPrimaria = CorPrimariaPadrao;
         CorSecundaria = CorSecundariaPadrao;
+        CorSistemaPrimaria = CorSistemaPrimariaPadrao;
+        CorSistemaSecundaria = CorSistemaSecundariaPadrao;
+        TemplateVisualPadrao = TemplateVisualProposta.ComercialMinimalista;
     }
 
     private PerfilConta(
@@ -24,7 +30,10 @@ public sealed class PerfilConta : EntidadeBase
         string? documento,
         string corPrimaria,
         string corSecundaria,
-        string? logoUrl)
+        string? logoUrl,
+        TemplateVisualProposta templateVisualPadrao,
+        string corSistemaPrimaria,
+        string corSistemaSecundaria)
     {
         ContaId = contaId;
         NomeComercial = nomeComercial;
@@ -35,7 +44,10 @@ public sealed class PerfilConta : EntidadeBase
         Documento = documento;
         CorPrimaria = corPrimaria;
         CorSecundaria = corSecundaria;
+        CorSistemaPrimaria = corSistemaPrimaria;
+        CorSistemaSecundaria = corSistemaSecundaria;
         LogoUrl = logoUrl;
+        TemplateVisualPadrao = templateVisualPadrao;
     }
 
     public Guid ContaId { get; private set; }
@@ -56,7 +68,13 @@ public sealed class PerfilConta : EntidadeBase
 
     public string CorSecundaria { get; private set; }
 
+    public string CorSistemaPrimaria { get; private set; }
+
+    public string CorSistemaSecundaria { get; private set; }
+
     public string? LogoUrl { get; private set; }
+
+    public TemplateVisualProposta TemplateVisualPadrao { get; private set; }
 
     public Conta? Conta { get; private set; }
 
@@ -70,7 +88,10 @@ public sealed class PerfilConta : EntidadeBase
         string? documento,
         string corPrimaria,
         string corSecundaria,
-        string? logoUrl)
+        string? logoUrl,
+        TemplateVisualProposta templateVisualPadrao = TemplateVisualProposta.ComercialMinimalista,
+        string? corSistemaPrimaria = null,
+        string? corSistemaSecundaria = null)
     {
         var perfilConta = new PerfilConta();
         perfilConta.ContaId = contaId;
@@ -83,7 +104,10 @@ public sealed class PerfilConta : EntidadeBase
             documento,
             corPrimaria,
             corSecundaria,
-            logoUrl);
+            logoUrl,
+            templateVisualPadrao,
+            corSistemaPrimaria,
+            corSistemaSecundaria);
 
         return perfilConta;
     }
@@ -97,7 +121,10 @@ public sealed class PerfilConta : EntidadeBase
         string? documento,
         string corPrimaria,
         string corSecundaria,
-        string? logoUrl)
+        string? logoUrl,
+        TemplateVisualProposta templateVisualPadrao = TemplateVisualProposta.ComercialMinimalista,
+        string? corSistemaPrimaria = null,
+        string? corSistemaSecundaria = null)
     {
         NomeComercial = NormalizarObrigatorio(nomeComercial, nameof(nomeComercial));
         EmailContato = NormalizarOpcional(emailContato);
@@ -107,7 +134,14 @@ public sealed class PerfilConta : EntidadeBase
         Documento = NormalizarOpcional(documento);
         CorPrimaria = NormalizarCor(corPrimaria, nameof(corPrimaria));
         CorSecundaria = NormalizarCor(corSecundaria, nameof(corSecundaria));
+        CorSistemaPrimaria = NormalizarCor(
+            corSistemaPrimaria ?? CorSistemaPrimariaPadrao,
+            nameof(corSistemaPrimaria));
+        CorSistemaSecundaria = NormalizarCor(
+            corSistemaSecundaria ?? CorSistemaSecundariaPadrao,
+            nameof(corSistemaSecundaria));
         LogoUrl = NormalizarOpcional(logoUrl);
+        TemplateVisualPadrao = templateVisualPadrao;
         UpdatedAt = DateTimeOffset.UtcNow;
     }
 

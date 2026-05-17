@@ -12,4 +12,7 @@ public sealed record PerfilContaResponse(
     string CorPrimaria,
     string CorSecundaria,
     string? LogoUrl,
-    DateTimeOffset? UpdatedAt);
+    DateTimeOffset? UpdatedAt,
+    string TemplateVisualPadrao = "ComercialMinimalista",
+    string CorSistemaPrimaria = "#6E38FF",
+    string CorSistemaSecundaria = "#13C7BD");

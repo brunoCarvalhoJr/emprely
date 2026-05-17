@@ -1,9 +1,11 @@
 import type {
+  LogoPerfilUploadResponse,
   PerfilContaResponse,
   UpdatePerfilContaInput,
 } from "@/types/account";
 import type {
   AuthUsuarioResponse,
+  ChangeSenhaUsuarioInput,
   LoginUsuarioInput,
   MeUsuarioResponse,
   RegisterUsuarioInput,
@@ -24,11 +26,39 @@ import type {
   UpdatePropostaInput,
 } from "@/types/proposal";
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5262";
+export const sessaoInvalidaEventName = "emprely:sessao-invalida";
+
+const apiBaseUrl = getApiBaseUrl();
 
 type ApiOptions = {
   token?: string | null;
 };
+
+export class ApiErro extends Error {
+  constructor(
+    public readonly status: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = "ApiErro";
+  }
+}
+
+function getApiBaseUrl(): string {
+  const apiBaseUrlConfigurada = import.meta.env.VITE_API_BASE_URL?.trim();
+
+  if (apiBaseUrlConfigurada) {
+    return apiBaseUrlConfigurada.replace(/\/+$/, "");
+  }
+
+  if (import.meta.env.DEV) {
+    return "http://localhost:5262";
+  }
+
+  throw new Error(
+    "VITE_API_BASE_URL deve ser configurada para ambientes beta, staging ou producao.",
+  );
+}
 
 export async function registerUsuario(
   input: RegisterUsuarioInput,
@@ -58,6 +88,20 @@ export async function getUsuarioAtual(token: string): Promise<MeUsuarioResponse>
   );
 }
 
+export async function changeSenhaUsuario(
+  input: ChangeSenhaUsuarioInput,
+  token: string,
+): Promise<void> {
+  return apiFetch<void>(
+    "/api/me/password",
+    {
+      method: "PUT",
+      body: JSON.stringify(input),
+    },
+    { token },
+  );
+}
+
 export async function getPerfilContaAtual(
   token: string,
 ): Promise<PerfilContaResponse> {
@@ -82,6 +126,41 @@ export async function updatePerfilConta(
     },
     { token },
   );
+}
+
+export async function uploadLogoPerfilConta(
+  arquivo: File,
+  token: string,
+): Promise<LogoPerfilUploadResponse> {
+  const formData = new FormData();
+  formData.append("file", arquivo);
+
+  return apiFetch<LogoPerfilUploadResponse>(
+    "/api/account/profile/logo",
+    {
+      method: "POST",
+      body: formData,
+    },
+    { token },
+  );
+}
+
+export function resolveApiAssetUrl(assetUrl: string | null | undefined): string {
+  const valor = assetUrl?.trim() ?? "";
+
+  if (!valor) {
+    return "";
+  }
+
+  if (/^https?:\/\//i.test(valor) || valor.startsWith("data:")) {
+    return valor;
+  }
+
+  if (valor.startsWith("/")) {
+    return `${apiBaseUrl}${valor}`;
+  }
+
+  return valor;
 }
 
 export async function getClientesConta(
@@ -227,6 +306,71 @@ export async function updateProposta(
   );
 }
 
+export async function duplicateProposta(
+  id: string,
+  token: string,
+): Promise<PropostaResponse> {
+  return apiFetch<PropostaResponse>(
+    `/api/proposals/${id}/duplicate`,
+    {
+      method: "POST",
+    },
+    { token },
+  );
+}
+
+export async function generateProposta(
+  id: string,
+  token: string,
+): Promise<PropostaResponse> {
+  return apiFetch<PropostaResponse>(
+    `/api/proposals/${id}/generate`,
+    {
+      method: "POST",
+    },
+    { token },
+  );
+}
+
+export async function sendProposta(
+  id: string,
+  token: string,
+): Promise<PropostaResponse> {
+  return apiFetch<PropostaResponse>(
+    `/api/proposals/${id}/send`,
+    {
+      method: "POST",
+    },
+    { token },
+  );
+}
+
+export async function acceptProposta(
+  id: string,
+  token: string,
+): Promise<PropostaResponse> {
+  return apiFetch<PropostaResponse>(
+    `/api/proposals/${id}/accept`,
+    {
+      method: "POST",
+    },
+    { token },
+  );
+}
+
+export async function rejectProposta(
+  id: string,
+  token: string,
+): Promise<PropostaResponse> {
+  return apiFetch<PropostaResponse>(
+    `/api/proposals/${id}/reject`,
+    {
+      method: "POST",
+    },
+    { token },
+  );
+}
+
 export async function deleteProposta(id: string, token: string): Promise<void> {
   return apiFetch<void>(
     `/api/proposals/${id}`,
@@ -242,17 +386,23 @@ async function apiFetch<TResponse>(
   init: RequestInit,
   options: ApiOptions = {},
 ): Promise<TResponse> {
+  const isFormDataBody = init.body instanceof FormData;
+
   const response = await fetch(`${apiBaseUrl}${path}`, {
     ...init,
     headers: {
-      "Content-Type": "application/json",
+      ...(isFormDataBody ? {} : { "Content-Type": "application/json" }),
       ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
       ...init.headers,
     },
   });
 
   if (!response.ok) {
-    throw new Error(await getMensagemErroApi(response));
+    if (response.status === 401 && options.token) {
+      window.dispatchEvent(new CustomEvent(sessaoInvalidaEventName));
+    }
+
+    throw new ApiErro(response.status, await getMensagemErroApi(response));
   }
 
   if (response.status === 204) {

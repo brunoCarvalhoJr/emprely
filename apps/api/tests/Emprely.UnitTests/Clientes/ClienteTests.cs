@@ -42,4 +42,45 @@ public sealed class ClienteTests
         Assert.Equal(StatusCliente.Arquivado, cliente.Status);
         Assert.NotNull(cliente.UpdatedAt);
     }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("(11) 99999-9999")]
+    [InlineData("11999999999")]
+    [InlineData("+55 11 99999-9999")]
+    public void CreateCliente_DeveAceitarTelefoneWhatsappValido(string? telefone)
+    {
+        var cliente = Cliente.CreateCliente(
+            Guid.CreateVersion7(),
+            "Maria Cliente",
+            null,
+            telefone,
+            null,
+            null);
+
+        Assert.True(Cliente.IsTelefoneWhatsappValido(telefone));
+        Assert.Equal(string.IsNullOrWhiteSpace(telefone) ? null : telefone.Trim(), cliente.Telefone);
+    }
+
+    [Theory]
+    [InlineData("9999")]
+    [InlineData("55")]
+    [InlineData("+55 11 999")]
+    [InlineData("123456789")]
+    [InlineData("+1 555 123 4567")]
+    public void CreateCliente_DeveRejeitarTelefoneWhatsappInvalido(string telefone)
+    {
+        var exception = Assert.Throws<ArgumentException>(() =>
+            Cliente.CreateCliente(
+                Guid.CreateVersion7(),
+                "Maria Cliente",
+                null,
+                telefone,
+                null,
+                null));
+
+        Assert.False(Cliente.IsTelefoneWhatsappValido(telefone));
+        Assert.Equal("telefone", exception.ParamName);
+    }
 }

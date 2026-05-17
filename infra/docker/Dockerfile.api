@@ -1,0 +1,28 @@
+# syntax=docker/dockerfile:1
+
+FROM mcr.microsoft.com/dotnet/sdk:9.0-alpine AS build
+WORKDIR /src
+
+COPY apps/api/src/Emprely.Api/*.csproj apps/api/src/Emprely.Api/
+COPY apps/api/src/Emprely.Application/*.csproj apps/api/src/Emprely.Application/
+COPY apps/api/src/Emprely.Contracts/*.csproj apps/api/src/Emprely.Contracts/
+COPY apps/api/src/Emprely.Domain/*.csproj apps/api/src/Emprely.Domain/
+COPY apps/api/src/Emprely.Infrastructure/*.csproj apps/api/src/Emprely.Infrastructure/
+
+RUN dotnet restore apps/api/src/Emprely.Api/Emprely.Api.csproj
+
+COPY apps/api/src apps/api/src
+RUN dotnet publish apps/api/src/Emprely.Api/Emprely.Api.csproj \
+    --configuration Release \
+    --output /app/publish \
+    --no-restore
+
+FROM mcr.microsoft.com/dotnet/aspnet:9.0-alpine AS runtime
+WORKDIR /app
+
+ENV ASPNETCORE_URLS=http://0.0.0.0:8080
+EXPOSE 8080
+
+COPY --from=build /app/publish .
+
+ENTRYPOINT ["dotnet", "Emprely.Api.dll"]

@@ -40,11 +40,52 @@ pnpm install
 pnpm dev:web
 pnpm lint:web
 pnpm build:web
+pnpm test:e2e:web
 pnpm build:api
 pnpm test:api
+pnpm beta:env:new
+pnpm beta:env:domains
+pnpm beta:env:validate
+pnpm beta:env:validate:public
+pnpm validate:deploy
+pnpm validate:deploy:runtime
+pnpm validate:beta
+pnpm validate:mvp
 docker compose config
 dotnet ef database update --project apps/api/src/Emprely.Infrastructure --startup-project apps/api/src/Emprely.Api
 ```
+
+## Beta local
+
+Use [docs/product/beta-mvp-runbook.md](docs/product/beta-mvp-runbook.md) para subir PostgreSQL, aplicar migrations, rodar API/web e executar o aceite local do MVP.
+
+Use [docs/product/checklist-final-beta-mvp.md](docs/product/checklist-final-beta-mvp.md) para decidir prontidao do MVP, separar bloqueantes reais de beta e manter prints/imagens/polimento visual adiados para a etapa final.
+
+Use [docs/product/beta-staging-deploy.md](docs/product/beta-staging-deploy.md) para preparar o primeiro beta/staging com Docker Compose, API, web e PostgreSQL.
+
+Use [docs/architecture/dominios-ambientes.md](docs/architecture/dominios-ambientes.md) para o mapa oficial de dominios: landing em `www.emprely.com.br`, SaaS web em `app.emprely.com.br` e API em `api.emprely.com.br`.
+
+## Beta/staging
+
+O primeiro ambiente fora da maquina local deve configurar variaveis de ambiente em vez de reutilizar secrets dev:
+
+- `ConnectionStrings__EmprelyDb`
+- `Jwt__Issuer`
+- `Jwt__Audience`
+- `Jwt__SigningKey`
+- `Jwt__ExpirationMinutes`
+- `Cors__OrigensPermitidas__0`
+- `AdminOperacoes__OperationsKey`
+- `RateLimit__AuthPermitLimit`
+- `RateLimit__AdminPermitLimit`
+- `RateLimit__WindowSeconds`
+- `VITE_API_BASE_URL`
+
+Health operacional da API:
+
+- `GET /health`
+- `GET /health/live`
+- `GET /health/ready`
 
 ## Fluxo SDD
 

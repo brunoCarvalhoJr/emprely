@@ -6,6 +6,20 @@ export type PropostaItemInput = {
   valorUnitario: number;
 };
 
+export type PropostaTemplateVisual =
+  | "PadraoEnxuto"
+  | "ComercialMinimalista"
+  | "OrcamentoSimplificado"
+  | "PropostaCompleta"
+  | "LunaSocialStudio"
+  | "DarkGrowth"
+  | "InstagramPremium"
+  | "Claymorphism"
+  | "Emprely"
+  | "ExecutivoEditorial"
+  | "CorporativoBoard"
+  | "InstitucionalClean";
+
 export type CreatePropostaInput = {
   clienteId: string;
   titulo: string;
@@ -13,9 +27,24 @@ export type CreatePropostaInput = {
   observacoes: string | null;
   validadeDias: number | null;
   itens: PropostaItemInput[];
+  templateVisual: PropostaTemplateVisual;
+  descontoValor: number;
+  condicoesPagamento: string | null;
+  itensInclusos: string[] | null;
+  itensNaoInclusos: string[] | null;
+  cronograma: string[] | null;
+  beneficios: string[] | null;
 };
 
 export type UpdatePropostaInput = CreatePropostaInput;
+
+export type PropostaStatus =
+  | "Rascunho"
+  | "Gerada"
+  | "Enviada"
+  | "Aceita"
+  | "Recusada"
+  | "Arquivada";
 
 export type PropostaItemResponse = {
   id: string;
@@ -30,13 +59,22 @@ export type PropostaItemResponse = {
 
 export type PropostaResponse = {
   id: string;
+  numero: number;
   clienteId: string;
   clienteNome: string;
   titulo: string;
   introducao: string | null;
   observacoes: string | null;
   validadeDias: number | null;
-  status: string;
+  status: PropostaStatus;
+  templateVisual: PropostaTemplateVisual;
+  subtotal: number;
+  descontoValor: number;
+  condicoesPagamento: string | null;
+  itensInclusos: string[];
+  itensNaoInclusos: string[];
+  cronograma: string[];
+  beneficios: string[];
   total: number;
   itens: PropostaItemResponse[];
   createdAt: string;

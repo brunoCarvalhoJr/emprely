@@ -7,11 +7,15 @@ namespace Emprely.Domain.Contas;
 
 public sealed class Conta : EntidadeBase
 {
+    public const int TrialDias = 7;
+
     private Conta()
     {
         Nome = string.Empty;
         Slug = string.Empty;
         Status = StatusConta.Ativa;
+        Plano = PlanoConta.Trial;
+        TrialEndsAt = CreatedAt.AddDays(TrialDias);
     }
 
     private Conta(string nome, string slug)
@@ -19,6 +23,8 @@ public sealed class Conta : EntidadeBase
         Nome = nome;
         Slug = slug;
         Status = StatusConta.Ativa;
+        Plano = PlanoConta.Trial;
+        TrialEndsAt = CreatedAt.AddDays(TrialDias);
     }
 
     public string Nome { get; private set; }
@@ -26,6 +32,12 @@ public sealed class Conta : EntidadeBase
     public string Slug { get; private set; }
 
     public StatusConta Status { get; private set; }
+
+    public PlanoConta Plano { get; private set; }
+
+    public DateTimeOffset TrialEndsAt { get; private set; }
+
+    public DateTimeOffset? PlanoFundadorAtivadoAt { get; private set; }
 
     public ICollection<MembroConta> Membros { get; private set; } = new List<MembroConta>();
 
@@ -47,6 +59,51 @@ public sealed class Conta : EntidadeBase
         }
 
         return new Conta(nomeNormalizado, BuildSlugConta(nomeNormalizado));
+    }
+
+    public void ActivatePlanoFundador()
+    {
+        if (Plano == PlanoConta.Fundador)
+        {
+            return;
+        }
+
+        var agora = DateTimeOffset.UtcNow;
+        Plano = PlanoConta.Fundador;
+        PlanoFundadorAtivadoAt = agora;
+        UpdatedAt = agora;
+    }
+
+    public bool IsTrialAtivo(DateTimeOffset agora)
+    {
+        return Plano == PlanoConta.Trial && TrialEndsAt > agora;
+    }
+
+    public int GetDiasRestantesTrial(DateTimeOffset agora)
+    {
+        if (!IsTrialAtivo(agora))
+        {
+            return 0;
+        }
+
+        return Math.Max(0, (int)Math.Ceiling((TrialEndsAt - agora).TotalDays));
+    }
+
+    public StatusComercialConta GetStatusComercialConta(DateTimeOffset agora)
+    {
+        if (Plano == PlanoConta.Fundador)
+        {
+            return StatusComercialConta.FundadorAtivo;
+        }
+
+        return IsTrialAtivo(agora)
+            ? StatusComercialConta.TrialAtivo
+            : StatusComercialConta.TrialExpirado;
+    }
+
+    public bool CanGenerateProposta(DateTimeOffset agora)
+    {
+        return Plano == PlanoConta.Fundador || IsTrialAtivo(agora);
     }
 
     private static string BuildSlugConta(string nome)

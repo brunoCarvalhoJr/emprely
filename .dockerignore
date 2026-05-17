@@ -1,0 +1,39 @@
+# Git/editor
+.git
+.idea
+.vscode
+.vs
+
+# Env/secrets
+.env
+.env.*
+*.env
+!*.env.example
+!**/*.env.example
+
+# Node
+node_modules
+**/node_modules
+.pnpm-store
+pnpm-debug.log*
+
+# Web outputs
+apps/web/dist
+apps/web/test-results
+apps/web/playwright-report
+apps/web/*.tsbuildinfo
+
+# .NET outputs
+**/bin
+**/obj
+**/TestResults
+
+# Infra local state
+docker-data
+.terraform
+*.tfstate
+*.tfstate.*
+
+# OS
+.DS_Store
+Thumbs.db

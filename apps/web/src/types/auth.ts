@@ -9,6 +9,12 @@ export type ContaAtualResponse = {
   nome: string;
   slug: string;
   papel: string;
+  plano: "Trial" | "Fundador" | string;
+  statusComercial: "TrialAtivo" | "TrialExpirado" | "FundadorAtivo" | string;
+  trialEndsAt: string;
+  trialDiasRestantes: number;
+  planoFundadorAtivadoAt: string | null;
+  planoFundadorPrecoMensal: number;
 };
 
 export type AuthUsuarioResponse = {
@@ -27,10 +33,17 @@ export type RegisterUsuarioInput = {
   nome: string;
   email: string;
   senha: string;
+  telefone: string;
   nomeConta: string;
 };
 
 export type LoginUsuarioInput = {
   email: string;
   senha: string;
+};
+
+export type ChangeSenhaUsuarioInput = {
+  senhaAtual: string;
+  novaSenha: string;
+  confirmarNovaSenha: string;
 };

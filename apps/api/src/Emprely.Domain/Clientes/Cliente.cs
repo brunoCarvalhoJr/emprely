@@ -66,7 +66,7 @@ public sealed class Cliente : EntidadeBase
     {
         Nome = NormalizarObrigatorio(nome, nameof(nome));
         Email = NormalizarEmail(email);
-        Telefone = NormalizarOpcional(telefone);
+        Telefone = NormalizarTelefoneWhatsapp(telefone);
         Documento = NormalizarOpcional(documento);
         Observacoes = NormalizarOpcional(observacoes);
         UpdatedAt = DateTimeOffset.UtcNow;
@@ -98,6 +98,50 @@ public sealed class Cliente : EntidadeBase
     private static string? NormalizarEmail(string? email)
     {
         return NormalizarOpcional(email)?.ToLowerInvariant();
+    }
+
+    public static bool IsTelefoneWhatsappValido(string? telefone)
+    {
+        var telefoneNormalizado = NormalizarOpcional(telefone);
+
+        if (telefoneNormalizado is null)
+        {
+            return true;
+        }
+
+        if (telefoneNormalizado.StartsWith('+') &&
+            !telefoneNormalizado.StartsWith("+55", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var digitos = new string(telefoneNormalizado.Where(char.IsDigit).ToArray());
+
+        if (digitos.StartsWith("55", StringComparison.Ordinal))
+        {
+            return digitos.Length is 12 or 13;
+        }
+
+        return digitos.Length is 10 or 11;
+    }
+
+    private static string? NormalizarTelefoneWhatsapp(string? telefone)
+    {
+        var telefoneNormalizado = NormalizarOpcional(telefone);
+
+        if (telefoneNormalizado is null)
+        {
+            return null;
+        }
+
+        if (!IsTelefoneWhatsappValido(telefoneNormalizado))
+        {
+            throw new ArgumentException(
+                "Telefone deve conter DDD e numero, com ou sem prefixo 55.",
+                nameof(telefone));
+        }
+
+        return telefoneNormalizado;
     }
 
     private static string? NormalizarOpcional(string? valor)

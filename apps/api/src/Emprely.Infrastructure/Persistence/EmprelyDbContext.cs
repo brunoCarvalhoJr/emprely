@@ -70,6 +70,9 @@ public sealed class EmprelyDbContext
             entity.Property(conta => conta.Nome).HasMaxLength(160).IsRequired();
             entity.Property(conta => conta.Slug).HasMaxLength(80).IsRequired();
             entity.Property(conta => conta.Status).HasConversion<string>().HasMaxLength(24);
+            entity.Property(conta => conta.Plano).HasConversion<string>().HasMaxLength(24);
+            entity.Property(conta => conta.TrialEndsAt).IsRequired();
+            entity.Property(conta => conta.PlanoFundadorAtivadoAt);
             entity.HasIndex(conta => conta.Slug).IsUnique();
         });
     }
@@ -108,7 +111,10 @@ public sealed class EmprelyDbContext
             entity.Property(perfil => perfil.Documento).HasMaxLength(40);
             entity.Property(perfil => perfil.CorPrimaria).HasMaxLength(7).IsRequired();
             entity.Property(perfil => perfil.CorSecundaria).HasMaxLength(7).IsRequired();
+            entity.Property(perfil => perfil.CorSistemaPrimaria).HasMaxLength(7).IsRequired();
+            entity.Property(perfil => perfil.CorSistemaSecundaria).HasMaxLength(7).IsRequired();
             entity.Property(perfil => perfil.LogoUrl).HasMaxLength(500);
+            entity.Property(perfil => perfil.TemplateVisualPadrao).HasConversion<string>().HasMaxLength(40).IsRequired();
             entity.HasIndex(perfil => perfil.ContaId).IsUnique();
             entity.HasOne(perfil => perfil.Conta)
                 .WithOne(conta => conta.Perfil)
@@ -166,14 +172,24 @@ public sealed class EmprelyDbContext
         {
             entity.ToTable("propostas");
             entity.HasKey(proposta => proposta.Id);
+            entity.Property(proposta => proposta.Numero).IsRequired();
             entity.Property(proposta => proposta.Titulo).HasMaxLength(160).IsRequired();
             entity.Property(proposta => proposta.Introducao).HasMaxLength(1000);
             entity.Property(proposta => proposta.Observacoes).HasMaxLength(1000);
             entity.Property(proposta => proposta.Status).HasConversion<string>().HasMaxLength(24);
+            entity.Property(proposta => proposta.TemplateVisual).HasConversion<string>().HasMaxLength(40).IsRequired();
+            entity.Property(proposta => proposta.DescontoValor).HasPrecision(12, 2);
+            entity.Property(proposta => proposta.CondicoesPagamento).HasMaxLength(1000);
+            entity.Property(proposta => proposta.ItensInclusosTexto).HasMaxLength(4000);
+            entity.Property(proposta => proposta.ItensNaoInclusosTexto).HasMaxLength(4000);
+            entity.Property(proposta => proposta.CronogramaTexto).HasMaxLength(4000);
+            entity.Property(proposta => proposta.BeneficiosTexto).HasMaxLength(4000);
+            entity.Ignore(proposta => proposta.Subtotal);
             entity.Ignore(proposta => proposta.Total);
             entity.HasIndex(proposta => proposta.ContaId);
             entity.HasIndex(proposta => proposta.ClienteId);
             entity.HasIndex(proposta => new { proposta.ContaId, proposta.Status });
+            entity.HasIndex(proposta => new { proposta.ContaId, proposta.Numero }).IsUnique();
             entity.HasOne(proposta => proposta.Conta)
                 .WithMany(conta => conta.Propostas)
                 .HasForeignKey(proposta => proposta.ContaId)

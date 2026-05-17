@@ -1,15 +1,18 @@
 using Emprely.Api.Auth;
+using Emprely.Api.Configuracoes;
 using Emprely.Contracts.Auth;
 using Emprely.Domain.Contas;
 using Emprely.Infrastructure.Identity;
 using Emprely.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace Emprely.Api.Controllers;
 
 [ApiController]
+[EnableRateLimiting(RateLimitAplicacaoOptions.AuthPolicyName)]
 [Route("api/auth")]
 public sealed class AuthController : ControllerBase
 {
@@ -36,6 +39,7 @@ public sealed class AuthController : ControllerBase
         CancellationToken cancellationToken)
     {
         var email = request.Email.Trim().ToLowerInvariant();
+        var telefone = request.Telefone.Trim();
         var usuarioExistente = await userManager.FindByEmailAsync(email);
 
         if (usuarioExistente is not null)
@@ -53,6 +57,7 @@ public sealed class AuthController : ControllerBase
             UserName = email,
             Email = email,
             EmailConfirmed = true,
+            PhoneNumber = telefone,
         };
 
         var createUsuarioResult = await userManager.CreateAsync(usuario, request.Senha);
@@ -69,9 +74,21 @@ public sealed class AuthController : ControllerBase
 
         var conta = Conta.CreateConta(request.NomeConta);
         var membroConta = MembroConta.CreateOwner(conta.Id, usuario.Id);
+        var perfilConta = PerfilConta.CreatePerfilConta(
+            conta.Id,
+            request.NomeConta,
+            email,
+            telefone,
+            null,
+            null,
+            null,
+            PerfilConta.CorPrimariaPadrao,
+            PerfilConta.CorSecundariaPadrao,
+            null);
 
         dbContext.Contas.Add(conta);
         dbContext.MembrosConta.Add(membroConta);
+        dbContext.PerfisConta.Add(perfilConta);
 
         await dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
@@ -85,6 +102,7 @@ public sealed class AuthController : ControllerBase
         CancellationToken cancellationToken)
     {
         var email = request.Email.Trim().ToLowerInvariant();
+        
         var usuario = await userManager.FindByEmailAsync(email);
 
         if (usuario is null)
@@ -135,6 +153,6 @@ public sealed class AuthController : ControllerBase
             token.AccessToken,
             token.ExpiresAtUtc,
             new UsuarioAtualResponse(usuario.Id, usuario.Nome, usuario.Email ?? string.Empty),
-            new ContaAtualResponse(conta.Id, conta.Nome, conta.Slug, papel));
+            ContaAtualResponseBuilder.BuildContaAtualResponse(conta, papel));
     }
 }

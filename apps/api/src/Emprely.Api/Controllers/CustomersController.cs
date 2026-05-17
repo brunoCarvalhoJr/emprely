@@ -58,6 +58,11 @@ public sealed class CustomersController : ControllerBase
         CreateClienteRequest request,
         CancellationToken cancellationToken)
     {
+        if (!ValidateTelefoneCliente(request.Telefone))
+        {
+            return ValidationProblem(ModelState);
+        }
+
         var cliente = Cliente.CreateCliente(
             currentContaContext.ContaId,
             request.Nome,
@@ -88,6 +93,11 @@ public sealed class CustomersController : ControllerBase
         if (cliente is null || cliente.Status != StatusCliente.Ativo)
         {
             return NotFound();
+        }
+
+        if (!ValidateTelefoneCliente(request.Telefone))
+        {
+            return ValidationProblem(ModelState);
         }
 
         cliente.AtualizarCliente(
@@ -142,5 +152,18 @@ public sealed class CustomersController : ControllerBase
             cliente.Status.ToString(),
             cliente.CreatedAt,
             cliente.UpdatedAt);
+    }
+
+    private bool ValidateTelefoneCliente(string? telefone)
+    {
+        if (Cliente.IsTelefoneWhatsappValido(telefone))
+        {
+            return true;
+        }
+
+        ModelState.AddModelError(
+            nameof(CreateClienteRequest.Telefone),
+            "Telefone deve conter DDD e numero, com ou sem prefixo 55.");
+        return false;
     }
 }

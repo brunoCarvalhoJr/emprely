@@ -7,8 +7,17 @@
     "dev:web": "pnpm --dir apps/web dev",
     "build:web": "pnpm --dir apps/web build",
     "lint:web": "pnpm --dir apps/web lint",
+    "test:e2e:web": "node scripts/run-web-e2e.mjs",
     "build:api": "dotnet build apps/api/Emprely.sln",
     "test:api": "dotnet test apps/api/Emprely.sln",
-    "validate": "pnpm lint:web && pnpm build:web && dotnet build apps/api/Emprely.sln && dotnet test apps/api/Emprely.sln"
+    "validate": "pnpm lint:web && pnpm build:web && dotnet build apps/api/Emprely.sln && dotnet test apps/api/Emprely.sln",
+    "validate:beta": "pnpm lint:web && pnpm build:web && node scripts/run-web-e2e.mjs && dotnet build apps/api/Emprely.sln && dotnet test apps/api/Emprely.sln --no-build && docker compose config",
+    "validate:deploy": "docker compose -f infra/docker/docker-compose.beta.example.yml --env-file infra/docker/beta.env.example config",
+    "validate:deploy:runtime": "powershell -ExecutionPolicy Bypass -File scripts/validate-beta-runtime.ps1",
+    "beta:env:new": "powershell -ExecutionPolicy Bypass -File scripts/new-beta-env.ps1",
+    "beta:env:domains": "powershell -ExecutionPolicy Bypass -File scripts/set-beta-domains.ps1",
+    "beta:env:validate": "powershell -ExecutionPolicy Bypass -File scripts/validate-beta-env.ps1",
+    "beta:env:validate:public": "powershell -ExecutionPolicy Bypass -File scripts/validate-beta-env.ps1 -RequirePublicUrls",
+    "validate:mvp": "pnpm validate:beta && pnpm validate:deploy"
   }
 }
