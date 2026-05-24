@@ -162,6 +162,10 @@ public sealed class ProposalsController : ControllerBase
             ModelState.AddModelError(nameof(UpdatePropostaRequest), exception.Message);
             return ValidationProblem(ModelState);
         }
+        catch (InvalidOperationException exception)
+        {
+            return Conflict(new { message = exception.Message });
+        }
 
         dbContext.PropostaItens.RemoveRange(itensAnteriores);
 
@@ -180,13 +184,11 @@ public sealed class ProposalsController : ControllerBase
         Guid id,
         CancellationToken cancellationToken)
     {
-        var bloqueioComercial = await ValidateContaCanUseFluxoComercialProposta(cancellationToken);
-        if (bloqueioComercial is not null)
-        {
-            return bloqueioComercial;
-        }
-
-        return await AlterarStatusProposta(id, proposta => proposta.GerarProposta(), cancellationToken);
+        return await AlterarStatusProposta(
+            id,
+            proposta => proposta.GerarProposta(),
+            cancellationToken,
+            validarFluxoComercial: true);
     }
 
     [HttpPost("{id:guid}/duplicate")]
@@ -223,13 +225,11 @@ public sealed class ProposalsController : ControllerBase
         Guid id,
         CancellationToken cancellationToken)
     {
-        var bloqueioComercial = await ValidateContaCanUseFluxoComercialProposta(cancellationToken);
-        if (bloqueioComercial is not null)
-        {
-            return bloqueioComercial;
-        }
-
-        return await AlterarStatusProposta(id, proposta => proposta.EnviarProposta(), cancellationToken);
+        return await AlterarStatusProposta(
+            id,
+            proposta => proposta.EnviarProposta(),
+            cancellationToken,
+            validarFluxoComercial: true);
     }
 
     [HttpPost("{id:guid}/accept")]
@@ -304,14 +304,15 @@ public sealed class ProposalsController : ControllerBase
             StatusCodes.Status403Forbidden,
             new
             {
-                message = "Trial expirado. Ative o Plano Fundador para gerar, imprimir ou compartilhar propostas.",
+                message = "Trial expirado. Ative o plano para gerar, imprimir ou compartilhar propostas.",
             });
     }
 
     private async Task<ActionResult<PropostaResponse>> AlterarStatusProposta(
         Guid id,
         Action<Proposta> alterarStatus,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool validarFluxoComercial = false)
     {
         var proposta = await FindPropostaConta(id, cancellationToken);
 
@@ -320,14 +321,22 @@ public sealed class ProposalsController : ControllerBase
             return NotFound();
         }
 
+        if (validarFluxoComercial)
+        {
+            var bloqueioComercial = await ValidateContaCanUseFluxoComercialProposta(cancellationToken);
+            if (bloqueioComercial is not null)
+            {
+                return bloqueioComercial;
+            }
+        }
+
         try
         {
             alterarStatus(proposta);
         }
         catch (InvalidOperationException exception)
         {
-            ModelState.AddModelError(nameof(Proposta), exception.Message);
-            return ValidationProblem(ModelState);
+            return Conflict(new { message = exception.Message });
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);

@@ -140,6 +140,27 @@ public sealed class PropostaTests
     }
 
     [Fact]
+    public void CreateProposta_DeveRejeitarQuantidadeDecimal()
+    {
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(() =>
+            Proposta.CreateProposta(
+                Guid.CreateVersion7(),
+                1,
+                Guid.CreateVersion7(),
+                "Proposta",
+                null,
+                null,
+                null,
+                new[]
+                {
+                    new PropostaItemDados(null, "Item", null, 1.5m, 100m)
+                }));
+
+        Assert.Equal("quantidade", exception.ParamName);
+        Assert.Equal("Quantidade deve ser um numero inteiro. (Parameter 'quantidade')", exception.Message);
+    }
+
+    [Fact]
     public void CreateProposta_DeveRejeitarNumeroInvalido()
     {
         var exception = Assert.Throws<ArgumentOutOfRangeException>(() =>
@@ -217,25 +238,51 @@ public sealed class PropostaTests
     }
 
     [Fact]
-    public void AtualizarProposta_DeveVoltarStatusComercialParaRascunho()
+    public void AtualizarProposta_DeveRejeitarStatusFinal()
     {
         var proposta = CreatePropostaValida();
         proposta.GerarProposta();
         proposta.EnviarProposta();
         proposta.AceitarProposta();
 
-        proposta.AtualizarProposta(
-            Guid.CreateVersion7(),
-            "Proposta ajustada",
-            null,
-            null,
-            15,
-            new[]
-            {
-                new PropostaItemDados(null, "Item ajustado", null, 1m, 150m)
-            });
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            proposta.AtualizarProposta(
+                Guid.CreateVersion7(),
+                "Proposta ajustada",
+                null,
+                null,
+                15,
+                new[]
+                {
+                    new PropostaItemDados(null, "Item ajustado", null, 1m, 150m)
+                }));
 
-        Assert.Equal(StatusProposta.Rascunho, proposta.Status);
+        Assert.Equal("Esta proposta nao pode mais ser editada. Duplique para criar uma nova versao.", exception.Message);
+        Assert.Equal(StatusProposta.Aceita, proposta.Status);
+    }
+
+    [Theory]
+    [InlineData(StatusProposta.Enviada)]
+    [InlineData(StatusProposta.Aceita)]
+    [InlineData(StatusProposta.Recusada)]
+    public void AtualizarProposta_DeveRejeitarStatusTravados(StatusProposta status)
+    {
+        var proposta = CreatePropostaValidaNoStatus(status);
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            proposta.AtualizarProposta(
+                Guid.CreateVersion7(),
+                "Proposta ajustada",
+                null,
+                null,
+                15,
+                new[]
+                {
+                    new PropostaItemDados(null, "Item ajustado", null, 1m, 150m)
+                }));
+
+        Assert.Equal("Esta proposta nao pode mais ser editada. Duplique para criar uma nova versao.", exception.Message);
+        Assert.Equal(status, proposta.Status);
     }
 
     [Fact]
@@ -406,5 +453,40 @@ public sealed class PropostaTests
             {
                 new PropostaItemDados(null, "Item", null, 1m, 100m)
             });
+    }
+
+    private static Proposta CreatePropostaValidaNoStatus(StatusProposta status)
+    {
+        var proposta = CreatePropostaValida();
+
+        switch (status)
+        {
+            case StatusProposta.Rascunho:
+                break;
+            case StatusProposta.Gerada:
+                proposta.GerarProposta();
+                break;
+            case StatusProposta.Enviada:
+                proposta.GerarProposta();
+                proposta.EnviarProposta();
+                break;
+            case StatusProposta.Aceita:
+                proposta.GerarProposta();
+                proposta.EnviarProposta();
+                proposta.AceitarProposta();
+                break;
+            case StatusProposta.Recusada:
+                proposta.GerarProposta();
+                proposta.EnviarProposta();
+                proposta.RecusarProposta();
+                break;
+            case StatusProposta.Arquivada:
+                proposta.ArquivarProposta();
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(status), status, null);
+        }
+
+        return proposta;
     }
 }

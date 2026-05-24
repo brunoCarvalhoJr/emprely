@@ -91,8 +91,20 @@ public sealed class MvpFluxoApiTests : IClassFixture<EmprelyApiFactory>
                 "bruno@emprely.dev",
                 "(11) 99999-9999",
                 null,
+                "Rua das Flores",
+                "123",
+                "Sao Paulo",
+                "@brunocarvalho",
+                "facebook.com/brunocarvalho",
+                "@brunotiktok",
                 null),
             HttpStatusCode.Created);
+        Assert.Equal("Rua das Flores", cliente.Endereco);
+        Assert.Equal("123", cliente.Numero);
+        Assert.Equal("Sao Paulo", cliente.Cidade);
+        Assert.Equal("@brunocarvalho", cliente.Instagram);
+        Assert.Equal("facebook.com/brunocarvalho", cliente.Facebook);
+        Assert.Equal("@brunotiktok", cliente.TikTok);
 
         var servico = await PostJsonAsync<ServicoResponse>(
             "/api/services",
@@ -146,6 +158,21 @@ public sealed class MvpFluxoApiTests : IClassFixture<EmprelyApiFactory>
             HttpStatusCode.OK);
         Assert.Equal("Aceita", propostaAceita.Status);
 
+        var atualizarAceitaResponse = await httpClient.PutAsJsonAsync(
+            $"/api/proposals/{proposta.Id}",
+            new UpdatePropostaRequest(
+                cliente.Id,
+                "Proposta aceita ajustada",
+                null,
+                null,
+                15,
+                new[]
+                {
+                    new PropostaItemRequest(servico.Id, servico.Nome, servico.Descricao, 1, servico.Preco),
+                }),
+            JsonOptions);
+        Assert.Equal(HttpStatusCode.Conflict, atualizarAceitaResponse.StatusCode);
+
         var propostaDuplicada = await PostJsonAsync<PropostaResponse>(
             $"/api/proposals/{proposta.Id}/duplicate",
             new { },
@@ -170,6 +197,12 @@ public sealed class MvpFluxoApiTests : IClassFixture<EmprelyApiFactory>
                 null,
                 "9999",
                 null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
                 null));
 
         Assert.Equal(HttpStatusCode.BadRequest, telefoneInvalidoResponse.StatusCode);
@@ -180,6 +213,12 @@ public sealed class MvpFluxoApiTests : IClassFixture<EmprelyApiFactory>
                 "Cliente Trial",
                 null,
                 "11999999999",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
                 null,
                 null),
             HttpStatusCode.Created);
@@ -216,6 +255,193 @@ public sealed class MvpFluxoApiTests : IClassFixture<EmprelyApiFactory>
             new { });
 
         Assert.Equal(HttpStatusCode.Forbidden, gerarResponse.StatusCode);
+
+        var propostaGerada = await PostJsonAsync<PropostaResponse>(
+            $"/api/proposals/{proposta.Id}/duplicate",
+            new { },
+            HttpStatusCode.Created);
+
+        var enviarResponse = await httpClient.PostAsJsonAsync(
+            $"/api/proposals/{propostaGerada.Id}/send",
+            new { });
+
+        Assert.Equal(HttpStatusCode.Forbidden, enviarResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task Propostas_DeveRejeitarQuantidadeDecimal()
+    {
+        var auth = await RegisterUsuarioAsync("mvp-quantidade-inteira@emprely.dev");
+        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.AccessToken);
+
+        var cliente = await PostJsonAsync<ClienteResponse>(
+            "/api/customers",
+            new CreateClienteRequest(
+                "Cliente Quantidade",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null),
+            HttpStatusCode.Created);
+
+        var response = await httpClient.PostAsJsonAsync(
+            "/api/proposals",
+            new CreatePropostaRequest(
+                cliente.Id,
+                "Proposta com quantidade decimal",
+                null,
+                null,
+                7,
+                new[]
+                {
+                    new PropostaItemRequest(null, "Item decimal", null, 1.5m, 100m),
+                }),
+            JsonOptions);
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("Quantidade deve ser um numero inteiro.", body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Clientes_DeveBloquearDuplicidadeNaCriacao()
+    {
+        var auth = await RegisterUsuarioAsync("mvp-cliente-duplicado@emprely.dev");
+        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.AccessToken);
+
+        await PostJsonAsync<ClienteResponse>(
+            "/api/customers",
+            new CreateClienteRequest(
+                "Cliente Matriz",
+                "cliente@emprely.dev",
+                "+55 11 99999-0000",
+                "123.456.789-00",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null),
+            HttpStatusCode.Created);
+
+        var duplicadoResponse = await httpClient.PostAsJsonAsync(
+            "/api/customers",
+            new CreateClienteRequest(
+                " cliente   matriz ",
+                "CLIENTE@emprely.dev",
+                "(11) 99999-0000",
+                "12345678900",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null),
+            JsonOptions);
+        var duplicadoBody = await duplicadoResponse.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, duplicadoResponse.StatusCode);
+        Assert.Contains("Ja existe um cliente ativo com este nome.", duplicadoBody, StringComparison.Ordinal);
+        Assert.Contains("Ja existe um cliente ativo com este telefone.", duplicadoBody, StringComparison.Ordinal);
+        Assert.Contains("Ja existe um cliente ativo com este e-mail.", duplicadoBody, StringComparison.Ordinal);
+        Assert.Contains("Ja existe um cliente ativo com este CPF/CNPJ.", duplicadoBody, StringComparison.Ordinal);
+
+        await PostJsonAsync<ClienteResponse>(
+            "/api/customers",
+            new CreateClienteRequest(
+                "Cliente Sem Telefone",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null),
+            HttpStatusCode.Created);
+
+        await PostJsonAsync<ClienteResponse>(
+            "/api/customers",
+            new CreateClienteRequest(
+                "Cliente Sem Telefone 2",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null),
+            HttpStatusCode.Created);
+    }
+
+    [Fact]
+    public async Task Clientes_DeveBloquearDuplicidadeNaEdicao()
+    {
+        var auth = await RegisterUsuarioAsync("mvp-cliente-edicao-duplicada@emprely.dev");
+        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.AccessToken);
+
+        var clienteOrigem = await PostJsonAsync<ClienteResponse>(
+            "/api/customers",
+            new CreateClienteRequest(
+                "Cliente Origem",
+                "origem@emprely.dev",
+                "(11) 98888-0000",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null),
+            HttpStatusCode.Created);
+
+        var clienteDestino = await PostJsonAsync<ClienteResponse>(
+            "/api/customers",
+            new CreateClienteRequest(
+                "Cliente Destino",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null),
+            HttpStatusCode.Created);
+
+        var duplicadoResponse = await httpClient.PutAsJsonAsync(
+            $"/api/customers/{clienteDestino.Id}",
+            new UpdateClienteRequest(
+                clienteOrigem.Nome,
+                null,
+                clienteOrigem.Telefone,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null),
+            JsonOptions);
+
+        Assert.Equal(HttpStatusCode.BadRequest, duplicadoResponse.StatusCode);
     }
 
     [Fact]

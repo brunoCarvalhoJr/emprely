@@ -63,12 +63,29 @@ public sealed class CustomersController : ControllerBase
             return ValidationProblem(ModelState);
         }
 
+        if (!await ValidateClienteUnico(
+                request.Nome,
+                request.Email,
+                request.Telefone,
+                request.Documento,
+                clienteIdIgnorado: null,
+                cancellationToken))
+        {
+            return ValidationProblem(ModelState);
+        }
+
         var cliente = Cliente.CreateCliente(
             currentContaContext.ContaId,
             request.Nome,
             request.Email,
             request.Telefone,
             request.Documento,
+            request.Endereco,
+            request.Numero,
+            request.Cidade,
+            request.Instagram,
+            request.Facebook,
+            request.TikTok,
             request.Observacoes);
 
         dbContext.Clientes.Add(cliente);
@@ -100,11 +117,28 @@ public sealed class CustomersController : ControllerBase
             return ValidationProblem(ModelState);
         }
 
+        if (!await ValidateClienteUnico(
+                request.Nome,
+                request.Email,
+                request.Telefone,
+                request.Documento,
+                clienteIdIgnorado: id,
+                cancellationToken))
+        {
+            return ValidationProblem(ModelState);
+        }
+
         cliente.AtualizarCliente(
             request.Nome,
             request.Email,
             request.Telefone,
             request.Documento,
+            request.Endereco,
+            request.Numero,
+            request.Cidade,
+            request.Instagram,
+            request.Facebook,
+            request.TikTok,
             request.Observacoes);
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -140,6 +174,71 @@ public sealed class CustomersController : ControllerBase
                 cancellationToken);
     }
 
+    private async Task<bool> ValidateClienteUnico(
+        string nome,
+        string? email,
+        string? telefone,
+        string? documento,
+        Guid? clienteIdIgnorado,
+        CancellationToken cancellationToken)
+    {
+        var clientesAtivos = await dbContext.Clientes
+            .AsNoTracking()
+            .Where(cliente =>
+                cliente.ContaId == currentContaContext.ContaId &&
+                cliente.Status == StatusCliente.Ativo &&
+                (!clienteIdIgnorado.HasValue || cliente.Id != clienteIdIgnorado.Value))
+            .Select(cliente => new ClienteUnicoComparacao(
+                cliente.Nome,
+                cliente.Email,
+                cliente.Telefone,
+                cliente.Documento))
+            .ToListAsync(cancellationToken);
+
+        var nomeComparacao = NormalizarTextoComparacao(nome);
+        var emailComparacao = NormalizarEmailComparacao(email);
+        var telefoneComparacao = NormalizarTelefoneComparacao(telefone);
+        var documentoComparacao = NormalizarDigitosComparacao(documento);
+
+        if (nomeComparacao.Length > 0 &&
+            clientesAtivos.Any(cliente =>
+                NormalizarTextoComparacao(cliente.Nome) == nomeComparacao))
+        {
+            ModelState.AddModelError(
+                nameof(CreateClienteRequest.Nome),
+                "Ja existe um cliente ativo com este nome.");
+        }
+
+        if (telefoneComparacao is not null &&
+            clientesAtivos.Any(cliente =>
+                NormalizarTelefoneComparacao(cliente.Telefone) == telefoneComparacao))
+        {
+            ModelState.AddModelError(
+                nameof(CreateClienteRequest.Telefone),
+                "Ja existe um cliente ativo com este telefone.");
+        }
+
+        if (emailComparacao is not null &&
+            clientesAtivos.Any(cliente =>
+                NormalizarEmailComparacao(cliente.Email) == emailComparacao))
+        {
+            ModelState.AddModelError(
+                nameof(CreateClienteRequest.Email),
+                "Ja existe um cliente ativo com este e-mail.");
+        }
+
+        if (documentoComparacao is not null &&
+            clientesAtivos.Any(cliente =>
+                NormalizarDigitosComparacao(cliente.Documento) == documentoComparacao))
+        {
+            ModelState.AddModelError(
+                nameof(CreateClienteRequest.Documento),
+                "Ja existe um cliente ativo com este CPF/CNPJ.");
+        }
+
+        return ModelState.IsValid;
+    }
+
     private static ClienteResponse BuildClienteResponse(Cliente cliente)
     {
         return new ClienteResponse(
@@ -148,6 +247,12 @@ public sealed class CustomersController : ControllerBase
             cliente.Email,
             cliente.Telefone,
             cliente.Documento,
+            cliente.Endereco,
+            cliente.Numero,
+            cliente.Cidade,
+            cliente.Instagram,
+            cliente.Facebook,
+            cliente.TikTok,
             cliente.Observacoes,
             cliente.Status.ToString(),
             cliente.CreatedAt,
@@ -166,4 +271,48 @@ public sealed class CustomersController : ControllerBase
             "Telefone deve conter DDD e numero, com ou sem prefixo 55.");
         return false;
     }
+
+    private static string NormalizarTextoComparacao(string? valor)
+    {
+        var partes = (valor ?? string.Empty)
+            .Trim()
+            .Split(Array.Empty<char>(), StringSplitOptions.RemoveEmptyEntries);
+
+        return string.Join(' ', partes).ToUpperInvariant();
+    }
+
+    private static string? NormalizarEmailComparacao(string? email)
+    {
+        var emailNormalizado = email?.Trim();
+        return string.IsNullOrWhiteSpace(emailNormalizado)
+            ? null
+            : emailNormalizado.ToUpperInvariant();
+    }
+
+    private static string? NormalizarTelefoneComparacao(string? telefone)
+    {
+        var digitos = NormalizarDigitosComparacao(telefone);
+
+        if (digitos is null)
+        {
+            return null;
+        }
+
+        return digitos.StartsWith("55", StringComparison.Ordinal) &&
+            digitos.Length is 12 or 13
+            ? digitos[2..]
+            : digitos;
+    }
+
+    private static string? NormalizarDigitosComparacao(string? valor)
+    {
+        var digitos = new string((valor ?? string.Empty).Where(char.IsDigit).ToArray());
+        return digitos.Length == 0 ? null : digitos;
+    }
+
+    private sealed record ClienteUnicoComparacao(
+        string Nome,
+        string? Email,
+        string? Telefone,
+        string? Documento);
 }

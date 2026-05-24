@@ -15,6 +15,12 @@ public sealed class ClienteTests
             " MARIA@CLIENTE.COM ",
             " +55 11 99999-9999 ",
             " 123.456.789-00 ",
+            " Rua das Flores ",
+            " 123A ",
+            " Sao Paulo ",
+            " @mariacliente ",
+            " facebook.com/mariacliente ",
+            " @mariatiktok ",
             " Cliente recorrente ");
 
         Assert.Equal(contaId, cliente.ContaId);
@@ -22,6 +28,12 @@ public sealed class ClienteTests
         Assert.Equal("maria@cliente.com", cliente.Email);
         Assert.Equal("+55 11 99999-9999", cliente.Telefone);
         Assert.Equal("123.456.789-00", cliente.Documento);
+        Assert.Equal("Rua das Flores", cliente.Endereco);
+        Assert.Equal("123A", cliente.Numero);
+        Assert.Equal("Sao Paulo", cliente.Cidade);
+        Assert.Equal("@mariacliente", cliente.Instagram);
+        Assert.Equal("facebook.com/mariacliente", cliente.Facebook);
+        Assert.Equal("@mariatiktok", cliente.TikTok);
         Assert.Equal("Cliente recorrente", cliente.Observacoes);
         Assert.Equal(StatusCliente.Ativo, cliente.Status);
     }
@@ -32,6 +44,12 @@ public sealed class ClienteTests
         var cliente = Cliente.CreateCliente(
             Guid.CreateVersion7(),
             "Maria Cliente",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
             null,
             null,
             null,
@@ -57,6 +75,12 @@ public sealed class ClienteTests
             null,
             telefone,
             null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
             null);
 
         Assert.True(Cliente.IsTelefoneWhatsappValido(telefone));
@@ -77,6 +101,12 @@ public sealed class ClienteTests
                 "Maria Cliente",
                 null,
                 telefone,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
                 null,
                 null));
 

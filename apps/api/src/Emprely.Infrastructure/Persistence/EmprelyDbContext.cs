@@ -133,6 +133,12 @@ public sealed class EmprelyDbContext
             entity.Property(cliente => cliente.Email).HasMaxLength(256);
             entity.Property(cliente => cliente.Telefone).HasMaxLength(40);
             entity.Property(cliente => cliente.Documento).HasMaxLength(40);
+            entity.Property(cliente => cliente.Endereco).HasMaxLength(200);
+            entity.Property(cliente => cliente.Numero).HasMaxLength(30);
+            entity.Property(cliente => cliente.Cidade).HasMaxLength(120);
+            entity.Property(cliente => cliente.Instagram).HasMaxLength(160);
+            entity.Property(cliente => cliente.Facebook).HasMaxLength(160);
+            entity.Property(cliente => cliente.TikTok).HasMaxLength(160);
             entity.Property(cliente => cliente.Observacoes).HasMaxLength(1000);
             entity.Property(cliente => cliente.Status).HasConversion<string>().HasMaxLength(24);
             entity.HasIndex(cliente => cliente.ContaId);

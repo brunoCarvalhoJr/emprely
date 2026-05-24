@@ -146,6 +146,11 @@ public sealed class Proposta : EntidadeBase
         IEnumerable<string>? cronograma = null,
         IEnumerable<string>? beneficios = null)
     {
+        if (Status is StatusProposta.Enviada or StatusProposta.Aceita or StatusProposta.Recusada)
+        {
+            throw new InvalidOperationException("Esta proposta nao pode mais ser editada. Duplique para criar uma nova versao.");
+        }
+
         var itensNormalizados = itens.ToList();
 
         if (itensNormalizados.Count == 0)

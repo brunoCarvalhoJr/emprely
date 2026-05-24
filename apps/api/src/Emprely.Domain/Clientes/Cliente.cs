@@ -18,12 +18,29 @@ public sealed class Cliente : EntidadeBase
         string? email,
         string? telefone,
         string? documento,
+        string? endereco,
+        string? numero,
+        string? cidade,
+        string? instagram,
+        string? facebook,
+        string? tiktok,
         string? observacoes)
     {
         Nome = string.Empty;
         ContaId = contaId;
         Status = StatusCliente.Ativo;
-        AtualizarCliente(nome, email, telefone, documento, observacoes);
+        AtualizarCliente(
+            nome,
+            email,
+            telefone,
+            documento,
+            endereco,
+            numero,
+            cidade,
+            instagram,
+            facebook,
+            tiktok,
+            observacoes);
         CreatedAt = UpdatedAt ?? CreatedAt;
         UpdatedAt = null;
     }
@@ -37,6 +54,18 @@ public sealed class Cliente : EntidadeBase
     public string? Telefone { get; private set; }
 
     public string? Documento { get; private set; }
+
+    public string? Endereco { get; private set; }
+
+    public string? Numero { get; private set; }
+
+    public string? Cidade { get; private set; }
+
+    public string? Instagram { get; private set; }
+
+    public string? Facebook { get; private set; }
+
+    public string? TikTok { get; private set; }
 
     public string? Observacoes { get; private set; }
 
@@ -52,9 +81,27 @@ public sealed class Cliente : EntidadeBase
         string? email,
         string? telefone,
         string? documento,
+        string? endereco,
+        string? numero,
+        string? cidade,
+        string? instagram,
+        string? facebook,
+        string? tiktok,
         string? observacoes)
     {
-        return new Cliente(contaId, nome, email, telefone, documento, observacoes);
+        return new Cliente(
+            contaId,
+            nome,
+            email,
+            telefone,
+            documento,
+            endereco,
+            numero,
+            cidade,
+            instagram,
+            facebook,
+            tiktok,
+            observacoes);
     }
 
     public void AtualizarCliente(
@@ -62,12 +109,24 @@ public sealed class Cliente : EntidadeBase
         string? email,
         string? telefone,
         string? documento,
+        string? endereco,
+        string? numero,
+        string? cidade,
+        string? instagram,
+        string? facebook,
+        string? tiktok,
         string? observacoes)
     {
         Nome = NormalizarObrigatorio(nome, nameof(nome));
         Email = NormalizarEmail(email);
         Telefone = NormalizarTelefoneWhatsapp(telefone);
         Documento = NormalizarOpcional(documento);
+        Endereco = NormalizarOpcional(endereco);
+        Numero = NormalizarOpcional(numero);
+        Cidade = NormalizarOpcional(cidade);
+        Instagram = NormalizarOpcional(instagram);
+        Facebook = NormalizarOpcional(facebook);
+        TikTok = NormalizarOpcional(tiktok);
         Observacoes = NormalizarOpcional(observacoes);
         UpdatedAt = DateTimeOffset.UtcNow;
     }

@@ -78,6 +78,11 @@ public sealed class PropostaItem : EntidadeBase
             throw new ArgumentOutOfRangeException(nameof(quantidade), "Quantidade deve ser maior que zero.");
         }
 
+        if (decimal.Truncate(quantidade) != quantidade)
+        {
+            throw new ArgumentOutOfRangeException(nameof(quantidade), "Quantidade deve ser um numero inteiro.");
+        }
+
         if (valorUnitario < 0)
         {
             throw new ArgumentOutOfRangeException(nameof(valorUnitario), "Valor unitario deve ser maior ou igual a zero.");

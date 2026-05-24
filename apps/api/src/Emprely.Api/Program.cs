@@ -171,11 +171,11 @@ if (!app.Environment.IsDevelopment())
 
 app.UseRouting();
 app.UseSecurityHeadersEmprely();
+app.UseCors(CorsAplicacaoOptions.PolicyName);
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(webRootPath),
 });
-app.UseCors(CorsAplicacaoOptions.PolicyName);
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
