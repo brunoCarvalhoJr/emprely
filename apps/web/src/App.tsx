@@ -1,22 +1,33 @@
 import {
+  AlertTriangle,
   ArrowRight,
+  AtSign,
   BadgeCheck,
   BarChart3,
   BriefcaseBusiness,
   CalendarDays,
+  ChevronDown,
   ChevronUp,
+  CircleMinus,
+  ChevronsLeft,
+  ChevronsRight,
   CheckCircle2,
   Clock3,
   CreditCard,
+  Download,
   DollarSign,
   Edit3,
   Eye,
   EyeOff,
+  ExternalLink,
   FileText,
   FolderOpen,
+  Globe2,
+  GripVertical,
   HeartHandshake,
   Info,
   LayoutDashboard,
+  LogOut,
   Mail,
   Menu,
   Moon,
@@ -24,8 +35,9 @@ import {
   Palette,
   PanelRightClose,
   PanelRightOpen,
+  Paperclip,
+  Phone,
   Plus,
-  Printer,
   ReceiptText,
   RefreshCw,
   Rocket,
@@ -54,24 +66,33 @@ import {
   useRef,
   useState,
   type ChangeEvent,
+  type ClipboardEvent as ReactClipboardEvent,
   type CSSProperties,
   type DragEvent,
   type InputHTMLAttributes,
+  type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
+  type RefObject,
   type SelectHTMLAttributes,
   type SVGProps,
   type TextareaHTMLAttributes,
 } from "react";
 import { createPortal, flushSync } from "react-dom";
-import { useFieldArray, useForm, useWatch } from "react-hook-form";
+import {
+  Controller,
+  useFieldArray,
+  useForm,
+  useWatch,
+  type UseFormRegisterReturn,
+  type UseFormReturn,
+} from "react-hook-form";
 import { z } from "zod";
 import type {
   PerfilContaResponse,
   UpdatePerfilContaInput,
 } from "@/types/account";
 import {
-  changeSenhaUsuario,
   createCliente,
   createServico,
   deleteCliente,
@@ -100,7 +121,6 @@ import {
 } from "@/lib/api";
 import type {
   AuthUsuarioResponse,
-  ChangeSenhaUsuarioInput,
   ContaAtualResponse,
   LoginUsuarioInput,
   RegisterUsuarioInput,
@@ -141,6 +161,27 @@ const propostaTemplateVisualValores = [
 ] as const satisfies readonly PropostaTemplateVisual[];
 
 type PropostaTemplateVisualAtivo = (typeof propostaTemplateVisualValores)[number];
+const telefoneDigitosFixoNacionais = 10;
+const telefoneDigitosCelularNacionais = 11;
+const telefoneDigitosMaximosNacionais = telefoneDigitosCelularNacionais;
+const telefoneMascaraMaxLength = "(00) 00000-0000".length;
+const telefoneMensagemFormato =
+  "Informe DDD e número no formato (XX) XXXX-XXXX ou (XX) XXXXX-XXXX.";
+const telefoneInputRegisterOptions = {
+  setValueAs: (valor: unknown) =>
+    typeof valor === "string" ? formatTelefoneCampo(valor) : valor,
+};
+const cpfDigitos = 11;
+const cnpjDigitos = 14;
+const cpfCnpjMascaraMaxLength = "00.000.000/0000-00".length;
+const cpfCnpjMensagemFormato =
+  "Informe CPF no formato 000.000.000-00 ou CNPJ no formato 00.000.000/0000-00.";
+const cpfCnpjInputRegisterOptions = {
+  setValueAs: (valor: unknown) =>
+    typeof valor === "string" ? formatCpfCnpjCampo(valor) : valor,
+};
+const mensagemPropostaNaoEditavel =
+  "Esta proposta não pode mais ser editada. Duplique para criar uma nova versão.";
 
 const propostaTemplateVisualDefault: PropostaTemplateVisualAtivo =
   "ComercialMinimalista";
@@ -194,19 +235,19 @@ const propostaTemplateVisualOpcoes: Array<{
   {
     value: "ExecutivoEditorial",
     label: "Executivo editorial",
-    detalhe: "Documento sobrio, editorial e imponente para propostas premium.",
+    detalhe: "Documento sóbrio, editorial e imponente para propostas premium.",
     coresEstaticas: true,
   },
   {
     value: "CorporativoBoard",
     label: "Corporativo board",
-    detalhe: "Composicao executiva com bloco escuro, metricas e leitura direta.",
+    detalhe: "Composição executiva com bloco escuro, métricas e leitura direta.",
     coresEstaticas: true,
   },
   {
     value: "InstitucionalClean",
     label: "Institucional clean",
-    detalhe: "Layout discreto, tecnico e muito limpo para contextos gerais.",
+    detalhe: "Layout discreto, técnico e muito limpo para contextos gerais.",
     coresEstaticas: true,
   },
 ];
@@ -219,11 +260,8 @@ const registerSchema = z.object({
     .string()
     .trim()
     .min(1, "Este campo é obrigatório.")
-    .max(40)
-    .refine(
-      (valor) => isTelefoneWhatsappValido(valor),
-      "Informe DDD e número, com ou sem prefixo 55.",
-    ),
+    .max(telefoneMascaraMaxLength)
+    .refine((valor) => isTelefoneWhatsappValido(valor), telefoneMensagemFormato),
   nomeConta: z.string().trim().min(1, "Este campo é obrigatório."),
 });
 
@@ -232,17 +270,6 @@ const loginSchema = z.object({
   senha: z.string().min(1, "Este campo é obrigatório."),
 });
 
-const senhaUsuarioSchema = z
-  .object({
-    senhaAtual: z.string().min(1, "Informe a senha atual."),
-    novaSenha: z.string().min(8, "A nova senha deve ter pelo menos 8 caracteres."),
-    confirmarNovaSenha: z.string().min(1, "Confirme a nova senha."),
-  })
-  .refine((input) => input.novaSenha === input.confirmarNovaSenha, {
-    message: "A confirmacao deve ser igual a nova senha.",
-    path: ["confirmarNovaSenha"],
-  });
-
 const perfilContaSchema = z.object({
   nomeComercial: z.string().min(2, "Informe o nome comercial.").max(160),
   emailContato: z
@@ -250,18 +277,24 @@ const perfilContaSchema = z.object({
     .max(256)
     .refine(
       (valor) => valor.length === 0 || z.email().safeParse(valor).success,
-      "Informe um email valido.",
+      "Informe um e-mail válido.",
     ),
-  telefoneContato: z.string().max(40),
+  telefoneContato: z
+    .string()
+    .max(telefoneMascaraMaxLength)
+    .refine((valor) => isTelefoneWhatsappValido(valor), telefoneMensagemFormato),
   siteUrl: z
     .string()
     .max(300)
     .refine(
       (valor) => valor.length === 0 || isUrlValida(valor),
-      "Informe uma URL valida.",
+      "Informe uma URL válida.",
     ),
   instagram: z.string().max(80),
-  documento: z.string().max(40),
+  documento: z
+    .string()
+    .max(cpfCnpjMascaraMaxLength)
+    .refine((valor) => isCpfCnpjCampoValido(valor), cpfCnpjMensagemFormato),
   corPrimaria: z
     .string()
     .regex(/^#[0-9A-Fa-f]{6}$/, "Use uma cor no formato #RRGGBB."),
@@ -279,7 +312,7 @@ const perfilContaSchema = z.object({
     .max(500)
     .refine(
       (valor) => isLogoUrlPerfilValida(valor),
-      "Envie a imagem pelo upload ou use uma URL valida.",
+      "Envie a imagem pelo upload ou use uma URL válida.",
     ),
   templateVisualPadrao: z.enum(propostaTemplateVisualValores),
 });
@@ -291,36 +324,26 @@ const clienteSchema = z.object({
     .max(256)
     .refine(
       (valor) => valor.length === 0 || z.email().safeParse(valor).success,
-      "Informe um email valido.",
+      "Informe um e-mail válido.",
     ),
   telefone: z
     .string()
-    .max(40)
-    .refine(
-      (valor) => isTelefoneWhatsappValido(valor),
-      "Informe DDD e número, com ou sem prefixo 55.",
-    ),
-  documento: z.string().max(40),
+    .max(telefoneMascaraMaxLength)
+    .refine((valor) => isTelefoneWhatsappValido(valor), telefoneMensagemFormato),
+  documento: z
+    .string()
+    .max(cpfCnpjMascaraMaxLength)
+    .refine((valor) => isCpfCnpjCampoValido(valor), cpfCnpjMensagemFormato),
+  endereco: z.string().max(200),
+  numero: z.string().max(30),
+  cidade: z.string().max(120),
+  instagram: z.string().max(160),
+  facebook: z.string().max(160),
+  tiktok: z.string().max(160),
   observacoes: z.string().max(1000),
 });
 
-const clienteRapidoSchema = z.object({
-  nome: z.string().min(2, "Informe o nome do cliente.").max(160),
-  email: z
-    .string()
-    .max(256)
-    .refine(
-      (valor) => valor.length === 0 || z.email().safeParse(valor).success,
-      "Informe um email valido.",
-    ),
-  telefone: z
-    .string()
-    .max(40)
-    .refine(
-      (valor) => isTelefoneWhatsappValido(valor),
-      "Informe DDD e numero, com ou sem prefixo 55.",
-    ),
-});
+const clienteRapidoSchema = clienteSchema;
 
 const servicoSchema = z.object({
   nome: z.string().min(2, "Informe o nome do serviço.").max(160),
@@ -340,8 +363,9 @@ const propostaItemSchema = z.object({
   descricao: z.string().max(1000),
   quantidade: z
     .number()
-    .min(0.01, "Informe uma quantidade maior que zero.")
-    .max(9999999999.99, "Informe uma quantidade menor."),
+    .int("Informe uma quantidade inteira.")
+    .min(1, "Informe uma quantidade maior que zero.")
+    .max(9999999999, "Informe uma quantidade menor."),
   valorUnitario: z
     .number()
     .min(0, "Informe um valor maior ou igual a zero.")
@@ -364,7 +388,7 @@ const propostaSchema = z.object({
   templateVisual: z.enum(propostaTemplateVisualValores),
   descontoValor: z
     .number()
-    .min(0, "O desconto nao pode ser negativo.")
+    .min(0, "O desconto não pode ser negativo.")
     .max(999999999, "Informe um desconto menor."),
   condicoesPagamento: z.string().max(1000),
   itensInclusosTexto: z.string().max(4000),
@@ -374,7 +398,7 @@ const propostaSchema = z.object({
 }).refine(
   (input) => input.descontoValor <= calcularTotalItens(input.itens),
   {
-    message: "O desconto nao pode ser maior que o subtotal.",
+    message: "O desconto não pode ser maior que o subtotal.",
     path: ["descontoValor"],
   },
 );
@@ -387,11 +411,17 @@ type AppView =
   | "propostas"
   | "conta"
   | "personalizacao";
-type CrudModo = "lista" | "novo" | "editar" | "visualizar";
-type SenhaUsuarioFormInput = z.infer<typeof senhaUsuarioSchema>;
+type CrudModo = "lista" | "novo" | "editar" | "visualizar" | "assistente";
+type PropostaAssistenteEtapa = "inicio" | "existente" | "novo";
+type PropostaWizardEtapaId =
+  | "cliente"
+  | "proposta"
+  | "itens"
+  | "detalhamento"
+  | "revisao";
 type PerfilContaFormInput = z.infer<typeof perfilContaSchema>;
 type ClienteFormInput = z.infer<typeof clienteSchema>;
-type ClienteRapidoFormInput = z.infer<typeof clienteRapidoSchema>;
+type ClienteRapidoFormInput = ClienteFormInput;
 type ServicoFormInput = z.infer<typeof servicoSchema>;
 type PropostaFormInput = z.infer<typeof propostaSchema>;
 type PropostaPreviewInput = Partial<Omit<PropostaFormInput, "itens">> & {
@@ -402,7 +432,6 @@ type FiltroStatusProposta = "Todas" | PropostaStatus;
 type DashboardMetrica = {
   label: string;
   value: string;
-  detail: string;
   icon: typeof BarChart3;
   tone: "purple" | "teal" | "blue" | "red";
 };
@@ -413,6 +442,12 @@ type PassoPrimeirosPassosDashboard = {
   concluido: boolean;
   acaoLabel: string;
   onClick: () => void;
+};
+type PropostaWizardStepItem = {
+  id: PropostaWizardEtapaId;
+  label: string;
+  concluido: boolean;
+  bloqueado?: boolean;
 };
 type PaginacaoListaResultado<T> = {
   itens: T[];
@@ -434,14 +469,21 @@ type SessaoInicialUsuario = {
   mensagem: string | null;
 };
 
-const emprelyLogoSrc = "/brand/emprely-logo.svg";
-const emprelyLogoDarkSrc = "/brand/emprely-logo-dark.png";
 const emprelyFaviconSrc = "/brand/emprely-favicon.svg";
 const logoArquivoTamanhoMaximoBytes = 2 * 1024 * 1024;
 const logoArquivoTamanhoMaximoLabel = "2 MB";
 const logoArquivoTiposPermitidos = ["image/png", "image/jpeg", "image/webp"];
+const imagemTransparenteExportacaoDataUrl =
+  "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
 
 const tamanhosPaginaListagem = [5, 10, 20, 50];
+const propostaWizardEtapasOrdem: PropostaWizardEtapaId[] = [
+  "cliente",
+  "proposta",
+  "itens",
+  "detalhamento",
+  "revisao",
+];
 
 type NavegacaoPrincipalItem = {
   label: string;
@@ -506,24 +548,22 @@ const perfilContaDefaultValues: PerfilContaFormInput = {
   templateVisualPadrao: propostaTemplateVisualDefault,
 };
 
-const senhaUsuarioDefaultValues: SenhaUsuarioFormInput = {
-  senhaAtual: "",
-  novaSenha: "",
-  confirmarNovaSenha: "",
-};
-
 const clienteDefaultValues: ClienteFormInput = {
   nome: "",
   email: "",
   telefone: "",
   documento: "",
+  endereco: "",
+  numero: "",
+  cidade: "",
+  instagram: "",
+  facebook: "",
+  tiktok: "",
   observacoes: "",
 };
 
 const clienteRapidoDefaultValues: ClienteRapidoFormInput = {
-  nome: "",
-  email: "",
-  telefone: "",
+  ...clienteDefaultValues,
 };
 
 const servicoDefaultValues: ServicoFormInput = {
@@ -551,6 +591,44 @@ const propostaDefaultValues: PropostaFormInput = {
   beneficiosTexto: "",
 };
 
+type ConfirmacaoSistemaVariante = "danger" | "warning" | "info" | "success";
+
+type ConfirmacaoSistemaConfig = {
+  titulo: string;
+  mensagem: string;
+  detalhe?: string;
+  textoConfirmar?: string;
+  textoCancelar?: string;
+  variante?: ConfirmacaoSistemaVariante;
+};
+
+type ConfirmacaoSistemaState = ConfirmacaoSistemaConfig & {
+  id: number;
+};
+
+type ToastSistemaVariante = "success" | "warning" | "info" | "error";
+
+type ToastSistemaOrigem =
+  | "sessao"
+  | "senha"
+  | "perfil"
+  | "cliente"
+  | "servico"
+  | "proposta"
+  | "exportacao";
+
+type ToastSistemaItem = {
+  id: number;
+  mensagem: string;
+  variante: ToastSistemaVariante;
+  duracaoMs: number;
+  criadoEm: number;
+};
+
+type PropostaWhatsappModo = "completa" | "arquivo";
+
+const toastSistemaDuracaoMs = 3000;
+
 export default function App() {
   const queryClient = useQueryClient();
   const [sessaoInicial] = useState<SessaoInicialUsuario>(readSessaoInicialUsuario);
@@ -565,13 +643,14 @@ export default function App() {
   const [sessaoMensagem, setSessaoMensagem] = useState<string | null>(
     sessaoInicial.mensagem,
   );
-  const [senhaMensagem, setSenhaMensagem] = useState<string | null>(null);
   const [perfilMensagem, setPerfilMensagem] = useState<string | null>(null);
   const [clienteMensagem, setClienteMensagem] = useState<string | null>(null);
   const [clienteModo, setClienteModo] = useState<CrudModo>("lista");
   const [clienteSelecionadoId, setClienteSelecionadoId] = useState<string | null>(
     null,
   );
+  const [clienteComplementaresAberto, setClienteComplementaresAberto] =
+    useState(false);
   const [servicoMensagem, setServicoMensagem] = useState<string | null>(null);
   const [servicoModo, setServicoModo] = useState<CrudModo>("lista");
   const [servicoSelecionadoId, setServicoSelecionadoId] = useState<string | null>(
@@ -592,6 +671,7 @@ export default function App() {
   const [buscaClientes, setBuscaClientes] = useState("");
   const [buscaServicos, setBuscaServicos] = useState("");
   const [buscaPropostas, setBuscaPropostas] = useState("");
+  const [buscaClienteAssistente, setBuscaClienteAssistente] = useState("");
   const [clientePagina, setClientePagina] = useState(1);
   const [servicoPagina, setServicoPagina] = useState(1);
   const [propostaPagina, setPropostaPagina] = useState(1);
@@ -599,6 +679,10 @@ export default function App() {
   const [servicoTamanhoPagina, setServicoTamanhoPagina] = useState(10);
   const [propostaTamanhoPagina, setPropostaTamanhoPagina] = useState(10);
   const [clienteRapidoAberto, setClienteRapidoAberto] = useState(false);
+  const [
+    clienteRapidoComplementaresAberto,
+    setClienteRapidoComplementaresAberto,
+  ] = useState(false);
   const logoArquivoInputRef = useRef<HTMLInputElement | null>(null);
   const [logoSugestaoPerfil, setLogoSugestaoPerfil] =
     useState<LogoSugestaoPerfil | null>(null);
@@ -613,6 +697,9 @@ export default function App() {
   const [propostaExportacaoMensagem, setPropostaExportacaoMensagem] =
     useState<string | null>(null);
   const propostaDocumentoRef = useRef<HTMLDivElement | null>(null);
+  const propostaVisualizacaoDocumentoRef = useRef<HTMLDivElement | null>(null);
+  const propostaVisualizacaoExportDocumentoRef = useRef<HTMLDivElement | null>(null);
+  const propostaCompartilhamentoDocumentoRef = useRef<HTMLDivElement | null>(null);
   const tituloAutomaticoPropostaRef = useRef<string | null>(null);
   const [templatePreviewAberto, setTemplatePreviewAberto] =
     useState<PropostaTemplateVisualAtivo | null>(null);
@@ -624,15 +711,143 @@ export default function App() {
     useState(false);
   const [propostaCompartilharModalAberto, setPropostaCompartilharModalAberto] =
     useState(false);
+  const [propostaCompartilhamentoId, setPropostaCompartilhamentoId] = useState<
+    string | null
+  >(null);
+  const [propostaAssistenteEtapa, setPropostaAssistenteEtapa] =
+    useState<PropostaAssistenteEtapa>("inicio");
+  const [propostaWizardEtapaAtiva, setPropostaWizardEtapaAtiva] =
+    useState<PropostaWizardEtapaId>("cliente");
   const [
     personalizacaoPreviewTemplateAberto,
     setPersonalizacaoPreviewTemplateAberto,
   ] = useState<PropostaTemplateVisualAtivo | null>(null);
   const contaMenuRef = useRef<HTMLDivElement | null>(null);
+  const propostaWizardClienteRef = useRef<HTMLDivElement | null>(null);
+  const propostaWizardMensagemRef = useRef<HTMLDivElement | null>(null);
+  const propostaWizardItensRef = useRef<HTMLDivElement | null>(null);
+  const propostaWizardDetalhamentoRef = useRef<HTMLDivElement | null>(null);
+  const propostaWizardRevisaoRef = useRef<HTMLDivElement | null>(null);
   const [filtroStatusProposta, setFiltroStatusProposta] =
     useState<FiltroStatusProposta>("Todas");
   const [contaMenuAberto, setContaMenuAberto] = useState(false);
+  const [sidebarRecolhida, setSidebarRecolhida] = useState(false);
   const [temaVisual, setTemaVisual] = useState<TemaVisual>(getTemaVisualInicial);
+  const [toastsSistema, setToastsSistema] = useState<ToastSistemaItem[]>([]);
+  const toastSistemaIdRef = useRef(0);
+  const [confirmacaoSistema, setConfirmacaoSistema] =
+    useState<ConfirmacaoSistemaState | null>(null);
+  const confirmacaoSistemaResolverRef = useRef<
+    ((confirmado: boolean) => void) | null
+  >(null);
+  const confirmacaoSistemaIdRef = useRef(0);
+
+  const fecharToastSistema = useCallback((id: number) => {
+    setToastsSistema((toastsAtuais) =>
+      toastsAtuais.filter((toast) => toast.id !== id),
+    );
+  }, []);
+
+  const exibirToastSistema = useCallback(
+    (mensagem: string | null | undefined, variante: ToastSistemaVariante) => {
+      const texto = mensagem?.trim();
+
+      if (!texto) {
+        return;
+      }
+
+      const criadoEm = Date.now();
+      toastSistemaIdRef.current += 1;
+
+      setToastsSistema((toastsAtuais) => {
+        const jaExiste = toastsAtuais.some(
+          (toast) => toast.mensagem === texto,
+        );
+
+        if (jaExiste) {
+          return toastsAtuais;
+        }
+
+        return [
+          {
+            id: toastSistemaIdRef.current,
+            mensagem: texto,
+            variante,
+            duracaoMs: toastSistemaDuracaoMs,
+            criadoEm,
+          },
+          ...toastsAtuais,
+        ].slice(0, 4);
+      });
+    },
+    [],
+  );
+
+  const exibirMensagemSistema = useCallback(
+    (mensagem: string | null, origem: ToastSistemaOrigem) => {
+      if (!mensagem) {
+        return;
+      }
+
+      exibirToastSistema(mensagem, getToastSistemaVariante(mensagem, origem));
+    },
+    [exibirToastSistema],
+  );
+
+  const abrirConfirmacaoSistema = useCallback(
+    (config: ConfirmacaoSistemaConfig) =>
+      new Promise<boolean>((resolve) => {
+        confirmacaoSistemaResolverRef.current?.(false);
+        confirmacaoSistemaResolverRef.current = resolve;
+        confirmacaoSistemaIdRef.current += 1;
+        setConfirmacaoSistema({
+          id: confirmacaoSistemaIdRef.current,
+          variante: "warning",
+          textoConfirmar: "Sim",
+          textoCancelar: "Não",
+          ...config,
+        });
+      }),
+    [],
+  );
+
+  const responderConfirmacaoSistema = useCallback((confirmado: boolean) => {
+    confirmacaoSistemaResolverRef.current?.(confirmado);
+    confirmacaoSistemaResolverRef.current = null;
+    setConfirmacaoSistema(null);
+  }, []);
+
+  useEffect(
+    () => () => {
+      confirmacaoSistemaResolverRef.current?.(false);
+      confirmacaoSistemaResolverRef.current = null;
+    },
+    [],
+  );
+
+  useEffect(() => {
+    exibirMensagemSistema(sessaoMensagem, "sessao");
+  }, [exibirMensagemSistema, sessaoMensagem]);
+
+  useEffect(() => {
+    exibirMensagemSistema(perfilMensagem, "perfil");
+  }, [exibirMensagemSistema, perfilMensagem]);
+
+  useEffect(() => {
+    exibirMensagemSistema(clienteMensagem, "cliente");
+  }, [clienteMensagem, exibirMensagemSistema]);
+
+  useEffect(() => {
+    exibirMensagemSistema(servicoMensagem, "servico");
+  }, [exibirMensagemSistema, servicoMensagem]);
+
+  useEffect(() => {
+    exibirMensagemSistema(propostaMensagem, "proposta");
+  }, [exibirMensagemSistema, propostaMensagem]);
+
+  useEffect(() => {
+    exibirMensagemSistema(propostaExportacaoMensagem, "exportacao");
+  }, [exibirMensagemSistema, propostaExportacaoMensagem]);
 
   const usuarioAtualQuery = useQuery({
     queryKey: ["usuario-atual", accessToken],
@@ -688,11 +903,6 @@ export default function App() {
     },
   });
 
-  const senhaUsuarioForm = useForm<SenhaUsuarioFormInput>({
-    resolver: zodResolver(senhaUsuarioSchema),
-    defaultValues: senhaUsuarioDefaultValues,
-  });
-
   const perfilForm = useForm<PerfilContaFormInput>({
     resolver: zodResolver(perfilContaSchema),
     defaultValues: perfilContaDefaultValues,
@@ -728,7 +938,6 @@ export default function App() {
   });
 
   const { reset: resetPerfilForm } = perfilForm;
-  const { reset: resetSenhaUsuarioForm } = senhaUsuarioForm;
   const { reset: resetClienteForm } = clienteForm;
   const { reset: resetClienteRapidoForm } = clienteRapidoForm;
   const { reset: resetServicoForm } = servicoForm;
@@ -752,13 +961,13 @@ export default function App() {
       setAccessToken(null);
       setAuthUsuario(null);
       setSessaoMensagem(mensagem);
-      setSenhaMensagem(null);
       setPerfilMensagem(null);
       setClienteMensagem(null);
       setServicoMensagem(null);
       setPropostaMensagem(null);
       setPropostaExportacaoMensagem(null);
       setClienteModo("lista");
+      setClienteComplementaresAberto(false);
       setServicoModo("lista");
       setPropostaModo("lista");
       setClienteSelecionadoId(null);
@@ -769,14 +978,17 @@ export default function App() {
       setBuscaClientes("");
       setBuscaServicos("");
       setBuscaPropostas("");
+      setBuscaClienteAssistente("");
       setClientePagina(1);
       setServicoPagina(1);
       setPropostaPagina(1);
       setFiltroStatusProposta("Todas");
+      setPropostaAssistenteEtapa("inicio");
+      setPropostaWizardEtapaAtiva("cliente");
       setClienteRapidoAberto(false);
+      setClienteRapidoComplementaresAberto(false);
       setContaMenuAberto(false);
       limparLogoArquivoPendente();
-      resetSenhaUsuarioForm(senhaUsuarioDefaultValues);
       resetPerfilForm(perfilContaDefaultValues);
       resetClienteForm(clienteDefaultValues);
       resetClienteRapidoForm(clienteRapidoDefaultValues);
@@ -797,7 +1009,6 @@ export default function App() {
       limparLogoArquivoPendente,
       resetPerfilForm,
       resetPropostaForm,
-      resetSenhaUsuarioForm,
       resetServicoForm,
     ],
   );
@@ -884,8 +1095,11 @@ export default function App() {
     };
   }, [authUsuario?.expiresAtUtc, encerrarSessaoExpirada]);
 
-  const usuario = authUsuario?.usuario ?? usuarioAtualQuery.data?.usuario;
-  const conta = authUsuario?.conta ?? usuarioAtualQuery.data?.conta;
+  const usuario = usuarioAtualQuery.data?.usuario ?? authUsuario?.usuario;
+  const conta = usuarioAtualQuery.data?.conta ?? authUsuario?.conta;
+  const contaStatusComercial: ContaAtualResponse["statusComercial"] = conta
+    ? getStatusComercialContaEfetivo(conta)
+    : "TrialExpirado";
   const perfilConta = perfilContaQuery.data;
   const nomeMarcaTopo =
     perfilConta?.nomeComercial?.trim() || conta?.nome || "Emprely";
@@ -909,6 +1123,27 @@ export default function App() {
       cliente.email,
       cliente.telefone,
       cliente.documento,
+      cliente.endereco,
+      cliente.numero,
+      cliente.cidade,
+      cliente.instagram,
+      cliente.facebook,
+      cliente.tiktok,
+      cliente.observacoes,
+    ]),
+  );
+  const clientesAssistenteFiltrados = clientes.filter((cliente) =>
+    matchBuscaTexto(buscaClienteAssistente, [
+      cliente.nome,
+      cliente.email,
+      cliente.telefone,
+      cliente.documento,
+      cliente.endereco,
+      cliente.numero,
+      cliente.cidade,
+      cliente.instagram,
+      cliente.facebook,
+      cliente.tiktok,
       cliente.observacoes,
     ]),
   );
@@ -965,18 +1200,6 @@ export default function App() {
   const propostaParaImpressao = propostas.find(
     (proposta) => proposta.id === propostaImpressaoId,
   );
-  const clienteFormularioNome = useWatch({
-    control: clienteForm.control,
-    name: "nome",
-  });
-  const clienteFormularioTelefone = useWatch({
-    control: clienteForm.control,
-    name: "telefone",
-  });
-  const clienteFormularioWhatsappUrl = buildWhatsappContatoClienteUrl({
-    nome: clienteFormularioNome,
-    telefone: clienteFormularioTelefone,
-  });
   const propostaPreview = useWatch({
     control: propostaForm.control,
   });
@@ -1006,6 +1229,64 @@ export default function App() {
       !propostaTemAlteracoes &&
       contaPodeExportarProposta,
   );
+  const propostaWizardClienteConcluido = Boolean(
+    propostaPreview.clienteId && valorSeguro(propostaPreview.validadeDias) >= 1,
+  );
+  const propostaWizardDadosConcluido = Boolean(propostaPreview.titulo?.trim());
+  const propostaWizardItensConcluido =
+    propostaItensPreview.length > 0 &&
+    propostaItensPreview.every(
+      (item) =>
+        Boolean(item?.nome?.trim()) &&
+        isQuantidadeItemValida(item?.quantidade) &&
+        valorSeguro(item?.valorUnitario) >= 0,
+    );
+  const propostaWizardDetalhamentoConcluido =
+    propostaWizardItensConcluido &&
+    valorSeguro(propostaPreview.descontoValor) >= 0 &&
+    valorSeguro(propostaPreview.descontoValor) <= propostaSubtotalPreview;
+  const propostaWizardRevisaoConcluida =
+    propostaWizardClienteConcluido &&
+    propostaWizardDadosConcluido &&
+    propostaWizardItensConcluido &&
+    propostaWizardDetalhamentoConcluido &&
+    Boolean(propostaSelecionadaRascunho) &&
+    !propostaTemAlteracoes;
+  const propostaWizardEtapas: PropostaWizardStepItem[] = [
+    {
+      id: "cliente",
+      label: "Cliente",
+      concluido: propostaWizardClienteConcluido,
+    },
+    {
+      id: "proposta",
+      label: "Proposta",
+      concluido: propostaWizardDadosConcluido,
+    },
+    {
+      id: "itens",
+      label: "Itens",
+      concluido: propostaWizardItensConcluido,
+    },
+    {
+      id: "detalhamento",
+      label: "Detalhamento",
+      concluido: propostaWizardDetalhamentoConcluido,
+    },
+    {
+      id: "revisao",
+      label: "Revisão",
+      concluido: propostaWizardRevisaoConcluida,
+    },
+  ];
+  const propostaWizardEtapaAtualIndex = Math.max(
+    0,
+    propostaWizardEtapas.findIndex(
+      (etapa) => etapa.id === propostaWizardEtapaAtiva,
+    ),
+  );
+  const propostaWizardEtapaAtualLabel =
+    propostaWizardEtapas[propostaWizardEtapaAtualIndex]?.label ?? "Cliente";
   const propostaProntaParaEnvio =
     Boolean(
       propostaSelecionadaGerada &&
@@ -1031,22 +1312,94 @@ export default function App() {
     (cliente) => cliente.id === propostaPreviewVisual.clienteId,
   );
   const clienteNomePreviewFallback = propostaFontePreview?.clienteNome;
-  const clientePropostaSelecionada = clientes.find(
-    (cliente) => cliente.id === propostaSelecionada?.clienteId,
+  const propostaResumoTemplateLabel = getPropostaTemplateLabel(
+    normalizarTemplateVisual(propostaPreviewVisual.templateVisual),
   );
+  const propostaResumoValidade =
+    formatValidadeProposta(propostaPreviewVisual.validadeDias) || "Não informada";
+  const propostaResumoItens = (propostaPreviewVisual.itens ?? [])
+    .map((item, index) => ({
+      id: `${item?.servicoId || item?.nome || "item"}-${index}`,
+      nome: item?.nome?.trim() || `Item ${index + 1}`,
+      descricao: item?.descricao?.trim() ?? "",
+      quantidade: valorSeguro(item?.quantidade),
+      valorUnitario: valorSeguro(item?.valorUnitario),
+      total: calcularTotalItens([
+        {
+          quantidade: item?.quantidade,
+          valorUnitario: item?.valorUnitario,
+        },
+      ]),
+    }))
+    .filter((item) => item.nome.trim().length > 0);
+  const propostaResumoInclusos = splitLinhasFormulario(
+    propostaPreviewVisual.itensInclusosTexto,
+  );
+  const propostaResumoNaoInclusos = splitLinhasFormulario(
+    propostaPreviewVisual.itensNaoInclusosTexto,
+  );
+  const propostaResumoCronograma = splitLinhasFormulario(
+    propostaPreviewVisual.cronogramaTexto,
+  );
+  const propostaResumoBeneficios = splitLinhasFormulario(
+    propostaPreviewVisual.beneficiosTexto,
+  );
+  const propostaResumoCondicoesPagamento =
+    propostaPreviewVisual.condicoesPagamento?.trim() || "Não informado";
+  const propostaResumoIntroducao =
+    propostaPreviewVisual.introducao?.trim() || "Não informada";
+  const propostaResumoObservacoes =
+    propostaPreviewVisual.observacoes?.trim() || "Não informadas";
+  const propostaBuilderStatusLabel =
+    propostaSelecionada?.status ?? "Novo rascunho";
+  const propostaBuilderClienteLabel =
+    clientePreview?.nome?.trim() ||
+    clienteNomePreviewFallback?.trim() ||
+    "Cliente pendente";
   const propostaVisualizacaoModalForm = propostaVisualizacaoModal
     ? mapPropostaForm(propostaVisualizacaoModal)
     : null;
   const clienteVisualizacaoModal = clientes.find(
     (cliente) => cliente.id === propostaVisualizacaoModal?.clienteId,
   );
-  const whatsappPropostaUrl =
-    propostaProntaParaEnvio && propostaSelecionada
+  const propostaCompartilhamentoAtiva =
+    propostas.find((proposta) => proposta.id === propostaCompartilhamentoId) ??
+    null;
+  const propostaCompartilhamentoForm = propostaCompartilhamentoAtiva
+    ? mapPropostaForm(propostaCompartilhamentoAtiva)
+    : null;
+  const clienteCompartilhamentoAtivo = clientes.find(
+    (cliente) => cliente.id === propostaCompartilhamentoAtiva?.clienteId,
+  );
+  const propostaVisualizacaoModalPodeEditar = propostaVisualizacaoModal
+    ? isStatusPropostaEditavelDiretamente(propostaVisualizacaoModal.status)
+    : false;
+  const propostaVisualizacaoModalPodeExportar = propostaVisualizacaoModal
+    ? isStatusPropostaComDocumentoFinal(propostaVisualizacaoModal.status) &&
+      contaPodeExportarProposta
+    : false;
+  const propostaCompartilhamentoPodeEnviar =
+    propostaCompartilhamentoAtiva !== null &&
+    isStatusPropostaComDocumentoFinal(propostaCompartilhamentoAtiva.status) &&
+    contaPodeExportarProposta;
+  const whatsappPropostaCompletaUrl =
+    propostaCompartilhamentoPodeEnviar && propostaCompartilhamentoAtiva
       ? buildWhatsappPropostaUrl(
-          propostaSelecionada,
-          clientePropostaSelecionada,
+          propostaCompartilhamentoAtiva,
+          clienteCompartilhamentoAtivo,
           perfilConta,
           conta?.nome ?? "Emprely",
+          "completa",
+        )
+      : "";
+  const whatsappPropostaArquivoUrl =
+    propostaCompartilhamentoPodeEnviar && propostaCompartilhamentoAtiva
+      ? buildWhatsappPropostaUrl(
+          propostaCompartilhamentoAtiva,
+          clienteCompartilhamentoAtivo,
+          perfilConta,
+          conta?.nome ?? "Emprely",
+          "arquivo",
         )
       : "";
 
@@ -1133,15 +1486,6 @@ export default function App() {
     },
   });
 
-  const senhaUsuarioMutation = useMutation({
-    mutationFn: (input: SenhaUsuarioFormInput) =>
-      changeSenhaUsuario(buildSenhaUsuarioPayload(input), accessToken!),
-    onSuccess: () => {
-      resetSenhaUsuarioForm(senhaUsuarioDefaultValues);
-      setSenhaMensagem("Senha atualizada.");
-    },
-  });
-
   const salvarClienteMutation = useMutation({
     mutationFn: (input: ClienteFormInput) => {
       const payload = buildClientePayload(input);
@@ -1158,6 +1502,7 @@ export default function App() {
       resetClienteForm(clienteDefaultValues);
       setClienteSelecionadoId(null);
       setClienteModo(eraEdicao ? "lista" : "novo");
+      setClienteComplementaresAberto(false);
       setClientePagina(1);
       setClienteMensagem(
         eraEdicao
@@ -1169,7 +1514,7 @@ export default function App() {
 
   const criarClienteRapidoMutation = useMutation({
     mutationFn: (input: ClienteRapidoFormInput) =>
-      createCliente(buildClienteRapidoPayload(input), accessToken!),
+      createCliente(buildClientePayload(input), accessToken!),
     onSuccess: async (response) => {
       queryClient.setQueryData<ClienteResponse[]>(
         ["clientes", accessToken],
@@ -1188,6 +1533,11 @@ export default function App() {
       preencherTituloAutomaticoProposta(response, getPrimeiroNomeItemProposta());
       resetClienteRapidoForm(clienteRapidoDefaultValues);
       setClienteRapidoAberto(false);
+      setClienteRapidoComplementaresAberto(false);
+      if (propostaModo === "assistente") {
+        setPropostaModo("novo");
+      }
+      setPropostaWizardEtapaAtiva("proposta");
       setPropostaMensagem("Cliente criado e selecionado na proposta.");
       await queryClient.invalidateQueries({ queryKey: ["clientes", accessToken] });
     },
@@ -1200,6 +1550,7 @@ export default function App() {
       resetClienteForm(clienteDefaultValues);
       setClienteSelecionadoId(null);
       setClienteModo("lista");
+      setClienteComplementaresAberto(false);
       setClienteMensagem("Cliente arquivado.");
     },
   });
@@ -1268,14 +1619,19 @@ export default function App() {
           );
         },
       );
-      resetPropostaForm(eraEdicao ? propostaDefaultValues : mapPropostaForm(response));
+      resetPropostaForm(mapPropostaForm(response));
       tituloAutomaticoPropostaRef.current = null;
-      setPropostaSelecionadaId(eraEdicao ? null : response.id);
-      setPropostaModo("lista");
-      setPropostaVisualizacaoModalId(eraEdicao ? null : response.id);
+      setPropostaSelecionadaId(response.id);
+      setPropostaModo("editar");
+      setPropostaVisualizacaoModalId(null);
       setServicoParaAdicionarId("");
       setPropostaPagina(1);
-      setPropostaMensagem("Proposta salva.");
+      setPropostaWizardEtapaAtiva("revisao");
+      setPropostaMensagem(
+        eraEdicao
+          ? "Alteracoes salvas."
+          : "Rascunho salvo. Revise o preview e gere a proposta quando estiver pronto.",
+      );
       await queryClient.invalidateQueries({ queryKey: ["propostas", accessToken] });
     },
   });
@@ -1373,7 +1729,6 @@ export default function App() {
     setAccessToken(response.accessToken);
     setAuthUsuario(response);
     setSessaoMensagem(null);
-    setSenhaMensagem(null);
     setPerfilMensagem(null);
     setClienteMensagem(null);
     setServicoMensagem(null);
@@ -1414,7 +1769,7 @@ export default function App() {
     }
 
     if (appView === "conta" || appView === "personalizacao") {
-      return perfilForm.formState.isDirty || senhaUsuarioForm.formState.isDirty;
+      return perfilForm.formState.isDirty;
     }
 
     return false;
@@ -1422,20 +1777,25 @@ export default function App() {
 
   function confirmarDescarteAlteracoes() {
     if (!formularioAtualTemAlteracoes()) {
-      return true;
+      return Promise.resolve(true);
     }
 
-    return window.confirm(
-      "Existem alterações não salvas. Deseja descartar essas alterações?",
-    );
+    return abrirConfirmacaoSistema({
+      titulo: "Descartar alterações?",
+      mensagem: "Existem alterações não salvas nesta tela.",
+      detalhe: "Se continuar, os campos editados voltam ao último estado salvo.",
+      variante: "warning",
+    });
   }
 
-  function executarComConfirmacaoDescarte(acao: () => void) {
-    if (!confirmarDescarteAlteracoes()) {
-      return;
-    }
+  function executarComConfirmacaoDescarte(acao: () => void | Promise<void>) {
+    void (async () => {
+      if (!(await confirmarDescarteAlteracoes())) {
+        return;
+      }
 
-    acao();
+      await acao();
+    })();
   }
 
   function navegarParaView(view: AppView) {
@@ -1465,6 +1825,7 @@ export default function App() {
   function prepararNovoCliente() {
     setClienteSelecionadoId(null);
     setClienteModo("novo");
+    setClienteComplementaresAberto(false);
     setClienteMensagem(null);
     resetClienteForm(clienteDefaultValues, { keepDirty: false });
   }
@@ -1472,6 +1833,7 @@ export default function App() {
   function abrirListaClientesSemConfirmar() {
     setClienteModo("lista");
     setClienteSelecionadoId(null);
+    setClienteComplementaresAberto(false);
     resetClienteForm(clienteDefaultValues, { keepDirty: false });
   }
 
@@ -1528,6 +1890,8 @@ export default function App() {
     setPropostaMensagem(null);
     setServicoParaAdicionarId("");
     setClienteRapidoAberto(false);
+    setClienteRapidoComplementaresAberto(false);
+    setPropostaWizardEtapaAtiva(clienteId ? "proposta" : "cliente");
     const cliente = findClienteProposta(clienteId);
     const titulo = buildTituloAutomaticoProposta(cliente, null);
     const templateVisualPadrao = normalizarTemplateVisual(
@@ -1546,13 +1910,59 @@ export default function App() {
     tituloAutomaticoPropostaRef.current = titulo || null;
   }
 
+  function prepararAssistenteNovaProposta() {
+    setPropostaSelecionadaId(null);
+    setPropostaVisualizacaoModalId(null);
+    setPropostaPreviewModalAberto(false);
+    setPropostaTemplateModalAberto(false);
+    setPropostaCompartilharModalAberto(false);
+    setPropostaModo("assistente");
+    setPropostaMensagem(null);
+    setServicoParaAdicionarId("");
+    setClienteRapidoAberto(false);
+    setClienteRapidoComplementaresAberto(false);
+    setBuscaClienteAssistente("");
+    setPropostaAssistenteEtapa(clientes.length > 0 ? "inicio" : "novo");
+    setPropostaWizardEtapaAtiva("cliente");
+    resetClienteRapidoForm(clienteRapidoDefaultValues, { keepDirty: false });
+    resetPropostaForm(
+      {
+        ...propostaDefaultValues,
+        templateVisual: normalizarTemplateVisual(perfilConta?.templateVisualPadrao),
+      },
+      { keepDirty: false },
+    );
+    tituloAutomaticoPropostaRef.current = null;
+  }
+
+  function prepararClienteRapidoProposta() {
+    resetClienteRapidoForm(clienteRapidoDefaultValues, { keepDirty: false });
+    setClienteRapidoComplementaresAberto(false);
+  }
+
+  function abrirClienteRapidoAssistente() {
+    prepararClienteRapidoProposta();
+    setPropostaAssistenteEtapa("novo");
+  }
+
+  function voltarInicioAssistenteProposta() {
+    prepararClienteRapidoProposta();
+    setPropostaAssistenteEtapa("inicio");
+  }
+
+  function abrirClienteRapidoModal() {
+    prepararClienteRapidoProposta();
+    setClienteRapidoAberto(true);
+  }
+
   function cancelarClienteRapido() {
     resetClienteRapidoForm(clienteRapidoDefaultValues);
     setClienteRapidoAberto(false);
+    setClienteRapidoComplementaresAberto(false);
   }
 
   function novaProposta() {
-    executarComConfirmacaoDescarte(() => prepararNovaProposta());
+    executarComConfirmacaoDescarte(() => prepararAssistenteNovaProposta());
   }
 
   function abrirListaPropostasSemConfirmar() {
@@ -1564,6 +1974,10 @@ export default function App() {
     setPropostaCompartilharModalAberto(false);
     setServicoParaAdicionarId("");
     setClienteRapidoAberto(false);
+    setClienteRapidoComplementaresAberto(false);
+    setBuscaClienteAssistente("");
+    setPropostaAssistenteEtapa("inicio");
+    setPropostaWizardEtapaAtiva("cliente");
     resetPropostaForm(propostaDefaultValues, { keepDirty: false });
     resetClienteRapidoForm(clienteRapidoDefaultValues, { keepDirty: false });
     tituloAutomaticoPropostaRef.current = null;
@@ -1575,9 +1989,140 @@ export default function App() {
 
   function abrirNovaProposta(clienteId = "") {
     executarComConfirmacaoDescarte(() => {
-      prepararNovaProposta(clienteId);
+      if (clienteId) {
+        prepararNovaProposta(clienteId);
+      } else {
+        prepararAssistenteNovaProposta();
+      }
       setAppView("propostas");
     });
+  }
+
+  function selecionarClienteAssistente(clienteId: string) {
+    prepararNovaProposta(clienteId);
+  }
+
+  function navegarParaEtapaProposta(etapa: PropostaWizardEtapaId) {
+    const refs: Record<
+      PropostaWizardEtapaId,
+      RefObject<HTMLDivElement | null>
+    > = {
+      cliente: propostaWizardClienteRef,
+      proposta: propostaWizardMensagemRef,
+      itens: propostaWizardItensRef,
+      detalhamento: propostaWizardDetalhamentoRef,
+      revisao: propostaWizardRevisaoRef,
+    };
+
+    setPropostaWizardEtapaAtiva(etapa);
+    window.requestAnimationFrame(() => {
+      refs[etapa].current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+  }
+
+  async function validarEtapaPropostaAtual() {
+    const camposPorEtapa: Record<
+      PropostaWizardEtapaId,
+      Array<keyof PropostaFormInput>
+    > = {
+      cliente: ["clienteId", "validadeDias"],
+      proposta: ["titulo"],
+      itens: ["itens"],
+      detalhamento: [
+        "descontoValor",
+        "condicoesPagamento",
+        "itensInclusosTexto",
+        "itensNaoInclusosTexto",
+        "cronogramaTexto",
+        "beneficiosTexto",
+      ],
+      revisao: [],
+    };
+    const campos = camposPorEtapa[propostaWizardEtapaAtiva];
+
+    if (campos.length === 0) {
+      return propostaForm.trigger();
+    }
+
+    const etapaValida = await propostaForm.trigger(campos);
+
+    if (!etapaValida) {
+      setPropostaMensagem(
+        "Preencha os campos obrigatórios desta etapa antes de continuar.",
+      );
+    } else {
+      setPropostaMensagem(null);
+    }
+
+    return etapaValida;
+  }
+
+  async function avancarEtapaProposta() {
+    const etapaValida = await validarEtapaPropostaAtual();
+
+    if (!etapaValida) {
+      return;
+    }
+
+    const indiceAtual = propostaWizardEtapasOrdem.indexOf(
+      propostaWizardEtapaAtiva,
+    );
+    const proximaEtapa = propostaWizardEtapasOrdem[indiceAtual + 1];
+
+    if (proximaEtapa) {
+      navegarParaEtapaProposta(proximaEtapa);
+    }
+  }
+
+  function voltarEtapaProposta() {
+    const indiceAtual = propostaWizardEtapasOrdem.indexOf(
+      propostaWizardEtapaAtiva,
+    );
+    const etapaAnterior = propostaWizardEtapasOrdem[indiceAtual - 1];
+
+    if (etapaAnterior) {
+      navegarParaEtapaProposta(etapaAnterior);
+    }
+  }
+
+  async function gerarPropostaDoFluxo() {
+    const formularioValido = await propostaForm.trigger();
+
+    if (!formularioValido) {
+      const etapa = getPrimeiraEtapaPendenteProposta(propostaForm.getValues());
+      navegarParaEtapaProposta(etapa);
+      setPropostaMensagem(
+        "Revise os campos obrigatórios antes de gerar a proposta.",
+      );
+      return;
+    }
+
+    if (!propostaSelecionada) {
+      navegarParaEtapaProposta("revisao");
+      setPropostaMensagem(
+        "Salve o rascunho antes de gerar a proposta final.",
+      );
+      return;
+    }
+
+    if (propostaTemAlteracoes) {
+      navegarParaEtapaProposta("revisao");
+      setPropostaMensagem(
+        "Salve as alterações antes de gerar a proposta final.",
+      );
+      return;
+    }
+
+    if (!contaPodeExportarProposta) {
+      navegarParaEtapaProposta("revisao");
+      setPropostaMensagem(mensagemBloqueioPlano);
+      return;
+    }
+
+    gerarPropostaMutation.mutate(propostaSelecionada.id);
   }
 
   function executarAcaoRapidaMenu(
@@ -1598,16 +2143,26 @@ export default function App() {
 
   function selecionarCliente(clienteId: string) {
     executarComConfirmacaoDescarte(() => {
+      const clienteParaEditar = clientes.find((cliente) => cliente.id === clienteId);
       setClienteSelecionadoId(clienteId);
       setClienteModo("editar");
+      setClienteComplementaresAberto(
+        hasClienteDadosComplementares(clienteParaEditar),
+      );
       setClienteMensagem(null);
     });
   }
 
   function visualizarCliente(clienteId: string) {
     executarComConfirmacaoDescarte(() => {
+      const clienteParaVisualizar = clientes.find(
+        (cliente) => cliente.id === clienteId,
+      );
       setClienteSelecionadoId(clienteId);
       setClienteModo("visualizar");
+      setClienteComplementaresAberto(
+        hasClienteDadosComplementares(clienteParaVisualizar),
+      );
       setClienteMensagem(null);
       resetClienteForm(clienteDefaultValues, { keepDirty: false });
     });
@@ -1631,7 +2186,33 @@ export default function App() {
   }
 
   function selecionarProposta(propostaId: string) {
-    executarComConfirmacaoDescarte(() => {
+    executarComConfirmacaoDescarte(async () => {
+      const propostaParaEditar = propostas.find(
+        (proposta) => proposta.id === propostaId,
+      );
+
+      if (
+        propostaParaEditar &&
+        !isStatusPropostaEditavelDiretamente(propostaParaEditar.status)
+      ) {
+        setPropostaMensagem(mensagemPropostaNaoEditavel);
+        return;
+      }
+
+      if (
+        propostaParaEditar?.status === "Gerada" &&
+        !(await abrirConfirmacaoSistema({
+          titulo: "Editar proposta gerada?",
+          mensagem:
+            "Ao salvar uma proposta já gerada, ela voltará para rascunho.",
+          detalhe:
+            "Depois de ajustar os dados, gere a proposta novamente para liberar impressão e envio.",
+          variante: "warning",
+        }))
+      ) {
+        return;
+      }
+
       setPropostaVisualizacaoModalId(null);
       setPropostaPreviewModalAberto(false);
       setPropostaTemplateModalAberto(false);
@@ -1685,7 +2266,7 @@ export default function App() {
     );
   }
 
-  function selecionarTemplateProposta(templateVisual: string) {
+  async function selecionarTemplateProposta(templateVisual: string) {
     const templateAnterior = propostaForm.getValues("templateVisual");
     const templateNovo = normalizarTemplateVisual(templateVisual);
     const propostaJaGerada =
@@ -1694,26 +2275,31 @@ export default function App() {
       propostaSelecionada.status !== "Arquivada";
 
     if (templateNovo === templateAnterior) {
-      return;
+      return true;
     }
 
     if (
       propostaJaGerada &&
-      !window.confirm(
-        "Alterar o template de uma proposta ja gerada volta o status para rascunho ao salvar. Continuar?",
-      )
+      !(await abrirConfirmacaoSistema({
+        titulo: "Alterar template?",
+        mensagem:
+          "Alterar o template de uma proposta já gerada volta o status para rascunho ao salvar.",
+        detalhe: "O layout novo será usado no preview, PDF, imagem e compartilhamento.",
+        variante: "warning",
+      }))
     ) {
       propostaForm.setValue("templateVisual", templateAnterior, {
         shouldDirty: false,
         shouldValidate: true,
       });
-      return;
+      return false;
     }
 
     propostaForm.setValue("templateVisual", templateNovo, {
       shouldDirty: true,
       shouldValidate: true,
     });
+    return true;
   }
 
   function preencherTituloAutomaticoProposta(
@@ -1765,16 +2351,11 @@ export default function App() {
     });
   }
 
-  function imprimirPropostaGerada() {
-    if (!propostaProntaParaEnvio || !propostaSelecionada) {
-      return;
-    }
-
-    imprimirPropostaSalva(propostaSelecionada);
-  }
-
   function imprimirPropostaSalva(proposta: PropostaResponse) {
-    if (proposta.status !== "Gerada" || !contaPodeExportarProposta) {
+    if (
+      !isStatusPropostaComDocumentoFinal(proposta.status) ||
+      !contaPodeExportarProposta
+    ) {
       return;
     }
 
@@ -1784,87 +2365,67 @@ export default function App() {
     window.print();
   }
 
-  async function baixarPdfPropostaGerada() {
-    if (!propostaProntaParaEnvio || !propostaSelecionada) {
+  function abrirModalCompartilharProposta(proposta: PropostaResponse) {
+    if (
+      !isStatusPropostaComDocumentoFinal(proposta.status) ||
+      !contaPodeExportarProposta
+    ) {
       return;
     }
 
-    await executarExportacaoProposta(async () => {
-      const blob = await gerarPdfPropostaBlob();
-      baixarBlobArquivo(blob, `${buildNomeArquivoProposta(propostaSelecionada)}.pdf`);
-      setPropostaExportacaoMensagem("PDF gerado. Anexe este arquivo no WhatsApp Web.");
-    });
+    setPropostaCompartilhamentoId(proposta.id);
+    setPropostaCompartilharModalAberto(true);
   }
 
-  async function baixarImagemPropostaGerada() {
-    if (!propostaProntaParaEnvio || !propostaSelecionada) {
+  function fecharModalCompartilharProposta() {
+    setPropostaCompartilharModalAberto(false);
+    setPropostaCompartilhamentoId(null);
+  }
+
+  async function baixarImagemPropostaSalva(
+    proposta: PropostaResponse,
+    node: HTMLDivElement | null,
+  ) {
+    if (
+      !isStatusPropostaComDocumentoFinal(proposta.status) ||
+      !contaPodeExportarProposta
+    ) {
       return;
     }
 
     await executarExportacaoProposta(async () => {
-      const blob = await gerarPngPropostaBlob();
-      baixarBlobArquivo(blob, `${buildNomeArquivoProposta(propostaSelecionada)}.png`);
+      const nodeExportacao = await aguardarNodeExportacaoProposta(
+        () => node ?? propostaCompartilhamentoDocumentoRef.current,
+      );
+      const blob = await gerarPngPropostaBlob(nodeExportacao);
+      baixarBlobArquivo(blob, `${buildNomeArquivoProposta(proposta)}.png`);
       setPropostaExportacaoMensagem("Imagem gerada. Anexe este arquivo no WhatsApp Web.");
     });
   }
 
-  async function compartilharPropostaMobile() {
-    if (!propostaProntaParaEnvio || !propostaSelecionada) {
+  async function baixarPdfPropostaSalva(
+    proposta: PropostaResponse,
+    node: HTMLDivElement | null,
+  ) {
+    if (
+      !isStatusPropostaComDocumentoFinal(proposta.status) ||
+      !contaPodeExportarProposta
+    ) {
       return;
     }
 
     await executarExportacaoProposta(async () => {
-      const blob = await gerarPdfPropostaBlob();
-      const file = new File(
-        [blob],
-        `${buildNomeArquivoProposta(propostaSelecionada)}.pdf`,
-        { type: "application/pdf" },
+      const nodeExportacao = await aguardarNodeExportacaoProposta(
+        () =>
+          node ??
+          propostaCompartilhamentoDocumentoRef.current ??
+          propostaVisualizacaoExportDocumentoRef.current ??
+          propostaVisualizacaoDocumentoRef.current,
       );
-      const mensagem = buildMensagemWhatsappProposta(
-        propostaSelecionada,
-        clientePropostaSelecionada,
-        perfilConta,
-        conta?.nome ?? "Emprely",
-      );
-
-      if (navigator.canShare?.({ files: [file] })) {
-        await navigator.share({
-          title: propostaSelecionada.titulo,
-          text: mensagem,
-          files: [file],
-        });
-        setPropostaExportacaoMensagem("Compartilhamento aberto no celular.");
-        return;
-      }
-
-      setPropostaExportacaoMensagem(
-        "Este navegador nao abriu o compartilhamento nativo. Baixe o PDF e anexe no WhatsApp.",
-      );
+      const blob = await gerarPdfPropostaBlob(nodeExportacao);
+      baixarBlobArquivo(blob, `${buildNomeArquivoProposta(proposta)}.pdf`);
+      setPropostaExportacaoMensagem("PDF gerado. Anexe este arquivo no WhatsApp Web.");
     });
-  }
-
-  async function copiarMensagemWhatsappProposta() {
-    if (!propostaProntaParaEnvio || !propostaSelecionada) {
-      return;
-    }
-
-    const mensagem = buildMensagemWhatsappProposta(
-      propostaSelecionada,
-      clientePropostaSelecionada,
-      perfilConta,
-      conta?.nome ?? "Emprely",
-    );
-
-    try {
-      await navigator.clipboard.writeText(mensagem);
-      setPropostaExportacaoMensagem(
-        "Mensagem copiada. No WhatsApp Web, envie esta mensagem e anexe o PDF ou a imagem gerada.",
-      );
-    } catch {
-      setPropostaExportacaoMensagem(
-        "Nao foi possivel copiar automaticamente. Abra o WhatsApp e envie a mensagem gerada pelo botao WhatsApp.",
-      );
-    }
   }
 
   async function executarExportacaoProposta(
@@ -1875,34 +2436,59 @@ export default function App() {
       await exportar();
     } catch {
       setPropostaExportacaoMensagem(
-        "Nao foi possivel gerar o arquivo. Tente novamente ou use a opcao de imprimir.",
+        "Não foi possível gerar o arquivo. Tente novamente ou use a opção de imprimir.",
       );
     }
   }
 
-  async function gerarPngPropostaBlob(): Promise<Blob> {
-    const node = propostaDocumentoRef.current;
+  async function aguardarNodeExportacaoProposta(
+    getNode: () => HTMLDivElement | null,
+  ): Promise<HTMLDivElement> {
+    const nodeAtual = getNode();
+
+    if (nodeAtual?.isConnected) {
+      return nodeAtual;
+    }
+
+    await aguardarProximoFrame();
+
+    const nodeAposFrame = getNode();
+
+    if (nodeAposFrame?.isConnected) {
+      return nodeAposFrame;
+    }
+
+    throw new Error("Documento da proposta nao encontrado para exportacao.");
+  }
+
+  async function gerarPngPropostaBlob(
+    nodeReferencia: HTMLDivElement | null = propostaDocumentoRef.current,
+  ): Promise<Blob> {
+    const node = nodeReferencia;
 
     if (!node) {
-      throw new Error("Preview da proposta nao encontrado.");
+      throw new Error("Preview da proposta não encontrado.");
     }
 
     const { toBlob } = await import("html-to-image");
     const blob = await toBlob(node, {
       backgroundColor: "#ffffff",
       cacheBust: true,
+      imagePlaceholder: imagemTransparenteExportacaoDataUrl,
       pixelRatio: 2,
     });
 
     if (!blob) {
-      throw new Error("Imagem da proposta nao gerada.");
+      throw new Error("Imagem da proposta não gerada.");
     }
 
     return blob;
   }
 
-  async function gerarPdfPropostaBlob(): Promise<Blob> {
-    const pngBlob = await gerarPngPropostaBlob();
+  async function gerarPdfPropostaBlob(
+    nodeReferencia: HTMLDivElement | null = propostaDocumentoRef.current,
+  ): Promise<Blob> {
+    const pngBlob = await gerarPngPropostaBlob(nodeReferencia);
     const pngDataUrl = await blobToDataUrl(pngBlob);
     const tamanhoImagem = await carregarTamanhoImagem(pngDataUrl);
     const { jsPDF } = await import("jspdf");
@@ -1941,21 +2527,6 @@ export default function App() {
     return pdf.output("blob");
   }
 
-  function buildWhatsappUrlPropostaSalva(proposta: PropostaResponse) {
-    if (!contaPodeExportarProposta) {
-      return "";
-    }
-
-    const cliente = clientes.find((item) => item.id === proposta.clienteId);
-
-    return buildWhatsappPropostaUrl(
-      proposta,
-      cliente,
-      perfilConta,
-      conta?.nome ?? "Emprely",
-    );
-  }
-
   function marcarPropostaEnviada(proposta: PropostaResponse) {
     if (proposta.status !== "Gerada" || !contaPodeExportarProposta) {
       return;
@@ -1964,27 +2535,41 @@ export default function App() {
     enviarPropostaMutation.mutate(proposta.id);
   }
 
-  function marcarPropostaAceita(proposta: PropostaResponse) {
+  async function marcarPropostaAceita(proposta: PropostaResponse) {
     if (proposta.status !== "Enviada") {
       return;
     }
 
-    if (window.confirm(`Marcar a proposta "${proposta.titulo}" como aceita?`)) {
+    if (
+      await abrirConfirmacaoSistema({
+        titulo: "Marcar como aceita?",
+        mensagem: `Confirmar a proposta "${proposta.titulo}" como aceita?`,
+        detalhe: "O status será atualizado e a proposta continuará disponível no histórico.",
+        variante: "success",
+      })
+    ) {
       aceitarPropostaMutation.mutate(proposta.id);
     }
   }
 
-  function marcarPropostaRecusada(proposta: PropostaResponse) {
+  async function marcarPropostaRecusada(proposta: PropostaResponse) {
     if (proposta.status !== "Enviada") {
       return;
     }
 
-    if (window.confirm(`Marcar a proposta "${proposta.titulo}" como recusada?`)) {
+    if (
+      await abrirConfirmacaoSistema({
+        titulo: "Marcar como recusada?",
+        mensagem: `Confirmar a proposta "${proposta.titulo}" como recusada?`,
+        detalhe: "O status será atualizado e a proposta continuará disponível no histórico.",
+        variante: "warning",
+      })
+    ) {
       recusarPropostaMutation.mutate(proposta.id);
     }
   }
 
-  function arquivarClienteComConfirmacao(cliente: ClienteResponse) {
+  async function arquivarClienteComConfirmacao(cliente: ClienteResponse) {
     const propostasCliente = propostas.filter(
       (proposta) => proposta.clienteId === cliente.id,
     ).length;
@@ -1996,15 +2581,18 @@ export default function App() {
         : "";
 
     if (
-      window.confirm(
-        `Arquivar o cliente "${cliente.nome}"? Ele sairá da lista ativa.${complemento}`,
-      )
+      await abrirConfirmacaoSistema({
+        titulo: "Excluir cliente?",
+        mensagem: `Arquivar o cliente "${cliente.nome}"?`,
+        detalhe: `Ele sairá da lista ativa.${complemento}`,
+        variante: "danger",
+      })
     ) {
       arquivarClienteMutation.mutate(cliente.id);
     }
   }
 
-  function arquivarServicoComConfirmacao(servico: ServicoResponse) {
+  async function arquivarServicoComConfirmacao(servico: ServicoResponse) {
     const propostasServico = propostas.filter((proposta) =>
       proposta.itens.some((item) => item.servicoId === servico.id),
     ).length;
@@ -2016,30 +2604,39 @@ export default function App() {
         : "";
 
     if (
-      window.confirm(
-        `Arquivar o serviço "${servico.nome}"? Ele sairá do catálogo ativo.${complemento}`,
-      )
+      await abrirConfirmacaoSistema({
+        titulo: "Excluir serviço?",
+        mensagem: `Arquivar o serviço "${servico.nome}"?`,
+        detalhe: `Ele sairá do catálogo ativo.${complemento}`,
+        variante: "danger",
+      })
     ) {
       arquivarServicoMutation.mutate(servico.id);
     }
   }
 
-  function arquivarPropostaComConfirmacao(proposta: PropostaResponse) {
+  async function arquivarPropostaComConfirmacao(proposta: PropostaResponse) {
     if (
-      window.confirm(
-        `Arquivar a proposta "${proposta.titulo}"? Ela sairá do histórico ativo.`,
-      )
+      await abrirConfirmacaoSistema({
+        titulo: "Excluir proposta?",
+        mensagem: `Arquivar a proposta "${proposta.titulo}"?`,
+        detalhe: "Ela sairá do histórico ativo.",
+        variante: "danger",
+      })
     ) {
       arquivarPropostaMutation.mutate(proposta.id);
     }
   }
 
   function duplicarPropostaComConfirmacao(proposta: PropostaResponse) {
-    executarComConfirmacaoDescarte(() => {
+    executarComConfirmacaoDescarte(async () => {
       if (
-        window.confirm(
-          `Duplicar a proposta "${proposta.titulo}" como novo rascunho?`,
-        )
+        await abrirConfirmacaoSistema({
+          titulo: "Duplicar proposta?",
+          mensagem: `Duplicar a proposta "${proposta.titulo}" como novo rascunho?`,
+          detalhe: "A proposta original não será alterada.",
+          variante: "info",
+        })
       ) {
         duplicarPropostaMutation.mutate(proposta.id);
       }
@@ -2067,7 +2664,7 @@ export default function App() {
       setPerfilMensagem(
         `A logomarca tem ${formatarTamanhoArquivo(
           arquivo.size,
-        )}. O limite recomendado e ${logoArquivoTamanhoMaximoLabel}.`,
+        )}. O limite recomendado é ${logoArquivoTamanhoMaximoLabel}.`,
       );
       return;
     }
@@ -2152,7 +2749,18 @@ export default function App() {
     setPerfilMensagem("Cores aplicadas. Revise e salve o perfil.");
   }
 
-  function limparLogomarcaPerfil() {
+  async function limparLogomarcaPerfil() {
+    if (
+      !(await abrirConfirmacaoSistema({
+        titulo: "Limpar logomarca?",
+        mensagem: "Remover a logomarca atual do perfil?",
+        detalhe: "A remoção só será aplicada quando você salvar o perfil.",
+        variante: "danger",
+      }))
+    ) {
+      return;
+    }
+
     limparLogoArquivoPendente();
     perfilForm.setValue("logoUrl", "", {
       shouldDirty: true,
@@ -2180,14 +2788,6 @@ export default function App() {
     setPerfilMensagem(null);
   }
 
-  const corPrimaria = useWatch({
-    control: perfilForm.control,
-    name: "corPrimaria",
-  });
-  const corSecundaria = useWatch({
-    control: perfilForm.control,
-    name: "corSecundaria",
-  });
   const templateVisualPadraoPreview = useWatch({
     control: perfilForm.control,
     name: "templateVisualPadrao",
@@ -2219,8 +2819,8 @@ export default function App() {
           perfilConta?.emailContato ||
           null,
         telefoneContato:
-          perfilPersonalizacaoPreview.telefoneContato?.trim() ||
-          perfilConta?.telefoneContato ||
+          formatTelefoneOpcional(perfilPersonalizacaoPreview.telefoneContato) ||
+          formatTelefoneOpcional(perfilConta?.telefoneContato) ||
           null,
         siteUrl:
           perfilPersonalizacaoPreview.siteUrl?.trim() ||
@@ -2257,20 +2857,20 @@ export default function App() {
     : perfilConta;
   const personalizacaoPreviewItens: NonNullable<PropostaPreviewInput["itens"]> = [
     {
-      nome: "Gestao mensal de Instagram",
-      descricao: "Planejamento, conteudo e acompanhamento estrategico.",
+      nome: "Gestão mensal de Instagram",
+      descricao: "Planejamento, conteúdo e acompanhamento estratégico.",
       quantidade: 1,
       valorUnitario: 1200,
     },
     {
-      nome: "Criacao de posts para feed",
-      descricao: "Artes profissionais alinhadas a identidade da marca.",
+      nome: "Criação de posts para feed",
+      descricao: "Artes profissionais alinhadas à identidade da marca.",
       quantidade: 8,
       valorUnitario: 80,
     },
     {
-      nome: "Producao de reels",
-      descricao: "Roteiro, edicao e finalizacao para publicacao.",
+      nome: "Produção de reels",
+      descricao: "Roteiro, edição e finalização para publicação.",
       quantidade: 4,
       valorUnitario: 140,
     },
@@ -2286,42 +2886,26 @@ export default function App() {
   const propostaPersonalizacaoPreview: PropostaPreviewInput = {
     titulo: "Proposta comercial de Social Media",
     introducao:
-      "Preview real para conferir como o template padrao sera impresso e compartilhado.",
+      "Preview real para conferir como o template padrão será impresso e compartilhado.",
     observacoes:
-      "A logomarca, as cores e os dados da conta seguem as configuracoes atuais.",
+      "A logomarca, as cores e os dados da conta seguem as configurações atuais.",
     validadeDias: 7,
     templateVisual:
       personalizacaoPreviewTemplateAberto ?? templateVisualPersonalizacaoPreview,
     itens: personalizacaoPreviewItens,
     descontoValor: personalizacaoPreviewDesconto,
     condicoesPagamento:
-      "50% na aprovacao e 50% em ate 15 dias apos o inicio dos servicos.",
+      "50% na aprovação e 50% em até 15 dias após o início dos serviços.",
     itensInclusosTexto:
-      "Planejamento mensal\nCalendario editorial\nLegendas otimizadas\nRelatorio simples",
+      "Planejamento mensal\nCalendário editorial\nLegendas otimizadas\nRelatório simples",
     itensNaoInclusosTexto:
-      "Midia paga\nCobertura presencial\nProducao fotografica profissional",
+      "Mídia paga\nCobertura presencial\nProdução fotográfica profissional",
     cronogramaTexto:
-      "Inicio em ate 3 dias uteis\nPlano mensal com recorrencia minima de 3 meses\n2 rodadas de revisao",
+      "Início em até 3 dias úteis\nPlano mensal com recorrência mínima de 3 meses\n2 rodadas de revisão",
     beneficiosTexto:
-      "Presenca consistente\nConexao com a marca\nOrganizacao do conteudo\nMais performance",
+      "Presença consistente\nConexão com a marca\nOrganização do conteúdo\nMais performance",
   };
 
-  const logoArquivoPendenteDescricao = logoArquivoPendente
-    ? `${logoArquivoPendente.name} - ${formatarTamanhoArquivo(
-        logoArquivoPendente.size,
-      )}`
-    : null;
-  const logoStatusDescricao = logoRemocaoPendente
-    ? "Logomarca marcada para remocao."
-    : logoArquivoPendenteDescricao ??
-      (logoUrlPerfilForm ? "Logomarca salva no perfil." : "Nenhuma logomarca salva.");
-  const logoStatusComplemento = logoRemocaoPendente
-    ? "Pendente: a referencia sera apagada ao clicar em Salvar perfil."
-    : logoArquivoPendente
-      ? "Pendente: sera enviada ao clicar em Salvar perfil."
-      : logoUrlPerfilForm
-        ? "A logo salva continua ativa ate uma nova imagem ser salva."
-        : "Selecione uma imagem para usar logomarca no perfil.";
   const podeLimparLogomarca = Boolean(
     logoPreviewAtualUrl || logoArquivoPendente || logoUrlPerfilForm,
   );
@@ -2335,43 +2919,28 @@ export default function App() {
       <div
         className={`app-frame mx-auto min-h-screen w-full ${
           usuario && conta
-            ? "app-frame-auth grid"
+            ? `app-frame-auth grid ${sidebarRecolhida ? "is-sidebar-collapsed" : ""}`
             : "app-frame-public flex max-w-7xl flex-col px-4 py-4 sm:px-6 lg:px-8"
         }`}
       >
-        <header
-          className={`app-header flex flex-col gap-4 border-b border-border md:flex-row md:items-center md:justify-between ${
-            usuario && conta ? "app-header-auth" : "app-header-public pb-5"
-          }`}
-        >
-          {usuario && conta ? (
-            <div className="topbar-actions flex w-full justify-end">
-              <button
-                onClick={logoutUsuario}
-                className="brand-secondary-action inline-flex h-10 items-center justify-center rounded-md border border-border bg-white px-4 text-sm font-semibold transition hover:border-primary hover:text-primary"
-              >
-                Sair
-              </button>
-            </div>
-          ) : (
-            <>
-              <BrandAssinatura
-                nomeMarca="Emprely Orçamentos"
-                subtitulo="Propostas que impulsionam"
-                logoUrl={emprelyFaviconSrc}
-                mostrarEmprelySecundario={false}
-              />
-              <button
-                type="button"
-                onClick={() => setAuthMode("login")}
-                className="brand-primary-action inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
-              >
-                <FileText size={18} aria-hidden="true" />
-                Entrar
-              </button>
-            </>
-          )}
-        </header>
+        {!usuario || !conta ? (
+          <header className="app-header app-header-public flex flex-col gap-4 border-b border-border pb-5 md:flex-row md:items-center md:justify-between">
+            <BrandAssinatura
+              nomeMarca="Emprely Orçamentos"
+              subtitulo="Propostas que impulsionam"
+              logoUrl={emprelyFaviconSrc}
+              mostrarEmprelySecundario={false}
+            />
+            <button
+              type="button"
+              onClick={() => setAuthMode("login")}
+              className="brand-primary-action inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+            >
+              <FileText size={18} aria-hidden="true" />
+              Entrar
+            </button>
+          </header>
+        ) : null}
 
         <main
           className={
@@ -2381,80 +2950,21 @@ export default function App() {
           }
         >
           {usuario && conta ? (
-            <nav className="app-sidebar border-r border-border bg-surface">
-              <div className="sidebar-product-brand flex items-center gap-3">
-                <img
-                  src={emprelyFaviconSrc}
-                  alt=""
-                  className="h-9 w-9 rounded-md object-contain"
-                  aria-hidden="true"
-                />
-                <div>
-                  <strong className="block font-heading text-sm font-semibold text-foreground">
-                    Emprely
-                  </strong>
-                  <span className="text-xs font-semibold text-primary">
-                    Orçamentos
-                  </span>
-                </div>
-              </div>
-              <div className="sidebar-menu mt-7 space-y-1">
-                {navegacaoPrincipal.map((item) => {
-                  const Icon = item.icon;
-                  const itemAtivo = appView === item.view;
-
-                  return (
-                    <div
-                      key={item.label}
-                      className={`app-nav-row flex items-center gap-1 rounded-md ${
-                        itemAtivo ? "is-active" : ""
-                      }`}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => navegarParaView(item.view)}
-                        aria-label={
-                          item.view === "servicos"
-                            ? "Serviços"
-                            : item.view === "conta"
-                              ? "Conta"
-                              : item.label
-                        }
-                        aria-current={itemAtivo ? "page" : undefined}
-                        className={`app-nav-item flex h-11 min-w-0 flex-1 items-center gap-3 rounded-md px-3 text-left text-sm font-medium transition ${
-                          itemAtivo
-                            ? "is-active bg-slate-100 text-foreground"
-                            : "text-muted hover:bg-slate-100 hover:text-foreground"
-                        }`}
-                      >
-                        <Icon size={18} aria-hidden="true" />
-                        <span className="truncate">{item.label}</span>
-                      </button>
-                      {item.quickAction && item.quickLabel ? (
-                        <button
-                          type="button"
-                          onClick={() => executarAcaoRapidaMenu(item.quickAction!)}
-                          aria-label={item.quickLabel}
-                          title={item.quickLabel}
-                          data-tooltip={item.quickLabel}
-                          className="app-nav-action tooltip-icon-button"
-                        >
-                          <Plus size={16} aria-hidden="true" />
-                        </button>
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
+            <nav
+              className={`app-sidebar border-r border-border bg-surface ${
+                sidebarRecolhida ? "is-collapsed" : ""
+              }`}
+            >
               <div
                 ref={contaMenuRef}
-                className="sidebar-account relative mt-auto rounded-md border border-border bg-white p-2"
+                className="sidebar-account sidebar-account-top relative rounded-md border border-border bg-white p-2"
               >
                 <button
                   type="button"
-                  className="sidebar-account-button flex w-full items-center gap-3 rounded-md p-2 text-left"
+                  className="sidebar-account-button tooltip-icon-button flex w-full items-center gap-3 rounded-md p-2 text-left"
                   aria-haspopup="menu"
                   aria-expanded={contaMenuAberto}
+                  data-tooltip={nomeMarcaTopo}
                   onClick={() => setContaMenuAberto((aberto) => !aberto)}
                 >
                   {logoMarcaTopo ? (
@@ -2469,7 +2979,7 @@ export default function App() {
                       {nomeMarcaTopo.slice(0, 2).toUpperCase()}
                     </span>
                   )}
-                  <span className="min-w-0 flex-1">
+                  <span className="sidebar-account-copy min-w-0 flex-1">
                     <strong className="block truncate text-sm font-semibold">
                       {nomeMarcaTopo}
                     </strong>
@@ -2481,7 +2991,7 @@ export default function App() {
                     size={16}
                     aria-hidden="true"
                     className={`shrink-0 text-muted transition ${
-                      contaMenuAberto ? "rotate-180" : ""
+                      contaMenuAberto ? "" : "rotate-180"
                     }`}
                   />
                 </button>
@@ -2509,13 +3019,115 @@ export default function App() {
                       <Palette size={16} aria-hidden="true" />
                       Personalização
                     </button>
+                    <span className="sidebar-account-menu-divider" aria-hidden="true" />
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setContaMenuAberto(false);
+                        logoutUsuario();
+                      }}
+                      className="sidebar-account-menu-item sidebar-account-menu-item-danger"
+                    >
+                      <LogOut size={16} aria-hidden="true" />
+                      Sair
+                    </button>
                   </div>
                 ) : null}
+              </div>
+              <div className="sidebar-collapse-divider">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setContaMenuAberto(false);
+                    setSidebarRecolhida((recolhida) => !recolhida);
+                  }}
+                  aria-label={sidebarRecolhida ? "Expandir menu lateral" : "Recolher menu lateral"}
+                  data-tooltip={sidebarRecolhida ? "Expandir menu" : "Recolher menu"}
+                  className="sidebar-collapse-toggle tooltip-icon-button"
+                >
+                  {sidebarRecolhida ? (
+                    <ChevronsRight size={17} aria-hidden="true" />
+                  ) : (
+                    <ChevronsLeft size={17} aria-hidden="true" />
+                  )}
+                </button>
+              </div>
+              <div className="sidebar-menu mt-5 space-y-1">
+                {navegacaoPrincipal.map((item) => {
+                  const Icon = item.icon;
+                  const itemAtivo = appView === item.view;
+
+                  return (
+                    <div
+                      key={item.label}
+                      className={`app-nav-row flex items-center gap-1 rounded-md ${
+                        itemAtivo ? "is-active" : ""
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => navegarParaView(item.view)}
+                        aria-label={
+                          item.view === "servicos"
+                            ? "Serviços"
+                            : item.view === "conta"
+                              ? "Conta"
+                              : item.label
+                        }
+                        aria-current={itemAtivo ? "page" : undefined}
+                        data-tooltip={item.label}
+                        className={`app-nav-item tooltip-icon-button flex h-11 min-w-0 flex-1 items-center gap-3 rounded-md px-3 text-left text-sm font-medium transition ${
+                          itemAtivo
+                            ? "is-active bg-slate-100 text-foreground"
+                            : "text-muted hover:bg-slate-100 hover:text-foreground"
+                        }`}
+                      >
+                        <Icon size={18} aria-hidden="true" />
+                        <span className="app-nav-label truncate">{item.label}</span>
+                      </button>
+                      {item.quickAction && item.quickLabel ? (
+                        <button
+                          type="button"
+                          onClick={() => executarAcaoRapidaMenu(item.quickAction!)}
+                          aria-label={item.quickLabel}
+                          title={item.quickLabel}
+                          data-tooltip={item.quickLabel}
+                          className="app-nav-action tooltip-icon-button"
+                        >
+                          <Plus size={16} aria-hidden="true" />
+                        </button>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="sidebar-product-brand sidebar-product-brand-footer flex items-center gap-3 rounded-md border border-border bg-white p-2">
+                <img
+                  src={emprelyFaviconSrc}
+                  alt=""
+                  className="h-9 w-9 rounded-md object-contain"
+                  aria-hidden="true"
+                />
+                <div className="sidebar-brand-copy">
+                  <strong className="block font-heading text-sm font-semibold text-foreground">
+                    Emprely
+                  </strong>
+                  <span className="text-xs font-semibold text-primary">
+                    Orçamentos
+                  </span>
+                </div>
               </div>
             </nav>
           ) : null}
 
-          <section className="app-content view-transition">
+          <section
+            className={`app-content view-transition ${
+              appView === "propostas" && propostaModo !== "lista"
+                ? "is-proposal-flow"
+                : ""
+            }`}
+          >
             <div className="app-content-body space-y-5">
               {usuario && conta ? (
               <>
@@ -2523,12 +3135,23 @@ export default function App() {
                   <section className="space-y-5">
                     <div className="page-heading">
                       <div>
+                        {clienteModo !== "lista" ? (
+                          <button
+                            type="button"
+                            onClick={voltarListaClientes}
+                            className="page-heading-action page-heading-back-action mb-3"
+                          >
+                            <ArrowRight
+                              className="rotate-180"
+                              size={18}
+                              aria-hidden="true"
+                            />
+                            Voltar para lista
+                          </button>
+                        ) : null}
                         <h1 className="font-heading text-3xl font-semibold">
                           Clientes
                         </h1>
-                        <p className="mt-1 text-sm text-muted">
-                          Cadastre contatos uma vez e monte propostas sem retrabalho.
-                        </p>
                       </div>
                       <div className="page-heading-actions">
                         {clienteModo === "lista" ? (
@@ -2540,32 +3163,16 @@ export default function App() {
                             <Plus size={18} aria-hidden="true" />
                             Novo cliente
                           </button>
-                        ) : (
-                          <>
-                            {clienteModo === "editar" ? (
-                              <button
-                                type="button"
-                                onClick={novoCliente}
-                                className="page-heading-action"
-                              >
-                                <Plus size={18} aria-hidden="true" />
-                                Novo cliente
-                              </button>
-                            ) : null}
-                            <button
-                              type="button"
-                              onClick={voltarListaClientes}
-                              className="page-heading-action"
-                            >
-                              <ArrowRight
-                                className="rotate-180"
-                                size={18}
-                                aria-hidden="true"
-                              />
-                              Voltar para lista
-                            </button>
-                          </>
-                        )}
+                        ) : clienteModo === "editar" ? (
+                          <button
+                            type="button"
+                            onClick={novoCliente}
+                            className="page-heading-action"
+                          >
+                            <Plus size={18} aria-hidden="true" />
+                            Novo cliente
+                          </button>
+                        ) : null}
                       </div>
                     </div>
 
@@ -2588,7 +3195,7 @@ export default function App() {
                             label="Buscar clientes"
                             type="search"
                             value={buscaClientes}
-                            placeholder="Nome, email, telefone ou documento"
+                            placeholder="Nome, e-mail, telefone ou CPF/CNPJ"
                             onChange={(event) => {
                               setBuscaClientes(event.target.value);
                               setClientePagina(1);
@@ -2632,15 +3239,15 @@ export default function App() {
                         ) : null}
 
                         {clientesPaginados.itens.length > 0 ? (
-                          <div className="mt-5 overflow-x-auto">
-                            <table className="data-table w-full min-w-[760px] text-left text-sm">
+                          <div className="data-table-shell mt-5">
+                            <table className="data-table data-table-clientes w-full text-left text-sm">
                               <thead>
                                 <tr>
                                   <th>Cliente</th>
-                                  <th>Email</th>
+                                  <th>E-mail</th>
                                   <th>Telefone</th>
-                                  <th>Documento</th>
-                                  <th>Acoes</th>
+                                  <th>CPF/CNPJ</th>
+                                  <th>Ações</th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -2656,11 +3263,11 @@ export default function App() {
                                         {cliente.observacoes || "Sem observações"}
                                       </span>
                                     </td>
-                                    <td data-label="Email">{cliente.email ?? "Não informado"}</td>
+                                    <td data-label="E-mail">{cliente.email ?? "Não informado"}</td>
                                     <td data-label="Telefone">
                                       <div className="flex min-w-0 items-center gap-2">
                                         <span className="min-w-0 truncate">
-                                          {cliente.telefone ?? "Não informado"}
+                                          {formatTelefoneExibicao(cliente.telefone)}
                                         </span>
                                         <ContatoWhatsappClienteButton
                                           href={whatsappContatoClienteUrl}
@@ -2668,10 +3275,12 @@ export default function App() {
                                         />
                                       </div>
                                     </td>
-                                    <td data-label="Documento">{cliente.documento || "Não informado"}</td>
+                                    <td data-label="CPF/CNPJ">
+                                      {formatCpfCnpjExibicao(cliente.documento)}
+                                    </td>
                                     <td data-label="Ações">
                                       <ListagemAcoes
-                                        ariaLabel={`Acoes do cliente ${cliente.nome}`}
+                                        ariaLabel={`Ações do cliente ${cliente.nome}`}
                                         acoes={[
                                           {
                                             label: "Visualizar",
@@ -2716,7 +3325,6 @@ export default function App() {
                             setClientePagina(1);
                           }}
                         />
-                        <MensagemSucesso mensagem={clienteMensagem} />
                         <MensagemErro error={arquivarClienteMutation.error} />
                       </div>
                     ) : null}
@@ -2753,23 +3361,132 @@ export default function App() {
                                 </button>
                               </div>
                             </div>
-                            <div className="mt-5 grid gap-3 md:grid-cols-2">
-                              <InfoLinha
-                                label="Email"
-                                value={clienteSelecionado.email ?? "Não informado"}
-                              />
-                              <InfoLinha
-                                label="Telefone"
-                                value={clienteSelecionado.telefone ?? "Não informado"}
-                              />
-                              <InfoLinha
-                                label="Documento"
-                                value={clienteSelecionado.documento || "Não informado"}
-                              />
-                              <InfoLinha
-                                label="Status"
-                                value={clienteSelecionado.status}
-                              />
+                            <div className="mt-5 grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(15rem,20rem)] md:items-end">
+                              <InfoLinha label="Nome" value={clienteSelecionado.nome} />
+                              <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                                <InfoLinha
+                                  label="Telefone"
+                                  value={formatTelefoneExibicao(
+                                    clienteSelecionado.telefone,
+                                  )}
+                                />
+                                <ContatoWhatsappClienteButton
+                                  href={buildWhatsappContatoClienteUrl(
+                                    clienteSelecionado,
+                                  )}
+                                  ariaLabel={`Entrar em contato com ${clienteSelecionado.nome} pelo WhatsApp`}
+                                  size="lg"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="mt-5 rounded-md border border-border bg-slate-50/70">
+                              <button
+                                type="button"
+                                aria-expanded={clienteComplementaresAberto}
+                                onClick={() =>
+                                  setClienteComplementaresAberto((aberto) => !aberto)
+                                }
+                                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm font-semibold text-foreground"
+                              >
+                                Informações complementares
+                                {clienteComplementaresAberto ? (
+                                  <ChevronUp size={18} aria-hidden="true" />
+                                ) : (
+                                  <ChevronDown size={18} aria-hidden="true" />
+                                )}
+                              </button>
+                              {clienteComplementaresAberto ? (
+                                <div className="grid gap-3 border-t border-border p-4">
+                                  <div className="grid gap-3 lg:grid-cols-3">
+                                    <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                                      <InfoLinha
+                                        label="Instagram"
+                                        value={
+                                          clienteSelecionado.instagram ??
+                                          "Não informado"
+                                        }
+                                      />
+                                      <LinkSocialClienteButton
+                                        href={buildClienteSocialUrl(
+                                          "instagram",
+                                          clienteSelecionado.instagram,
+                                        )}
+                                        label="Instagram"
+                                      />
+                                    </div>
+                                    <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                                      <InfoLinha
+                                        label="Facebook"
+                                        value={
+                                          clienteSelecionado.facebook ??
+                                          "Não informado"
+                                        }
+                                      />
+                                      <LinkSocialClienteButton
+                                        href={buildClienteSocialUrl(
+                                          "facebook",
+                                          clienteSelecionado.facebook,
+                                        )}
+                                        label="Facebook"
+                                      />
+                                    </div>
+                                    <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                                      <InfoLinha
+                                        label="TikTok"
+                                        value={
+                                          clienteSelecionado.tiktok ??
+                                          "Não informado"
+                                        }
+                                      />
+                                      <LinkSocialClienteButton
+                                        href={buildClienteSocialUrl(
+                                          "tiktok",
+                                          clienteSelecionado.tiktok,
+                                        )}
+                                        label="TikTok"
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className="grid gap-3 md:grid-cols-2">
+                                    <InfoLinha
+                                      label="E-mail"
+                                      value={clienteSelecionado.email ?? "Não informado"}
+                                    />
+                                    <InfoLinha
+                                      label="CPF/CNPJ"
+                                      value={formatCpfCnpjExibicao(
+                                        clienteSelecionado.documento,
+                                      )}
+                                    />
+                                  </div>
+                                  <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(8rem,12rem)_minmax(11rem,16rem)]">
+                                    <InfoLinha
+                                      label="Endereço"
+                                      value={
+                                        clienteSelecionado.endereco ??
+                                        "Não informado"
+                                      }
+                                    />
+                                    <InfoLinha
+                                      label="Número"
+                                      value={
+                                        clienteSelecionado.numero ?? "Não informado"
+                                      }
+                                    />
+                                    <InfoLinha
+                                      label="Cidade"
+                                      value={
+                                        clienteSelecionado.cidade ?? "Não informado"
+                                      }
+                                    />
+                                  </div>
+                                  <InfoLinha
+                                    label="Status"
+                                    value={clienteSelecionado.status}
+                                  />
+                                </div>
+                              ) : null}
                             </div>
                             {clienteSelecionado.observacoes ? (
                               <p className="mt-5 rounded-md bg-slate-50 px-3 py-2 text-sm text-muted">
@@ -2804,54 +3521,14 @@ export default function App() {
                           salvarClienteMutation.mutate(input),
                         )}
                       >
-                        <CampoTexto
-                          label="Nome"
-                          error={clienteForm.formState.errors.nome?.message}
-                          {...clienteForm.register("nome")}
+                        <ClienteFormularioCampos
+                          form={clienteForm}
+                          complementaresAberto={clienteComplementaresAberto}
+                          onToggleComplementares={() =>
+                            setClienteComplementaresAberto((aberto) => !aberto)
+                          }
                         />
-                        <CampoTexto
-                          label="Email"
-                          type="email"
-                          error={clienteForm.formState.errors.email?.message}
-                          {...clienteForm.register("email")}
-                        />
-                        <div className="grid gap-4 md:grid-cols-2">
-                          <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-                            <CampoTexto
-                              label="Telefone"
-                              placeholder="(11) 99999-9999"
-                              error={clienteForm.formState.errors.telefone?.message}
-                              {...clienteForm.register("telefone")}
-                            />
-                            <ContatoWhatsappClienteButton
-                              href={clienteFormularioWhatsappUrl}
-                              ariaLabel="Entrar em contato com este cliente pelo WhatsApp"
-                              size="lg"
-                            />
-                          </div>
-                          <CampoTexto
-                            label="Documento"
-                            error={clienteForm.formState.errors.documento?.message}
-                            {...clienteForm.register("documento")}
-                          />
-                        </div>
-                        <CampoTextarea
-                          label="Observações"
-                          rows={4}
-                          error={clienteForm.formState.errors.observacoes?.message}
-                          {...clienteForm.register("observacoes")}
-                        />
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                          <button
-                            type="submit"
-                            disabled={salvarClienteMutation.isPending}
-                            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            <Save size={18} aria-hidden="true" />
-                            {salvarClienteMutation.isPending
-                              ? "Salvando..."
-                              : "Salvar cliente"}
-                          </button>
+                        <div className="form-action-bar">
                           {clienteModo === "editar" ? (
                             <button
                               type="button"
@@ -2862,8 +3539,19 @@ export default function App() {
                               Cancelar
                             </button>
                           ) : null}
+                          <div className="form-action-bar-right">
+                            <button
+                              type="submit"
+                              disabled={salvarClienteMutation.isPending}
+                              className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              <Save size={18} aria-hidden="true" />
+                              {salvarClienteMutation.isPending
+                                ? "Salvando..."
+                                : "Salvar cliente"}
+                            </button>
+                          </div>
                         </div>
-                        <MensagemSucesso mensagem={clienteMensagem} />
                         <MensagemErro error={salvarClienteMutation.error} />
                       </form>
                       </div>
@@ -2875,12 +3563,23 @@ export default function App() {
                   <section className="space-y-5">
                     <div className="page-heading">
                       <div>
+                        {servicoModo !== "lista" ? (
+                          <button
+                            type="button"
+                            onClick={voltarListaServicos}
+                            className="page-heading-action page-heading-back-action mb-3"
+                          >
+                            <ArrowRight
+                              className="rotate-180"
+                              size={18}
+                              aria-hidden="true"
+                            />
+                            Voltar para lista
+                          </button>
+                        ) : null}
                         <h1 className="font-heading text-3xl font-semibold">
                           Meus serviços e pacotes
                         </h1>
-                        <p className="mt-1 text-sm text-muted">
-                          Cadastre uma vez e reutilize em todos os orçamentos.
-                        </p>
                       </div>
                       <div className="page-heading-actions">
                         {servicoModo === "lista" ? (
@@ -2892,32 +3591,16 @@ export default function App() {
                             <Plus size={18} aria-hidden="true" />
                             Novo serviço
                           </button>
-                        ) : (
-                          <>
-                            {servicoModo === "editar" ? (
-                              <button
-                                type="button"
-                                onClick={novoServico}
-                                className="page-heading-action"
-                              >
-                                <Plus size={18} aria-hidden="true" />
-                                Novo serviço
-                              </button>
-                            ) : null}
-                            <button
-                              type="button"
-                              onClick={voltarListaServicos}
-                              className="page-heading-action"
-                            >
-                              <ArrowRight
-                                className="rotate-180"
-                                size={18}
-                                aria-hidden="true"
-                              />
-                              Voltar para lista
-                            </button>
-                          </>
-                        )}
+                        ) : servicoModo === "editar" ? (
+                          <button
+                            type="button"
+                            onClick={novoServico}
+                            className="page-heading-action"
+                          >
+                            <Plus size={18} aria-hidden="true" />
+                            Novo serviço
+                          </button>
+                        ) : null}
                       </div>
                     </div>
 
@@ -2984,15 +3667,15 @@ export default function App() {
                         ) : null}
 
                         {servicosPaginados.itens.length > 0 ? (
-                          <div className="mt-5 overflow-x-auto">
-                            <table className="data-table w-full min-w-[760px] text-left text-sm">
+                          <div className="data-table-shell mt-5">
+                            <table className="data-table data-table-servicos w-full text-left text-sm">
                               <thead>
                                 <tr>
                                   <th>Serviço / Pacote</th>
                                   <th>Categoria</th>
                                   <th>Tipo</th>
                                   <th>Valor</th>
-                                  <th>Acoes</th>
+                                  <th>Ações</th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -3014,7 +3697,7 @@ export default function App() {
                                     </td>
                                     <td data-label="Ações">
                                       <ListagemAcoes
-                                        ariaLabel={`Acoes do servico ${servico.nome}`}
+                                        ariaLabel={`Ações do serviço ${servico.nome}`}
                                         acoes={[
                                           {
                                             label: "Visualizar",
@@ -3058,7 +3741,6 @@ export default function App() {
                             setServicoPagina(1);
                           }}
                         />
-                        <MensagemSucesso mensagem={servicoMensagem} />
                         <MensagemErro error={arquivarServicoMutation.error} />
                       </div>
                     ) : null}
@@ -3149,15 +3831,20 @@ export default function App() {
                             error={servicoForm.formState.errors.categoria?.message}
                             {...servicoForm.register("categoria")}
                           />
-                          <CampoTexto
-                            label="Preço"
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            error={servicoForm.formState.errors.preco?.message}
-                            {...servicoForm.register("preco", {
-                              valueAsNumber: true,
-                            })}
+                          <Controller
+                            control={servicoForm.control}
+                            name="preco"
+                            render={({ field }) => (
+                              <CampoMoedaReal
+                                label="Preço"
+                                name={field.name}
+                                ref={field.ref}
+                                value={field.value}
+                                onBlur={field.onBlur}
+                                onValueChange={field.onChange}
+                                error={servicoForm.formState.errors.preco?.message}
+                              />
+                            )}
                           />
                         </div>
                         <div className="grid gap-4 md:grid-cols-2">
@@ -3186,17 +3873,7 @@ export default function App() {
                           error={servicoForm.formState.errors.descricao?.message}
                           {...servicoForm.register("descricao")}
                         />
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                          <button
-                            type="submit"
-                            disabled={salvarServicoMutation.isPending}
-                            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            <Save size={18} aria-hidden="true" />
-                            {salvarServicoMutation.isPending
-                              ? "Salvando..."
-                              : "Salvar serviço"}
-                          </button>
+                        <div className="form-action-bar">
                           {servicoModo === "editar" ? (
                             <button
                               type="button"
@@ -3207,8 +3884,19 @@ export default function App() {
                               Cancelar
                             </button>
                           ) : null}
+                          <div className="form-action-bar-right">
+                            <button
+                              type="submit"
+                              disabled={salvarServicoMutation.isPending}
+                              className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              <Save size={18} aria-hidden="true" />
+                              {salvarServicoMutation.isPending
+                                ? "Salvando..."
+                                : "Salvar serviço"}
+                            </button>
+                          </div>
                         </div>
-                        <MensagemSucesso mensagem={servicoMensagem} />
                         <MensagemErro error={salvarServicoMutation.error} />
                       </form>
                       </div>
@@ -3226,18 +3914,29 @@ export default function App() {
                   >
                     <div className="page-heading xl:col-span-2">
                       <div>
+                        {propostaModo !== "lista" ? (
+                          <button
+                            type="button"
+                            onClick={voltarListaPropostas}
+                            className="page-heading-action page-heading-back-action mb-3"
+                          >
+                            <ArrowRight
+                              className="rotate-180"
+                              size={18}
+                              aria-hidden="true"
+                            />
+                            Voltar para lista
+                          </button>
+                        ) : null}
                         <h1 className="font-heading text-3xl font-semibold">
                           {propostaModo === "lista"
                             ? "Propostas"
-                            : propostaSelecionada
+                            : propostaModo === "assistente"
+                              ? "Nova proposta"
+                              : propostaSelecionada
                               ? "Editar proposta"
                               : "Nova proposta"}
                         </h1>
-                        <p className="mt-1 text-sm text-muted">
-                          {propostaModo === "lista"
-                            ? "Histórico, duplicação e envio rápido pelo WhatsApp."
-                            : "Monte um orçamento claro, revise o resumo e salve quando estiver pronto."}
-                        </p>
                       </div>
                       <div className="page-heading-actions">
                         {propostaModo === "lista" ? (
@@ -3249,56 +3948,273 @@ export default function App() {
                             <Plus size={18} aria-hidden="true" />
                             Nova proposta
                           </button>
-                        ) : (
-                          <>
-                            {propostaSelecionada ? (
-                              <button
-                                type="button"
-                                onClick={novaProposta}
-                                className="page-heading-action"
-                              >
-                                <Plus size={18} aria-hidden="true" />
-                                Nova proposta
-                              </button>
-                            ) : null}
-                            <button
-                              type="button"
-                              onClick={voltarListaPropostas}
-                              className="page-heading-action"
-                            >
-                              <ArrowRight
-                                className="rotate-180"
-                                size={18}
-                                aria-hidden="true"
-                              />
-                              Voltar para lista
-                            </button>
-                          </>
-                        )}
+                        ) : propostaSelecionada ? (
+                          <button
+                            type="button"
+                            onClick={novaProposta}
+                            className="page-heading-action"
+                          >
+                            <Plus size={18} aria-hidden="true" />
+                            Nova proposta
+                          </button>
+                        ) : null}
                       </div>
                     </div>
-                    {propostaMensagem ? (
-                      <div className="proposal-grid-full">
-                        <MensagemSucesso mensagem={propostaMensagem} />
+                    {contaStatusComercial === "TrialExpirado" ? (
+                      <TrialUpsellBanner conta={conta} />
+                    ) : null}
+                    {propostaModo === "assistente" ? (
+                      <div className="proposal-wizard-panel rounded-md border border-border bg-surface p-5">
+                        <div className="proposal-wizard-steps" aria-label="Etapas da nova proposta">
+                          {[
+                            "Cliente",
+                            "Proposta",
+                            "Itens",
+                            "Revisão",
+                          ].map((step, index) => (
+                            <span
+                              key={step}
+                              className={index === 0 ? "is-active" : ""}
+                            >
+                              <strong>{index + 1}</strong>
+                              {step}
+                            </span>
+                          ))}
+                        </div>
+
+                        {propostaAssistenteEtapa === "inicio" ? (
+                          <div className="proposal-wizard-choice-grid mt-5">
+                            <button
+                              type="button"
+                              disabled={clientes.length === 0}
+                              onClick={() => setPropostaAssistenteEtapa("existente")}
+                              className="proposal-wizard-choice"
+                            >
+                              <span className="proposal-wizard-choice-icon">
+                                <UsersRound size={22} aria-hidden="true" />
+                              </span>
+                              <span>
+                                <strong>Cliente já cadastrado</strong>
+                                <small>
+                                  Busque um contato salvo e comece a proposta com
+                                  os dados preenchidos.
+                                </small>
+                                {clientes.length === 0 ? (
+                                  <em>Nenhum cliente salvo ainda.</em>
+                                ) : (
+                                  <em>
+                                    {clientes.length} cliente
+                                    {clientes.length === 1
+                                      ? " disponível"
+                                      : "s disponíveis"}
+                                  </em>
+                                )}
+                              </span>
+                              <ArrowRight size={18} aria-hidden="true" />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={abrirClienteRapidoAssistente}
+                              className="proposal-wizard-choice"
+                            >
+                              <span className="proposal-wizard-choice-icon">
+                                <UserRound size={22} aria-hidden="true" />
+                              </span>
+                              <span>
+                                <strong>Cadastrar novo cliente</strong>
+                                <small>
+                                  Informe nome, telefone e e-mail opcional sem sair
+                                  do fluxo da proposta.
+                                </small>
+                                <em>Depois de salvar, a montagem abre automaticamente.</em>
+                              </span>
+                              <ArrowRight size={18} aria-hidden="true" />
+                            </button>
+                          </div>
+                        ) : null}
+
+                        {propostaAssistenteEtapa === "existente" ? (
+                          <div className="proposal-wizard-step mt-5">
+                            <div className="proposal-wizard-step-header">
+                              <div>
+                                <p className="text-sm font-medium text-primary">
+                                  Cliente cadastrado
+                                </p>
+                                <h2 className="font-heading text-xl font-semibold">
+                                  Selecione quem vai receber a proposta
+                                </h2>
+                              </div>
+                            </div>
+
+                            <CampoTexto
+                              label="Buscar cliente"
+                              type="search"
+                              value={buscaClienteAssistente}
+                              placeholder="Nome, telefone, e-mail ou CPF/CNPJ"
+                              onChange={(event) =>
+                                setBuscaClienteAssistente(event.target.value)
+                              }
+                            />
+
+                            {clientesAssistenteFiltrados.length > 0 ? (
+                              <div className="proposal-wizard-client-list">
+                                {clientesAssistenteFiltrados.map((cliente) => (
+                                  <button
+                                    key={cliente.id}
+                                    type="button"
+                                    onClick={() =>
+                                      selecionarClienteAssistente(cliente.id)
+                                    }
+                                    className="proposal-wizard-client-card"
+                                  >
+                                    <span className="proposal-wizard-client-avatar">
+                                      {cliente.nome.slice(0, 2).toUpperCase()}
+                                    </span>
+                                    <span className="min-w-0">
+                                      <strong>{cliente.nome}</strong>
+                                      <small>
+                                        {[formatTelefoneOpcional(cliente.telefone), cliente.email]
+                                          .filter(Boolean)
+                                          .join(" • ") || "Sem contato complementar"}
+                                      </small>
+                                    </span>
+                                    <ArrowRight size={17} aria-hidden="true" />
+                                  </button>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="proposal-wizard-empty">
+                                <UsersRound size={20} aria-hidden="true" />
+                                <div>
+                                  <strong>Nenhum cliente encontrado.</strong>
+                                  <p>
+                                    Cadastre um novo cliente para continuar sem sair
+                                    deste fluxo.
+                                  </p>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={abrirClienteRapidoAssistente}
+                                  className="page-heading-action is-primary"
+                                >
+                                  <Plus size={16} aria-hidden="true" />
+                                  Novo cliente
+                                </button>
+                              </div>
+                            )}
+                            <div className="proposal-step-actions">
+                              <button
+                                type="button"
+                                onClick={voltarInicioAssistenteProposta}
+                                className="page-heading-action"
+                              >
+                                <ArrowRight
+                                  className="rotate-180"
+                                  size={16}
+                                  aria-hidden="true"
+                                />
+                                Voltar
+                              </button>
+                              <span>Selecione um cliente para avançar.</span>
+                            </div>
+                          </div>
+                        ) : null}
+
+                        {propostaAssistenteEtapa === "novo" ? (
+                          <div className="proposal-wizard-step mt-5">
+                            <div className="proposal-wizard-step-header">
+                              <div>
+                                <p className="text-sm font-medium text-primary">
+                                  Clientes
+                                </p>
+                                <h2 className="font-heading text-xl font-semibold">
+                                  Novo cliente
+                                </h2>
+                              </div>
+                            </div>
+
+                            <form
+                              className="proposal-client-wizard-form mt-5"
+                              onSubmit={clienteRapidoForm.handleSubmit((input) =>
+                                criarClienteRapidoMutation.mutate(input),
+                              )}
+                            >
+                              <ClienteFormularioCampos
+                                form={clienteRapidoForm}
+                                complementaresAberto={
+                                  clienteRapidoComplementaresAberto
+                                }
+                                onToggleComplementares={() =>
+                                  setClienteRapidoComplementaresAberto(
+                                    (aberto) => !aberto,
+                                  )
+                                }
+                              />
+                              <div className="proposal-step-actions">
+                                <button
+                                  type="button"
+                                  onClick={voltarInicioAssistenteProposta}
+                                  className="page-heading-action"
+                                >
+                                  <ArrowRight
+                                    className="rotate-180"
+                                    size={16}
+                                    aria-hidden="true"
+                                  />
+                                  Voltar
+                                </button>
+                                <div className="proposal-step-actions-right">
+                                  <MensagemErro
+                                    error={criarClienteRapidoMutation.error}
+                                  />
+                                <button
+                                  type="submit"
+                                  disabled={criarClienteRapidoMutation.isPending}
+                                  className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  {criarClienteRapidoMutation.isPending
+                                    ? "Salvando..."
+                                      : "Próximo"}
+                                    <ArrowRight size={16} aria-hidden="true" />
+                                </button>
+                                </div>
+                              </div>
+                            </form>
+                          </div>
+                        ) : null}
                       </div>
                     ) : null}
                     {propostaEditorAtivo ? (
                     <div className="proposal-form-panel rounded-md border border-border bg-surface p-5">
-                      <div className="proposal-builder-header flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                        <div>
-                          <p className="text-xs font-bold uppercase tracking-wide text-primary">
-                            Builder comercial
-                          </p>
-                          <h2 className="mt-1 font-heading text-xl font-semibold leading-7">
+                      <div className="proposal-builder-header">
+                        <div className="proposal-builder-header-copy">
+                          <p className="proposal-builder-eyebrow">
                             {propostaSelecionada
-                              ? "Editar proposta"
-                            : "Nova proposta"}
-                          </h2>
-                          <p className="mt-1 max-w-2xl text-sm leading-6 text-muted">
-                            Edite cliente, mensagem, escopo, valores e condicoes comerciais da proposta.
+                              ? "Fluxo de edição"
+                              : "Fluxo de criação"}
                           </p>
                         </div>
+                        <div
+                          className="proposal-builder-context"
+                          aria-label="Resumo do fluxo da proposta"
+                        >
+                          <span>
+                            Etapa {propostaWizardEtapaAtualIndex + 1} de{" "}
+                            {propostaWizardEtapas.length}
+                          </span>
+                          <span>{propostaWizardEtapaAtualLabel}</span>
+                          <span>{propostaBuilderStatusLabel}</span>
+                          <span>{propostaBuilderClienteLabel}</span>
+                        </div>
                       </div>
+
+                      <PropostaWizardBar
+                        etapas={propostaWizardEtapas}
+                        etapaAtiva={propostaWizardEtapaAtiva}
+                        onEtapaClick={navegarParaEtapaProposta}
+                        sticky
+                      />
 
                       {clientes.length === 0 ? (
                         <div className="mt-5 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
@@ -3334,45 +4250,70 @@ export default function App() {
                           type="hidden"
                           {...propostaForm.register("templateVisual")}
                         />
-                        <div className="proposal-section">
-                          <div className="proposal-section-header">
-                            <span className="proposal-section-icon">
-                              <UsersRound size={18} aria-hidden="true" />
-                            </span>
-                            <div>
-                              <p className="proposal-step-label">Etapa 1</p>
-                              <h3>Cliente e validade</h3>
+                        {propostaWizardEtapaAtiva === "cliente" ? (
+                          <div
+                            ref={propostaWizardClienteRef}
+                            className="proposal-section proposal-step-screen"
+                          >
+                            <div className="proposal-section-header">
+                              <span className="proposal-section-icon">
+                                <UsersRound size={18} aria-hidden="true" />
+                              </span>
+                              <div>
+                                <p className="proposal-step-label">Etapa 1</p>
+                                <h3>Cliente e validade</h3>
+                              </div>
+                            </div>
+                            <div className="grid gap-4 md:grid-cols-[1fr_150px]">
+                              <CampoSelect
+                                label="Cliente"
+                                error={
+                                  propostaForm.formState.errors.clienteId?.message
+                                }
+                                {...propostaForm.register("clienteId", {
+                                  onChange: handleClientePropostaChange,
+                                })}
+                              >
+                                <option value="">Selecione</option>
+                                {clientes.map((cliente) => (
+                                  <option key={cliente.id} value={cliente.id}>
+                                    {cliente.nome}
+                                  </option>
+                                ))}
+                              </CampoSelect>
+                              <CampoTexto
+                                label="Validade"
+                                type="number"
+                                min="1"
+                                max="365"
+                                error={
+                                  propostaForm.formState.errors.validadeDias
+                                    ?.message
+                                }
+                                {...propostaForm.register("validadeDias", {
+                                  valueAsNumber: true,
+                                })}
+                              />
+                            </div>
+                            <div className="proposal-step-actions">
+                              <span>Escolha quem receberá a proposta.</span>
+                              <button
+                                type="button"
+                                onClick={avancarEtapaProposta}
+                                className="page-heading-action is-primary"
+                              >
+                                Próximo
+                                <ArrowRight size={16} aria-hidden="true" />
+                              </button>
                             </div>
                           </div>
-                          <div className="grid gap-4 md:grid-cols-[1fr_150px]">
-                            <CampoSelect
-                              label="Cliente"
-                              error={propostaForm.formState.errors.clienteId?.message}
-                              {...propostaForm.register("clienteId", {
-                                onChange: handleClientePropostaChange,
-                              })}
-                            >
-                              <option value="">Selecione</option>
-                              {clientes.map((cliente) => (
-                                <option key={cliente.id} value={cliente.id}>
-                                  {cliente.nome}
-                                </option>
-                              ))}
-                            </CampoSelect>
-                            <CampoTexto
-                              label="Validade"
-                              type="number"
-                              min="1"
-                              max="365"
-                              error={propostaForm.formState.errors.validadeDias?.message}
-                              {...propostaForm.register("validadeDias", {
-                                valueAsNumber: true,
-                              })}
-                            />
-                          </div>
-                        </div>
+                        ) : null}
 
-                        <div className="proposal-section">
+                        {propostaWizardEtapaAtiva === "proposta" ? (
+                          <div
+                            ref={propostaWizardMensagemRef}
+                            className="proposal-section proposal-step-screen"
+                          >
                           <div className="proposal-section-header">
                             <span className="proposal-section-icon">
                               <FileText size={18} aria-hidden="true" />
@@ -3401,9 +4342,37 @@ export default function App() {
                               {...propostaForm.register("observacoes")}
                             />
                           </div>
-                        </div>
+                          <div className="proposal-step-actions">
+                              <button
+                                type="button"
+                                onClick={voltarEtapaProposta}
+                                className="page-heading-action"
+                              >
+                                <ArrowRight
+                                  className="rotate-180"
+                                  size={16}
+                                  aria-hidden="true"
+                                />
+                                Voltar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={avancarEtapaProposta}
+                                className="page-heading-action is-primary"
+                              >
+                                Próximo
+                                <ArrowRight size={16} aria-hidden="true" />
+                              </button>
+                            </div>
+                          </div>
+                        ) : null}
 
-                        <div className="proposal-section">
+                        {propostaWizardEtapaAtiva === "itens" ? (
+                          <>
+                            <div
+                              ref={propostaWizardItensRef}
+                              className="proposal-section proposal-step-screen"
+                            >
                           <div className="proposal-section-header">
                             <span className="proposal-section-icon">
                               <PackageCheck size={18} aria-hidden="true" />
@@ -3416,7 +4385,7 @@ export default function App() {
                           <div className="proposal-catalog-row">
                             <div className="flex-1">
                                 <CampoSelect
-                                  label="Adicionar do catálogo"
+                                  label="Selecionar do catálogo"
                                 value={servicoParaAdicionarId}
                                 onChange={(event) =>
                                   setServicoParaAdicionarId(event.target.value)
@@ -3455,7 +4424,7 @@ export default function App() {
                             </div>
                           </div>
 
-                          <div className="mt-4 space-y-3">
+                          <div className="proposal-items-list">
                             {propostaItemFields.length === 0 ? (
                               <div className="proposal-empty-items">
                                 <PackageCheck size={18} aria-hidden="true" />
@@ -3482,7 +4451,26 @@ export default function App() {
                                       `itens.${index}.servicoId` as const,
                                     )}
                                   />
-                                  <div className="grid gap-3 md:grid-cols-[1fr_110px_140px]">
+                                  <div className="proposal-item-card-header">
+                                    <span className="proposal-item-index">
+                                      Item {String(index + 1).padStart(2, "0")}
+                                    </span>
+                                    <span className="proposal-item-total">
+                                      <small>Total</small>
+                                      <strong>{formatMoney(itemTotal)}</strong>
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => removePropostaItem(index)}
+                                      className="proposal-item-remove tooltip-icon-button"
+                                      aria-label="Remover item"
+                                      data-tooltip="Remover item"
+                                      title="Remover item"
+                                    >
+                                      <Trash2 size={15} aria-hidden="true" />
+                                    </button>
+                                  </div>
+                                  <div className="proposal-item-fields">
                                     <CampoTexto
                                       label="Item"
                                       error={
@@ -3496,8 +4484,11 @@ export default function App() {
                                     <CampoTexto
                                       label="Qtd"
                                       type="number"
-                                      min="0.01"
-                                      step="0.01"
+                                      min="1"
+                                      step="1"
+                                      inputMode="numeric"
+                                      onKeyDown={bloquearQuantidadeDecimalKeyDown}
+                                      onPaste={bloquearQuantidadeDecimalPaste}
                                       error={
                                         propostaForm.formState.errors.itens?.[index]
                                           ?.quantidade?.message
@@ -3507,25 +4498,29 @@ export default function App() {
                                         { valueAsNumber: true },
                                       )}
                                     />
-                                    <CampoTexto
-                                      label="Valor"
-                                      type="number"
-                                      min="0"
-                                      step="0.01"
-                                      error={
-                                        propostaForm.formState.errors.itens?.[index]
-                                          ?.valorUnitario?.message
-                                      }
-                                      {...propostaForm.register(
-                                        `itens.${index}.valorUnitario` as const,
-                                        { valueAsNumber: true },
+                                    <Controller
+                                      control={propostaForm.control}
+                                      name={`itens.${index}.valorUnitario` as const}
+                                      render={({ field }) => (
+                                        <CampoMoedaReal
+                                          label="Valor"
+                                          name={field.name}
+                                          ref={field.ref}
+                                          value={field.value}
+                                          onBlur={field.onBlur}
+                                          onValueChange={field.onChange}
+                                          error={
+                                            propostaForm.formState.errors.itens?.[index]
+                                              ?.valorUnitario?.message
+                                          }
+                                        />
                                       )}
                                     />
                                   </div>
-                                  <div className="mt-3">
+                                  <div className="proposal-item-description">
                                     <CampoTextarea
                                       label="Descrição"
-                                      rows={2}
+                                      rows={1}
                                       error={
                                         propostaForm.formState.errors.itens?.[index]
                                           ?.descricao?.message
@@ -3534,19 +4529,6 @@ export default function App() {
                                         `itens.${index}.descricao` as const,
                                       )}
                                     />
-                                  </div>
-                                  <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                                    <span className="text-sm font-semibold text-muted">
-                                      Total do item: {formatMoney(itemTotal)}
-                                    </span>
-                                    <button
-                                      type="button"
-                                      onClick={() => removePropostaItem(index)}
-                                      className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-red-200 px-3 text-sm font-semibold text-red-700 transition hover:border-red-400"
-                                    >
-                                      <X size={16} aria-hidden="true" />
-                                      Remover
-                                    </button>
                                   </div>
                                 </article>
                               );
@@ -3559,31 +4541,66 @@ export default function App() {
                               {propostaForm.formState.errors.itens.message}
                             </span>
                           ) : null}
-                        </div>
 
-                        <div className="proposal-section">
+                          <div className="proposal-step-actions">
+                            <button
+                              type="button"
+                              onClick={voltarEtapaProposta}
+                              className="page-heading-action"
+                            >
+                              <ArrowRight
+                                className="rotate-180"
+                                size={16}
+                                aria-hidden="true"
+                              />
+                              Voltar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={avancarEtapaProposta}
+                              className="page-heading-action is-primary"
+                            >
+                              Próximo
+                              <ArrowRight size={16} aria-hidden="true" />
+                            </button>
+                          </div>
+                        </div>
+                          </>
+                        ) : null}
+
+                        {propostaWizardEtapaAtiva === "detalhamento" ? (
+                          <>
+                        <div
+                          ref={propostaWizardDetalhamentoRef}
+                          className="proposal-section proposal-step-screen"
+                        >
                           <div className="proposal-section-header">
                             <span className="proposal-section-icon">
                               <ReceiptText size={18} aria-hidden="true" />
                             </span>
                             <div>
-                              <p className="proposal-step-label">Opcionais</p>
+                              <p className="proposal-step-label">Etapa 4</p>
                               <h3>Detalhamento comercial</h3>
                             </div>
                           </div>
                           <div className="grid gap-4 lg:grid-cols-2">
-                            <CampoTexto
-                              label="Desconto em R$"
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              error={
-                                propostaForm.formState.errors.descontoValor
-                                  ?.message
-                              }
-                              {...propostaForm.register("descontoValor", {
-                                valueAsNumber: true,
-                              })}
+                            <Controller
+                              control={propostaForm.control}
+                              name="descontoValor"
+                              render={({ field }) => (
+                                <CampoMoedaReal
+                                  label="Desconto em R$"
+                                  name={field.name}
+                                  ref={field.ref}
+                                  value={field.value}
+                                  onBlur={field.onBlur}
+                                  onValueChange={field.onChange}
+                                  error={
+                                    propostaForm.formState.errors.descontoValor
+                                      ?.message
+                                  }
+                                />
+                              )}
                             />
                             <CampoTextarea
                               label="Condições de pagamento"
@@ -3596,30 +4613,47 @@ export default function App() {
                             />
                           </div>
                           <div className="mt-4 grid gap-4 lg:grid-cols-2">
-                            <CampoTextarea
-                              label="O que está incluso"
-                              rows={4}
-                              helperText="Uma linha por item. Se ficar vazio, a seção some do template."
-                              error={
-                                propostaForm.formState.errors.itensInclusosTexto
-                                  ?.message
-                              }
-                              {...propostaForm.register("itensInclusosTexto")}
+                            <Controller
+                              control={propostaForm.control}
+                              name="itensInclusosTexto"
+                              render={({ field }) => (
+                                <ListaDetalhamentoProposta
+                                  label="O que está incluso"
+                                  name={field.name}
+                                  value={field.value}
+                                  onChange={field.onChange}
+                                  onBlur={field.onBlur}
+                                  variante="positive"
+                                  placeholder="Ex: 3 postagens semanais"
+                                  error={
+                                    propostaForm.formState.errors.itensInclusosTexto
+                                      ?.message
+                                  }
+                                />
+                              )}
                             />
-                            <CampoTextarea
-                              label="O que não está incluso"
-                              rows={4}
-                              helperText="Uma linha por item. Se ficar vazio, a seção some do template."
-                              error={
-                                propostaForm.formState.errors
-                                  .itensNaoInclusosTexto?.message
-                              }
-                              {...propostaForm.register("itensNaoInclusosTexto")}
+                            <Controller
+                              control={propostaForm.control}
+                              name="itensNaoInclusosTexto"
+                              render={({ field }) => (
+                                <ListaDetalhamentoProposta
+                                  label="O que não está incluso"
+                                  name={field.name}
+                                  value={field.value}
+                                  onChange={field.onChange}
+                                  onBlur={field.onBlur}
+                                  variante="negative"
+                                  placeholder="Ex: verba de anúncios"
+                                  error={
+                                    propostaForm.formState.errors
+                                      .itensNaoInclusosTexto?.message
+                                  }
+                                />
+                              )}
                             />
                             <CampoTextarea
                               label="Cronograma"
                               rows={4}
-                              helperText="Uma linha por marco, prazo ou condição."
                               error={
                                 propostaForm.formState.errors.cronogramaTexto
                                   ?.message
@@ -3629,7 +4663,6 @@ export default function App() {
                             <CampoTextarea
                               label="Benefícios"
                               rows={4}
-                              helperText="Uma linha por benefício esperado."
                               error={
                                 propostaForm.formState.errors.beneficiosTexto
                                   ?.message
@@ -3637,44 +4670,284 @@ export default function App() {
                               {...propostaForm.register("beneficiosTexto")}
                             />
                           </div>
+                          <div className="proposal-step-actions">
+                            <button
+                              type="button"
+                              onClick={voltarEtapaProposta}
+                              className="page-heading-action"
+                            >
+                              <ArrowRight
+                                className="rotate-180"
+                                size={16}
+                                aria-hidden="true"
+                              />
+                              Voltar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={avancarEtapaProposta}
+                              className="page-heading-action is-primary"
+                            >
+                              Próximo
+                              <ArrowRight size={16} aria-hidden="true" />
+                            </button>
+                          </div>
                         </div>
+                          </>
+                        ) : null}
 
-                        <div className="proposal-total-bar">
-                          <div>
-                            <p className="text-xs font-bold uppercase tracking-wide text-muted">
-                              Fechamento
-                            </p>
-                            <strong className="mt-1 block text-3xl font-semibold">
-                              {formatMoney(propostaTotalPreview)}
-                            </strong>
-                            <span className="mt-1 block text-sm text-muted">
-                              Subtotal {formatMoney(propostaSubtotalPreview)}
-                              {propostaDescontoPreview > 0
-                                ? ` - desconto ${formatMoney(
-                                    propostaDescontoPreview,
-                                  )}`
-                                : ""}
+                        {propostaWizardEtapaAtiva === "revisao" ? (
+                        <div
+                          ref={propostaWizardRevisaoRef}
+                          className="proposal-section proposal-review-section proposal-step-screen"
+                        >
+                          <div className="proposal-section-header">
+                            <span className="proposal-section-icon">
+                              <Eye size={18} aria-hidden="true" />
                             </span>
-                            <span className="mt-1 block text-sm text-muted">
-                              {propostaItemFields.length} item
-                              {propostaItemFields.length === 1 ? "" : "s"} no escopo
-                            </span>
+                            <div>
+                              <p className="proposal-step-label">Etapa 5</p>
+                              <h3>Revisão final</h3>
+                            </div>
                           </div>
-                          <div className="proposal-total-status">
-                            <span>
-                              Template:{" "}
-                              {getPropostaTemplateLabel(
-                                normalizarTemplateVisual(
-                                  propostaPreview.templateVisual,
-                                ),
-                              )}
-                            </span>
-                            {propostaSelecionada ? (
-                              <span>Status: {propostaSelecionada.status}</span>
-                            ) : null}
+                          <div className="proposal-review-grid">
+                            <div className="proposal-review-summary">
+                              <div className="proposal-review-overview">
+                                <article>
+                                  <span>Cliente</span>
+                                  <strong>
+                                    {clientePreview?.nome || "Selecione um cliente"}
+                                  </strong>
+                                </article>
+                                <article>
+                                  <span>Template</span>
+                                  <strong>{propostaResumoTemplateLabel}</strong>
+                                </article>
+                                <article>
+                                  <span>Validade</span>
+                                  <strong>{propostaResumoValidade}</strong>
+                                </article>
+                                <article>
+                                  <span>Total</span>
+                                  <strong>{formatMoney(propostaTotalVisual)}</strong>
+                                </article>
+                              </div>
+
+                              <div className="proposal-review-content-grid">
+                                <section className="proposal-review-card proposal-review-card-wide">
+                                  <div className="proposal-review-card-header">
+                                    <div>
+                                      <span>Proposta</span>
+                                      <h4>
+                                        {propostaPreviewVisual.titulo?.trim() ||
+                                          "Título não informado"}
+                                      </h4>
+                                    </div>
+                                  </div>
+                                  <div className="proposal-review-text-grid">
+                                    <div>
+                                      <span>Introdução</span>
+                                      <p>{propostaResumoIntroducao}</p>
+                                    </div>
+                                    <div>
+                                      <span>Condições de pagamento</span>
+                                      <p>{propostaResumoCondicoesPagamento}</p>
+                                    </div>
+                                    <div>
+                                      <span>Observações</span>
+                                      <p>{propostaResumoObservacoes}</p>
+                                    </div>
+                                  </div>
+                                </section>
+
+                                <section className="proposal-review-card">
+                                  <div className="proposal-review-card-header">
+                                    <div>
+                                      <span>Investimento</span>
+                                      <h4>Resumo financeiro</h4>
+                                    </div>
+                                  </div>
+                                  <dl className="proposal-review-money-list">
+                                    <div>
+                                      <dt>Subtotal</dt>
+                                      <dd>{formatMoney(propostaSubtotalVisual)}</dd>
+                                    </div>
+                                    <div>
+                                      <dt>Desconto</dt>
+                                      <dd>{formatMoney(propostaDescontoVisual)}</dd>
+                                    </div>
+                                    <div className="is-total">
+                                      <dt>Total</dt>
+                                      <dd>{formatMoney(propostaTotalVisual)}</dd>
+                                    </div>
+                                  </dl>
+                                </section>
+                              </div>
+
+                              <section className="proposal-review-card">
+                                <div className="proposal-review-card-header">
+                                  <div>
+                                    <span>Escopo</span>
+                                    <h4>
+                                      {propostaResumoItens.length} item
+                                      {propostaResumoItens.length === 1 ? "" : "s"}
+                                    </h4>
+                                  </div>
+                                </div>
+                                {propostaResumoItens.length ? (
+                                  <div className="proposal-review-items-list">
+                                    {propostaResumoItens.map((item) => (
+                                      <article key={item.id}>
+                                        <div>
+                                          <strong>{item.nome}</strong>
+                                          {item.descricao ? <p>{item.descricao}</p> : null}
+                                        </div>
+                                        <dl>
+                                          <div>
+                                            <dt>Qtd</dt>
+                                            <dd>{formatQuantidade(item.quantidade)}</dd>
+                                          </div>
+                                          <div>
+                                            <dt>Valor</dt>
+                                            <dd>{formatMoney(item.valorUnitario)}</dd>
+                                          </div>
+                                          <div>
+                                            <dt>Total</dt>
+                                            <dd>{formatMoney(item.total)}</dd>
+                                          </div>
+                                        </dl>
+                                      </article>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p className="proposal-review-empty">
+                                    Nenhum item adicionado.
+                                  </p>
+                                )}
+                              </section>
+
+                              <div className="proposal-review-detail-grid">
+                                {[
+                                  {
+                                    titulo: "O que está incluso",
+                                    itens: propostaResumoInclusos,
+                                    vazio: "Nenhum item incluso informado.",
+                                    tom: "positive",
+                                  },
+                                  {
+                                    titulo: "O que não está incluso",
+                                    itens: propostaResumoNaoInclusos,
+                                    vazio: "Nenhum item fora do escopo informado.",
+                                    tom: "negative",
+                                  },
+                                  {
+                                    titulo: "Cronograma",
+                                    itens: propostaResumoCronograma,
+                                    vazio: "Nenhum cronograma informado.",
+                                    tom: "neutral",
+                                  },
+                                  {
+                                    titulo: "Benefícios",
+                                    itens: propostaResumoBeneficios,
+                                    vazio: "Nenhum benefício informado.",
+                                    tom: "accent",
+                                  },
+                                ].map((grupo) => (
+                                  <section
+                                    key={grupo.titulo}
+                                    className={`proposal-review-card proposal-review-list-card proposal-review-list-card-${grupo.tom}`}
+                                  >
+                                    <div className="proposal-review-card-header">
+                                      <div>
+                                        <span>{grupo.itens.length} item{grupo.itens.length === 1 ? "" : "s"}</span>
+                                        <h4>{grupo.titulo}</h4>
+                                      </div>
+                                    </div>
+                                    {grupo.itens.length ? (
+                                      <ul>
+                                        {grupo.itens.map((item, index) => (
+                                          <li key={`${grupo.titulo}-${item}-${index}`}>
+                                            {item}
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    ) : (
+                                      <p className="proposal-review-empty">
+                                        {grupo.vazio}
+                                      </p>
+                                    )}
+                                  </section>
+                                ))}
+                              </div>
+
+                              {propostaTemAlteracoes || !propostaSelecionada ? (
+                                <p className="proposal-review-warning">
+                                  Salve o rascunho para liberar a geração da
+                                  proposta final.
+                                </p>
+                              ) : null}
+                              <div className="proposal-review-actions">
+                                <button
+                                  type="button"
+                                  onClick={voltarEtapaProposta}
+                                  className="page-heading-action"
+                                >
+                                  <ArrowRight
+                                    className="rotate-180"
+                                    size={16}
+                                    aria-hidden="true"
+                                  />
+                                  Voltar
+                                </button>
+                                <div className="proposal-review-actions-right">
+                                  <button
+                                    type="button"
+                                    onClick={() => setPropostaPreviewModalAberto(true)}
+                                    className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-border bg-white px-4 text-sm font-semibold text-foreground transition hover:border-primary hover:text-primary"
+                                  >
+                                    <Eye size={17} aria-hidden="true" />
+                                    Visualizar Proposta
+                                  </button>
+                                  <button
+                                    type="submit"
+                                    disabled={
+                                      salvarPropostaMutation.isPending ||
+                                      clientes.length === 0
+                                    }
+                                    className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                  >
+                                    <Save size={17} aria-hidden="true" />
+                                    {salvarPropostaMutation.isPending
+                                      ? "Salvando..."
+                                      : "Salvar rascunho"}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={
+                                      gerarPropostaMutation.isPending ||
+                                      !propostaProntaParaGerar
+                                    }
+                                    onClick={gerarPropostaDoFluxo}
+                                    className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-accent bg-white px-4 text-sm font-semibold text-accent transition hover:bg-cyan-50 disabled:cursor-not-allowed disabled:border-border disabled:text-muted disabled:opacity-70"
+                                    title={
+                                      propostaTemAlteracoes || !propostaSelecionada
+                                        ? "Salve o rascunho antes de gerar."
+                                        : !contaPodeExportarProposta
+                                          ? mensagemBloqueioPlano
+                                          : "Gerar proposta final"
+                                    }
+                                  >
+                                    <CheckCircle2 size={17} aria-hidden="true" />
+                                    {gerarPropostaMutation.isPending
+                                      ? "Gerando..."
+                                      : "Gerar proposta"}
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
                           </div>
                         </div>
-                        <MensagemSucesso mensagem={propostaMensagem} />
+                        ) : null}
                         <MensagemErro error={salvarPropostaMutation.error} />
                         <MensagemErro error={duplicarPropostaMutation.error} />
                         <MensagemErro error={gerarPropostaMutation.error} />
@@ -3688,7 +4961,7 @@ export default function App() {
                         ) : null}
                         {propostaSelecionada && propostaTemAlteracoes ? (
                           <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                            Salve as alteracoes antes de gerar, imprimir ou
+                            Salve as alterações antes de gerar, imprimir ou
                             enviar a proposta.
                           </p>
                         ) : null}
@@ -3701,7 +4974,7 @@ export default function App() {
                         className={`proposal-action-rail no-print ${
                           propostaEditorAcoesExpandida ? "is-expanded" : ""
                         }`}
-                        aria-label="Acoes da proposta"
+                        aria-label="Ações da proposta"
                       >
                         <button
                           type="button"
@@ -3716,8 +4989,8 @@ export default function App() {
                           }
                           aria-label={
                             propostaEditorAcoesExpandida
-                              ? "Recolher barra de acoes"
-                              : "Expandir barra de acoes"
+                              ? "Recolher barra de ações"
+                              : "Expandir barra de ações"
                           }
                         >
                           {propostaEditorAcoesExpandida ? (
@@ -3726,7 +4999,7 @@ export default function App() {
                             <PanelRightOpen size={18} aria-hidden="true" />
                           )}
                           <span className="proposal-action-label">
-                            {propostaEditorAcoesExpandida ? "Recolher" : "Acoes"}
+                            {propostaEditorAcoesExpandida ? "Recolher" : "Ações"}
                           </span>
                         </button>
                         <div className="proposal-rail-group">
@@ -3770,7 +5043,7 @@ export default function App() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => setClienteRapidoAberto(true)}
+                            onClick={abrirClienteRapidoModal}
                             className="proposal-rail-action"
                             title="Novo Cliente"
                             aria-label="Novo Cliente"
@@ -3787,17 +5060,11 @@ export default function App() {
                                 gerarPropostaMutation.isPending ||
                                 !propostaProntaParaGerar
                               }
-                              onClick={() =>
-                                propostaSelecionada
-                                  ? gerarPropostaMutation.mutate(
-                                      propostaSelecionada.id,
-                                    )
-                                  : undefined
-                              }
+                              onClick={gerarPropostaDoFluxo}
                               className="proposal-rail-action is-accent"
                               title={
-                                propostaTemAlteracoes
-                                  ? "Salve as alteracoes antes de gerar."
+                                  propostaTemAlteracoes
+                                    ? "Salve as alterações antes de gerar."
                                   : !contaPodeExportarProposta
                                     ? mensagemBloqueioPlano
                                     : "Gerar proposta"
@@ -3818,12 +5085,16 @@ export default function App() {
                                 type="button"
                                 disabled={!propostaProntaParaEnvio}
                                 onClick={() =>
-                                  setPropostaCompartilharModalAberto(true)
+                                  propostaSelecionada
+                                    ? abrirModalCompartilharProposta(
+                                        propostaSelecionada,
+                                      )
+                                    : undefined
                                 }
                                 className="proposal-rail-action is-accent"
                                 title={
                                   propostaTemAlteracoes
-                                    ? "Salve as alteracoes antes de compartilhar."
+                                    ? "Salve as alterações antes de compartilhar."
                                     : !contaPodeExportarProposta
                                       ? mensagemBloqueioPlano
                                       : "Compartilhar"
@@ -3919,6 +5190,7 @@ export default function App() {
                             perfilConta={perfilConta}
                             contaNome={conta.nome}
                             planoConta={conta.plano}
+                            statusComercialConta={contaStatusComercial}
                             cliente={clientePreview}
                             clienteNomeFallback={clienteNomePreviewFallback}
                             proposta={propostaPreviewVisual}
@@ -3936,6 +5208,7 @@ export default function App() {
                             perfilConta={perfilConta}
                             contaNome={conta.nome}
                             planoConta={conta.plano}
+                            statusComercialConta={contaStatusComercial}
                             cliente={clientes.find(
                               (cliente) =>
                                 cliente.id === propostaParaImpressao.clienteId,
@@ -4033,8 +5306,8 @@ export default function App() {
                         ) : null}
 
                         {propostasPaginadas.itens.length > 0 ? (
-                          <div className="mt-5 overflow-x-auto">
-                            <table className="data-table w-full min-w-[900px] text-left text-sm">
+                          <div className="data-table-shell mt-5">
+                            <table className="data-table data-table-propostas w-full text-left text-sm">
                               <thead>
                                 <tr>
                                   <th>Cliente</th>
@@ -4042,7 +5315,7 @@ export default function App() {
                                   <th>Total</th>
                                   <th>Status</th>
                                   <th>Data</th>
-                                  <th>Acoes</th>
+                                  <th>Ações</th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -4053,16 +5326,16 @@ export default function App() {
                                     proposta.status === "Gerada";
                                   const propostaEnviada =
                                     proposta.status === "Enviada";
-                                  const whatsappUrl =
-                                    buildWhatsappUrlPropostaSalva(proposta);
-                                  const clientePropostaContato = clientes.find(
-                                    (cliente) => cliente.id === proposta.clienteId,
-                                  );
-                                  const whatsappContatoClienteUrl =
-                                    buildWhatsappContatoClienteUrl(
-                                      clientePropostaContato,
+                                  const propostaDocumentoFinal =
+                                    isStatusPropostaComDocumentoFinal(
+                                      proposta.status,
+                                    );
+                                  const propostaEditavel =
+                                    isStatusPropostaEditavelDiretamente(
+                                      proposta.status,
                                     );
                                   const propostaPodeExportar =
+                                    propostaDocumentoFinal &&
                                     contaPodeExportarProposta;
                                   const gerarBloqueado =
                                     !contaPodeExportarProposta ||
@@ -4086,10 +5359,6 @@ export default function App() {
                                               - {proposta.titulo}
                                             </span>
                                           </div>
-                                          <ContatoWhatsappClienteButton
-                                            href={whatsappContatoClienteUrl}
-                                            ariaLabel={`Entrar em contato com ${proposta.clienteNome} pelo WhatsApp`}
-                                          />
                                         </div>
                                       </td>
                                       <td data-label="Tipo">
@@ -4114,7 +5383,7 @@ export default function App() {
                                       <td data-label="Data">{formatDataCurta(proposta.createdAt)}</td>
                                       <td data-label="Ações">
                                         <ListagemAcoes
-                                          ariaLabel={`Acoes da proposta ${proposta.titulo}`}
+                                          ariaLabel={`Ações da proposta ${proposta.titulo}`}
                                           acoes={[
                                             {
                                               label: "Visualizar",
@@ -4139,7 +5408,7 @@ export default function App() {
                                                   } satisfies ListagemAcao,
                                                 ]
                                               : []),
-                                            ...(propostaGerada
+                                            ...(propostaDocumentoFinal
                                               ? [
                                                   {
                                                     label: "PDF",
@@ -4159,16 +5428,21 @@ export default function App() {
                                                     icon: (
                                                       <WhatsAppIcon size={16} />
                                                     ),
-                                                    href: whatsappUrl,
-                                                    target: "_blank",
-                                                    rel: "noreferrer",
+                                                    onClick: () =>
+                                                      abrirModalCompartilharProposta(
+                                                        proposta,
+                                                      ),
                                                     disabled:
                                                       !propostaPodeExportar,
                                                     tooltip: propostaPodeExportar
-                                                      ? "Abrir WhatsApp"
+                                                      ? "Escolher mensagem"
                                                       : mensagemBloqueioPlano,
                                                     accent: true,
                                                   },
+                                                ] satisfies ListagemAcao[]
+                                              : []),
+                                            ...(propostaGerada
+                                              ? [
                                                   {
                                                     label: "Enviar",
                                                     icon: <Send size={16} />,
@@ -4209,6 +5483,10 @@ export default function App() {
                                             {
                                               label: "Editar",
                                               icon: <Edit3 size={16} />,
+                                              disabled: !propostaEditavel,
+                                              tooltip: propostaEditavel
+                                                ? "Editar proposta"
+                                                : "Duplique para alterar esta proposta",
                                               onClick: () =>
                                                 selecionarProposta(proposta.id),
                                             },
@@ -4265,18 +5543,15 @@ export default function App() {
                 ) : null}
 
                 {appView === "conta" ? (
-                  <section className="account-settings-grid grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(20rem,0.72fr)]">
-                    <div className="page-heading xl:col-span-2">
+                  <section className="account-settings-grid account-settings-single grid gap-4">
+                    <div className="page-heading">
                       <div>
                         <h1 className="font-heading text-3xl font-semibold">
                           Configurações
                         </h1>
-                        <p className="mt-1 text-sm text-muted">
-                          Ajuste dados do negócio, contato, logomarca e segurança.
-                        </p>
                       </div>
                     </div>
-                    <div className="rounded-md border border-border bg-surface p-5">
+                    <div className="rounded-md border border-border bg-surface p-5 shadow-sm">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div>
                           <p className="text-sm font-medium text-primary">
@@ -4304,7 +5579,7 @@ export default function App() {
                       ) : null}
 
                       <form
-                        className="mt-5 grid gap-4 md:grid-cols-2"
+                        className="account-profile-form mt-5 grid gap-5"
                         onSubmit={perfilForm.handleSubmit((input) =>
                           perfilMutation.mutate(input),
                         )}
@@ -4323,127 +5598,169 @@ export default function App() {
                           type="hidden"
                           {...perfilForm.register("templateVisualPadrao")}
                         />
-                        <CampoTexto
-                          label="Nome comercial"
-                          error={perfilForm.formState.errors.nomeComercial?.message}
-                          {...perfilForm.register("nomeComercial")}
-                        />
-                        <CampoTexto
-                          label="Responsável"
-                          value={usuario.nome}
-                          readOnly
-                          helperText="Nome usado no cadastro."
-                        />
-                        <CampoTexto
-                          label="E-mail de acesso"
-                          type="email"
-                          readOnly
-                          helperText="Este e-mail não pode ser editado aqui."
-                          error={perfilForm.formState.errors.emailContato?.message}
-                          {...perfilForm.register("emailContato")}
-                        />
-                        <CampoTexto
-                          label="Telefone"
-                          error={perfilForm.formState.errors.telefoneContato?.message}
-                          {...perfilForm.register("telefoneContato")}
-                        />
-                        <CampoTexto
-                          label="Site"
-                          type="url"
-                          error={perfilForm.formState.errors.siteUrl?.message}
-                          {...perfilForm.register("siteUrl")}
-                        />
-                        <CampoTexto
-                          label="Instagram"
-                          error={perfilForm.formState.errors.instagram?.message}
-                          {...perfilForm.register("instagram")}
-                        />
-                        <CampoTexto
-                          label="Documento"
-                          error={perfilForm.formState.errors.documento?.message}
-                          {...perfilForm.register("documento")}
-                        />
-                        <div className="md:col-span-2">
-                          <div className="rounded-md border border-border bg-slate-50 p-4">
-                            <div>
-                              <p className="text-sm font-semibold text-foreground">
-                                Logomarca do negocio
-                              </p>
-                              <p className="mt-1 text-sm text-muted">
-                                A imagem fica em rascunho aqui e so entra no
-                                cadastro depois de salvar o perfil.
-                              </p>
-                            </div>
-                            <div
-                              role="button"
-                              tabIndex={0}
-                              onClick={() => logoArquivoInputRef.current?.click()}
-                              onKeyDown={(event) => {
-                                if (event.key === "Enter" || event.key === " ") {
-                                  event.preventDefault();
-                                  logoArquivoInputRef.current?.click();
-                                }
-                              }}
-                              onDragEnter={handleLogoDragEnter}
-                              onDragOver={handleLogoDragOver}
-                              onDragLeave={handleLogoDragLeave}
-                              onDrop={handleLogoDrop}
-                              className={`logo-dropzone mt-4 grid min-h-48 cursor-pointer gap-4 rounded-md border border-dashed p-4 transition focus:outline-none focus:ring-2 focus:ring-blue-100 sm:grid-cols-[11rem_minmax(0,1fr)] sm:items-center ${
-                                logoDragAtivo
-                                  ? "logo-dropzone-active border-primary bg-blue-50"
-                                  : "border-border bg-white"
-                              }`}
-                              aria-label="Selecionar ou soltar logomarca"
-                            >
-                              <div className="logo-preview-frame flex aspect-square min-h-40 items-center justify-center rounded-md border border-border bg-slate-50 p-3">
-                                {logoPreviewAtualUrl ? (
-                                  <img
-                                    src={logoPreviewAtualUrl}
-                                    alt="Preview da logomarca"
-                                    className="max-h-full max-w-full object-contain"
-                                  />
-                                ) : (
-                                  <div className="text-center text-muted">
+                        <div className="account-settings-section account-identity-section">
+                          <div className="account-settings-section-heading">
+                            <h3>Identificação</h3>
+                            <p>Dados principais exibidos nos documentos e propostas.</p>
+                          </div>
+                          <div className="account-fields-grid grid gap-4">
+                            <CampoTexto
+                              label="Nome comercial"
+                              error={perfilForm.formState.errors.nomeComercial?.message}
+                              {...perfilForm.register("nomeComercial")}
+                            />
+                            <CampoTexto
+                              label="Responsável"
+                              value={usuario.nome}
+                              readOnly
+                              helperText="Nome usado no cadastro."
+                            />
+                            <CampoTexto
+                              label="CPF/CNPJ"
+                              placeholder="000.000.000-00"
+                              error={perfilForm.formState.errors.documento?.message}
+                              {...buildCpfCnpjInputProps(
+                                perfilForm.register(
+                                  "documento",
+                                  cpfCnpjInputRegisterOptions,
+                                ),
+                              )}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="account-settings-section account-contact-section">
+                          <div className="account-settings-section-heading">
+                            <h3>Contato</h3>
+                            <p>Canais usados para comunicação com clientes.</p>
+                          </div>
+                          <div className="account-fields-grid grid gap-4">
+                            <CampoTexto
+                              label="E-mail de acesso"
+                              type="email"
+                              readOnly
+                              helperText="Este e-mail não pode ser editado aqui."
+                              error={perfilForm.formState.errors.emailContato?.message}
+                              {...perfilForm.register("emailContato")}
+                            />
+                            <CampoTexto
+                              label="Telefone"
+                              error={perfilForm.formState.errors.telefoneContato?.message}
+                              {...buildTelefoneInputProps(
+                                perfilForm.register(
+                                  "telefoneContato",
+                                  telefoneInputRegisterOptions,
+                                ),
+                              )}
+                            />
+                            <CampoTexto
+                              label="Site"
+                              type="url"
+                              error={perfilForm.formState.errors.siteUrl?.message}
+                              {...perfilForm.register("siteUrl")}
+                            />
+                            <CampoTexto
+                              label="Instagram"
+                              error={perfilForm.formState.errors.instagram?.message}
+                              {...perfilForm.register("instagram")}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="account-settings-section account-logo-section">
+                          <div className="account-settings-section-heading">
+                            <h3>Marca</h3>
+                            <p>Use a logomarca que aparecerá nos materiais gerados pela Emprely.</p>
+                          </div>
+                          <div className="account-logo-card">
+                            <div className="logo-upload-layout">
+                              <div className="logo-upload-shell">
+                                {logoArquivoPendente ? (
+                                  <button
+                                    type="button"
+                                    onClick={removerLogoArquivoSelecionado}
+                                    className="logo-remove-button tooltip-icon-button"
+                                    aria-label="Remover logomarca selecionada"
+                                    data-tooltip="Remover logomarca"
+                                    title="Remover logomarca"
+                                  >
+                                    <Trash2 size={15} aria-hidden="true" />
+                                  </button>
+                                ) : logoRemocaoPendente ? (
+                                  <button
+                                    type="button"
+                                    onClick={cancelarLimpezaLogomarcaPerfil}
+                                    className="logo-remove-button tooltip-icon-button"
+                                    aria-label="Cancelar remoção da logomarca"
+                                    data-tooltip="Cancelar remoção"
+                                    title="Cancelar remoção"
+                                  >
+                                    <X size={15} aria-hidden="true" />
+                                  </button>
+                                ) : podeLimparLogomarca ? (
+                                  <button
+                                    type="button"
+                                    onClick={limparLogomarcaPerfil}
+                                    className="logo-remove-button tooltip-icon-button"
+                                    aria-label="Limpar logomarca"
+                                    data-tooltip="Limpar logomarca"
+                                    title="Limpar logomarca"
+                                  >
+                                    <Trash2 size={15} aria-hidden="true" />
+                                  </button>
+                                ) : null}
+                                <div
+                                  role="button"
+                                  tabIndex={0}
+                                  onClick={() => logoArquivoInputRef.current?.click()}
+                                  onKeyDown={(event) => {
+                                    if (event.key === "Enter" || event.key === " ") {
+                                      event.preventDefault();
+                                      logoArquivoInputRef.current?.click();
+                                    }
+                                  }}
+                                  onDragEnter={handleLogoDragEnter}
+                                  onDragOver={handleLogoDragOver}
+                                  onDragLeave={handleLogoDragLeave}
+                                  onDrop={handleLogoDrop}
+                                  className={`logo-dropzone logo-preview-frame flex aspect-square items-center justify-center rounded-md border border-dashed p-4 transition focus:outline-none focus:ring-2 focus:ring-blue-100 ${
+                                    logoDragAtivo
+                                      ? "logo-dropzone-active border-primary bg-blue-50"
+                                      : "border-border bg-white"
+                                  }`}
+                                  aria-label="Selecionar ou soltar logomarca"
+                                >
+                                  {logoPreviewAtualUrl ? (
+                                    <img
+                                      src={logoPreviewAtualUrl}
+                                      alt="Preview da logomarca"
+                                      className="max-h-full max-w-full object-contain"
+                                    />
+                                  ) : (
                                     <UploadCloud
-                                      className="mx-auto text-primary"
-                                      size={34}
+                                      className="logo-upload-icon"
+                                      size={38}
                                       aria-hidden="true"
                                     />
-                                    <p className="mt-2 text-sm font-semibold text-foreground">
-                                      Arraste a logo
-                                    </p>
-                                  </div>
-                                )}
-                              </div>
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-2 text-primary">
-                                  <UploadCloud size={18} aria-hidden="true" />
-                                  <p className="text-sm font-semibold">
-                                    Arraste e solte ou selecione uma imagem
-                                  </p>
-                                </div>
-                                <p className="mt-2 text-sm leading-6 text-muted">
-                                  {logoStatusDescricao}
-                                </p>
-                                <p className="mt-1 text-xs text-muted">
-                                  {logoStatusComplemento}
-                                </p>
-                                <div className="mt-4 flex flex-wrap gap-2">
-                                  <span className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-muted">
-                                    PNG
-                                  </span>
-                                  <span className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-muted">
-                                    JPG/JPEG
-                                  </span>
-                                  <span className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-muted">
-                                    WebP
-                                  </span>
-                                  <span className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-muted">
-                                    Ate {logoArquivoTamanhoMaximoLabel}
-                                  </span>
+                                  )}
                                 </div>
                               </div>
                             </div>
+                            <div className="account-logo-copy">
+                              <p className="text-sm font-semibold text-foreground">
+                                Logomarca do negócio
+                              </p>
+                              <p className="mt-1 text-sm text-muted">
+                                Clique no preview ou arraste uma imagem para substituir a logo atual.
+                              </p>
+                              <div className="logo-upload-formats">
+                                <span>PNG</span>
+                                <span>JPG/JPEG</span>
+                                <span>WebP</span>
+                                <span>Até {logoArquivoTamanhoMaximoLabel}</span>
+                              </div>
+                            </div>
+                          </div>
                             <input
                               ref={logoArquivoInputRef}
                               type="file"
@@ -4452,52 +5769,14 @@ export default function App() {
                               onChange={handleLogoArquivoChange}
                             />
                             <input type="hidden" {...perfilForm.register("logoUrl")} />
-                            <div className="mt-3 flex flex-col gap-2 text-xs text-muted sm:flex-row sm:items-center sm:justify-between">
-                              <p>
-                                Tipos aceitos: PNG, JPG/JPEG ou WebP. Tamanho
-                                maximo: {logoArquivoTamanhoMaximoLabel}. A
-                                imagem sera otimizada em WebP no servidor ao
-                                salvar.
-                              </p>
-                              <div className="flex flex-wrap gap-2">
-                                {logoArquivoPendente ? (
-                                  <button
-                                    type="button"
-                                    onClick={removerLogoArquivoSelecionado}
-                                    className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-border bg-white px-3 text-sm font-semibold text-foreground"
-                                  >
-                                    <X size={15} aria-hidden="true" />
-                                    Remover selecao
-                                  </button>
-                                ) : null}
-                                {logoRemocaoPendente ? (
-                                  <button
-                                    type="button"
-                                    onClick={cancelarLimpezaLogomarcaPerfil}
-                                    className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-border bg-white px-3 text-sm font-semibold text-foreground"
-                                  >
-                                    Cancelar limpeza
-                                  </button>
-                                ) : podeLimparLogomarca ? (
-                                  <button
-                                    type="button"
-                                    onClick={limparLogomarcaPerfil}
-                                    className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-red-200 bg-white px-3 text-sm font-semibold text-red-700"
-                                  >
-                                    <Trash2 size={15} aria-hidden="true" />
-                                    Limpar logomarca
-                                  </button>
-                                ) : null}
-                              </div>
-                            </div>
                             {perfilForm.formState.errors.logoUrl?.message ? (
                               <p className="mt-2 text-sm text-red-600">
                                 {perfilForm.formState.errors.logoUrl.message}
                               </p>
                             ) : null}
-                          </div>
                         </div>
-                        <div className="flex flex-col gap-3 md:col-span-2 sm:flex-row sm:items-center">
+                        <div className="account-settings-actions flex flex-col gap-3 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-end">
+                          <MensagemErro error={perfilMutation.error} />
                           <button
                             type="submit"
                             disabled={perfilMutation.isPending}
@@ -4510,122 +5789,24 @@ export default function App() {
                                 : "Salvando..."
                               : "Salvar perfil"}
                           </button>
-                          <MensagemSucesso mensagem={perfilMensagem} />
-                          <MensagemErro error={perfilMutation.error} />
                         </div>
                       </form>
-                    </div>
-
-                    <div className="account-side-column space-y-3">
-                      <aside className="account-access-card rounded-md border border-border bg-surface p-4">
-                        <div className="flex items-center gap-2">
-                          <BadgeCheck
-                            className="text-primary"
-                            size={22}
-                            aria-hidden="true"
-                          />
-                          <h2 className="font-heading text-xl font-semibold leading-7">
-                            Plano e segurança
-                          </h2>
-                        </div>
-
-                        <div className="account-info-grid mt-4 grid gap-2">
-                          <InfoLinha label="Plano" value={formatPlanoConta(conta)} />
-                          <InfoLinha
-                            label="Status"
-                            value={formatStatusComercialConta(conta)}
-                          />
-                          <InfoLinha label="Trial" value={formatTrialConta(conta)} />
-                        </div>
-
-                        {conta.plano === "Fundador" ? (
-                          <p className="mt-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-                            Plano Fundador ativo desde{" "}
-                            {formatDataConta(conta.planoFundadorAtivadoAt)}.
-                          </p>
-                        ) : (
-                          <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                            <p className="font-semibold">
-                              Plano Fundador por{" "}
-                              {formatMoney(conta.planoFundadorPrecoMensal ?? 19.9)}
-                              /mes.
-                            </p>
-                            <p className="mt-1 leading-5">
-                              Ativacao manual feita por operacao administrativa
-                              no MVP, sem cobranca automatica.
-                            </p>
-                          </div>
-                        )}
-
-                        <form
-                          className="mt-4 grid gap-3"
-                          onSubmit={senhaUsuarioForm.handleSubmit((input) =>
-                            senhaUsuarioMutation.mutate(input),
-                          )}
-                        >
-                          <div className="account-password-grid grid gap-3">
-                            <CampoTexto
-                              label="Senha atual"
-                              type="password"
-                              error={
-                                senhaUsuarioForm.formState.errors.senhaAtual?.message
-                              }
-                              {...senhaUsuarioForm.register("senhaAtual")}
-                            />
-                            <CampoTexto
-                              label="Nova senha"
-                              type="password"
-                              error={
-                                senhaUsuarioForm.formState.errors.novaSenha?.message
-                              }
-                              {...senhaUsuarioForm.register("novaSenha")}
-                            />
-                            <CampoTexto
-                              label="Confirmar nova senha"
-                              type="password"
-                              error={
-                                senhaUsuarioForm.formState.errors.confirmarNovaSenha
-                                  ?.message
-                              }
-                              {...senhaUsuarioForm.register("confirmarNovaSenha")}
-                            />
-                          </div>
-                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                            <button
-                              type="submit"
-                              disabled={senhaUsuarioMutation.isPending}
-                              className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              <Save size={16} aria-hidden="true" />
-                              {senhaUsuarioMutation.isPending
-                                ? "Atualizando..."
-                                : "Atualizar senha"}
-                            </button>
-                            <MensagemSucesso mensagem={senhaMensagem} />
-                            <MensagemErro error={senhaUsuarioMutation.error} />
-                          </div>
-                        </form>
-                      </aside>
-
                     </div>
                   </section>
                 ) : null}
 
                 {appView === "personalizacao" ? (
-                  <section className="account-settings-grid grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(20rem,0.72fr)]">
+                  <section className="account-settings-grid personalization-page grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(20rem,0.72fr)]">
                     <div className="page-heading xl:col-span-2">
                       <div>
                         <h1 className="font-heading text-3xl font-semibold">
                           Personalização
                         </h1>
-                        <p className="mt-1 text-sm text-muted">
-                          Ajuste tema e padrão visual dos orçamentos.
-                        </p>
                       </div>
                     </div>
 
                     <form
-                      className="rounded-md border border-border bg-surface p-5"
+                      className="personalization-layout grid gap-4 xl:col-span-2"
                       onSubmit={perfilForm.handleSubmit((input) =>
                         perfilMutation.mutate(input),
                       )}
@@ -4634,7 +5815,10 @@ export default function App() {
                       <input type="hidden" {...perfilForm.register("emailContato")} />
                       <input
                         type="hidden"
-                        {...perfilForm.register("telefoneContato")}
+                        {...perfilForm.register(
+                          "telefoneContato",
+                          telefoneInputRegisterOptions,
+                        )}
                       />
                       <input type="hidden" {...perfilForm.register("siteUrl")} />
                       <input type="hidden" {...perfilForm.register("instagram")} />
@@ -4648,63 +5832,144 @@ export default function App() {
                         type="hidden"
                         {...perfilForm.register("corSistemaSecundaria")}
                       />
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                        <div>
-                          <p className="text-sm font-medium text-primary">
-                            Aparência do sistema
-                          </p>
-                          <h2 className="mt-1 font-heading text-xl font-semibold leading-7">
-                            Tema
-                          </h2>
-                        </div>
-                        <Palette className="text-muted" size={22} aria-hidden="true" />
-                      </div>
+                      <input type="hidden" {...perfilForm.register("templateVisualPadrao")} />
 
-                      <div className="mt-5">
-                        <span className="text-sm font-medium text-foreground">
-                          Tema do sistema
-                        </span>
-                        <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                          <button
-                            type="button"
-                            aria-pressed={temaVisual === "light"}
-                            onClick={() => setTemaVisual("light")}
-                            className={`personalization-choice ${
-                              temaVisual === "light" ? "is-active" : ""
-                            }`}
-                          >
-                            <Sun size={18} aria-hidden="true" />
-                            <span>
-                              <strong>Claro</strong>
-                              <small>Interface clara e neutra.</small>
-                            </span>
-                          </button>
-                          <button
-                            type="button"
-                            aria-pressed={temaVisual === "dark"}
-                            onClick={() => setTemaVisual("dark")}
-                            className={`personalization-choice ${
-                              temaVisual === "dark" ? "is-active" : ""
-                            }`}
-                          >
-                            <Moon size={18} aria-hidden="true" />
-                            <span>
-                              <strong>Escuro</strong>
-                              <small>Interface escura para uso prolongado.</small>
-                            </span>
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="mt-6 border-t border-border pt-5">
+                      <div className="personalization-main-card rounded-md border border-border bg-surface p-5">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                           <div>
                             <p className="text-sm font-medium text-primary">
-                            Orçamentos
-                          </p>
+                              Aparência do sistema
+                            </p>
                             <h2 className="mt-1 font-heading text-xl font-semibold leading-7">
-                            Template padrão e cores dos templates
+                              Tema e cores
                             </h2>
+                          </div>
+                          <Palette className="text-muted" size={22} aria-hidden="true" />
+                        </div>
+
+                        <div className="personalization-section mt-5">
+                          <div>
+                            <span className="text-sm font-medium text-foreground">
+                              Tema do sistema
+                            </span>
+                            <p className="mt-1 text-sm text-muted">
+                              Escolha a aparência da interface enquanto trabalha no app.
+                            </p>
+                          </div>
+                          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                            <button
+                              type="button"
+                              aria-pressed={temaVisual === "light"}
+                              onClick={() => setTemaVisual("light")}
+                              className={`personalization-choice ${
+                                temaVisual === "light" ? "is-active" : ""
+                              }`}
+                            >
+                              <Sun size={18} aria-hidden="true" />
+                              <span>
+                                <strong>Claro</strong>
+                                <small>Interface clara e neutra.</small>
+                              </span>
+                            </button>
+                            <button
+                              type="button"
+                              aria-pressed={temaVisual === "dark"}
+                              onClick={() => setTemaVisual("dark")}
+                              className={`personalization-choice ${
+                                temaVisual === "dark" ? "is-active" : ""
+                              }`}
+                            >
+                              <Moon size={18} aria-hidden="true" />
+                              <span>
+                                <strong>Escuro</strong>
+                                <small>Interface escura para uso prolongado.</small>
+                              </span>
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="personalization-section mt-6 border-t border-border pt-5">
+                          <div>
+                            <p className="text-sm font-medium text-primary">
+                              Orçamentos
+                            </p>
+                            <div className="mt-1 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                              <div>
+                                <h2 className="font-heading text-xl font-semibold leading-7">
+                                  Cores dos templates
+                                </h2>
+                                <p className="mt-1 max-w-2xl text-sm leading-5 text-muted">
+                                  Defina as cores usadas nos templates personalizáveis. Templates com cores estáticas mantêm uma paleta profissional fixa.
+                                </p>
+                              </div>
+                              <div className="rounded-md border border-border bg-slate-50 p-3 text-sm text-muted lg:max-w-xs">
+                                <strong className="block text-foreground">
+                                  Cores estáticas
+                                </strong>
+                                <span className="mt-1 block leading-5">
+                                  Cartões sinalizados como estáticos não usam as cores abaixo.
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="mt-4 grid gap-4 md:grid-cols-2">
+                          <CampoTexto
+                            label="Cor primária dos templates"
+                            type="color"
+                            error={perfilForm.formState.errors.corPrimaria?.message}
+                            helperText="Usada em títulos, ícones e áreas de destaque dos orçamentos."
+                            {...perfilForm.register("corPrimaria")}
+                          />
+                          <CampoTexto
+                            label="Cor secundária dos templates"
+                            type="color"
+                            error={perfilForm.formState.errors.corSecundaria?.message}
+                            helperText="Usada em acentos, detalhes e botões dos orçamentos."
+                            {...perfilForm.register("corSecundaria")}
+                          />
+                          </div>
+                        </div>
+                      </div>
+
+                      <aside className="personalization-template-card rounded-md border border-border bg-surface">
+                        <div className="personalization-template-header flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="flex min-w-0 items-start gap-2">
+                            <FileText
+                              className="mt-0.5 shrink-0 text-primary"
+                              size={22}
+                              aria-hidden="true"
+                            />
+                            <div>
+                              <h2 className="font-heading text-xl font-semibold leading-7">
+                                Templates dos orçamentos
+                              </h2>
+                              <p className="mt-1 text-sm leading-5 text-muted">
+                                Selecione o cartão que será usado como template padrão em novos orçamentos.
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPersonalizacaoPreviewTemplateAberto(
+                                templateVisualPersonalizacaoPreview,
+                              )
+                            }
+                            className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-md border border-border px-3 text-sm font-semibold text-foreground transition hover:border-primary hover:text-primary"
+                          >
+                            <Eye size={16} aria-hidden="true" />
+                            Ver preview real
+                          </button>
+                        </div>
+
+                        <div className="personalization-template-toolbar flex flex-col gap-3 border-t border-border sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <p className="text-sm font-semibold text-foreground">
+                              Template ativo: {getPropostaTemplateLabel(templateVisualPersonalizacaoPreview)}
+                            </p>
+                            <p className="mt-1 text-xs text-muted">
+                              A alteração só será confirmada ao salvar a personalização.
+                            </p>
                           </div>
                           <button
                             type="button"
@@ -4723,134 +5988,83 @@ export default function App() {
                               );
                               setPerfilMensagem(null);
                             }}
-                            className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-border px-3 text-sm font-semibold text-foreground transition hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
+                            className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-md border border-border px-3 text-sm font-semibold text-foreground transition hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
                           >
-                            <RefreshCw size={16} aria-hidden="true" />
-                            Restaurar template padrão
+                            <RefreshCw size={15} aria-hidden="true" />
+                            Restaurar padrão
                           </button>
                         </div>
-                        <div className="mt-4 grid gap-4 md:grid-cols-2">
-                          <CampoSelect
-                            label="Template padrão para impressão"
-                            error={
-                              perfilForm.formState.errors.templateVisualPadrao
-                                ?.message
-                            }
-                            helperText="Novos orçamentos começam com este layout."
-                            {...perfilForm.register("templateVisualPadrao")}
-                          >
-                            {propostaTemplateVisualOpcoes.map((template) => (
-                              <option key={template.value} value={template.value}>
-                                {template.label}
-                              </option>
-                            ))}
-                          </CampoSelect>
-                          <div className="rounded-md border border-border bg-slate-50 p-3 text-sm text-muted">
-                            <strong className="block text-foreground">
-                              Cores estáticas
-                            </strong>
-                            <span className="mt-1 block leading-5">
-                              Templates com selo de cores estáticas mantêm uma paleta
-                              profissional fixa; os demais usam as cores abaixo.
-                            </span>
+
+                        <div className="template-selection-scroll">
+                          {perfilForm.formState.errors.templateVisualPadrao?.message ? (
+                            <p className="text-sm text-red-600">
+                              {perfilForm.formState.errors.templateVisualPadrao.message}
+                            </p>
+                          ) : null}
+
+                          <div className="template-selection-grid">
+                            {propostaTemplateVisualOpcoes.map((template) => {
+                              const templateAtivo =
+                                templateVisualPersonalizacaoPreview === template.value;
+
+                              return (
+                                <button
+                                  key={template.value}
+                                  type="button"
+                                  aria-pressed={templateAtivo}
+                                  onClick={() => {
+                                    perfilForm.setValue(
+                                      "templateVisualPadrao",
+                                      template.value,
+                                      {
+                                        shouldDirty: true,
+                                        shouldValidate: true,
+                                      },
+                                    );
+                                    setPerfilMensagem(null);
+                                  }}
+                                  className={`template-selection-card ${
+                                    templateAtivo ? "is-active" : ""
+                                  }`}
+                                >
+                                  <span className="template-selection-copy">
+                                    <span className="template-selection-icon" aria-hidden="true">
+                                      <TemplateSelectionIcon templateVisual={template.value} />
+                                    </span>
+                                    <span className="template-selection-text">
+                                      <span className="template-selection-title-row">
+                                        <strong>{template.label}</strong>
+                                        {template.coresEstaticas ? (
+                                          <small>Cores estáticas</small>
+                                        ) : null}
+                                      </span>
+                                      <span>{template.detalhe}</span>
+                                    </span>
+                                  </span>
+                                  <span className="template-selection-preview" aria-hidden="true">
+                                    <TemplateMiniatura templateVisual={template.value} />
+                                  </span>
+                                </button>
+                              );
+                            })}
                           </div>
-                          <CampoTexto
-                            label="Cor primária dos templates"
-                            type="color"
-                            error={perfilForm.formState.errors.corPrimaria?.message}
-                            helperText="Usada em títulos, ícones e áreas de destaque dos orçamentos."
-                            {...perfilForm.register("corPrimaria")}
-                          />
-                          <CampoTexto
-                            label="Cor secundária dos templates"
-                            type="color"
-                            error={perfilForm.formState.errors.corSecundaria?.message}
-                            helperText="Usada em acentos, detalhes e botões dos orçamentos."
-                            {...perfilForm.register("corSecundaria")}
-                          />
                         </div>
-                      </div>
 
-                      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
-                        <button
-                          type="submit"
-                          disabled={perfilMutation.isPending}
-                          className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          <Save size={18} aria-hidden="true" />
-                          {perfilMutation.isPending
-                            ? "Salvando..."
-                            : "Salvar personalização"}
-                        </button>
-                        <MensagemSucesso mensagem={perfilMensagem} />
-                        <MensagemErro error={perfilMutation.error} />
-                      </div>
+                        <div className="personalization-actions flex flex-col gap-3 border-t border-border sm:flex-row sm:items-center sm:justify-end">
+                          <MensagemErro error={perfilMutation.error} />
+                          <button
+                            type="submit"
+                            disabled={perfilMutation.isPending}
+                            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            <Save size={18} aria-hidden="true" />
+                            {perfilMutation.isPending
+                              ? "Salvando..."
+                              : "Salvar personalização"}
+                          </button>
+                        </div>
+                      </aside>
                     </form>
-
-                    <div className="account-side-column space-y-3">
-                      <aside className="account-brand-preview-card rounded-md border border-border bg-surface p-4">
-                        <div className="flex items-center gap-2">
-                          <Palette
-                            className="text-primary"
-                            size={22}
-                            aria-hidden="true"
-                          />
-                          <h2 className="font-heading text-xl font-semibold leading-7">
-                            Tema da interface
-                          </h2>
-                        </div>
-                        <div className="mt-3 rounded-md border border-border bg-surface-soft p-3">
-                          <p className="text-sm font-medium text-foreground">
-                            {temaVisual === "dark" ? "Escuro" : "Claro"}
-                          </p>
-                          <p className="mt-1 text-sm leading-5 text-muted">
-                            A interface usa apenas o tema selecionado. As cores dos
-                            documentos continuam restritas aos templates de orçamento.
-                          </p>
-                        </div>
-                      </aside>
-
-                      <aside className="account-brand-preview-card rounded-md border border-border bg-surface p-4">
-                        <div className="flex items-center gap-2">
-                          <FileText
-                            className="text-primary"
-                            size={22}
-                            aria-hidden="true"
-                          />
-                          <h2 className="font-heading text-xl font-semibold leading-7">
-                            Preview dos orçamentos
-                          </h2>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setPersonalizacaoPreviewTemplateAberto(
-                              templateVisualPersonalizacaoPreview,
-                            )
-                          }
-                          className="mt-3 inline-flex h-9 items-center justify-center gap-2 rounded-md border border-border px-3 text-sm font-semibold text-foreground transition hover:border-primary hover:text-primary"
-                        >
-                          <Eye size={16} aria-hidden="true" />
-                          Ver preview real
-                        </button>
-                        <div className="mt-3">
-                          <TemplateMiniatura
-                            templateVisual={templateVisualPersonalizacaoPreview}
-                          />
-                        </div>
-                        <div className="mt-3 grid gap-1 text-sm text-muted">
-                          <p>
-                            Template:{" "}
-                            {getPropostaTemplateLabel(
-                              templateVisualPersonalizacaoPreview,
-                            )}
-                          </p>
-                          <p>Primária: {normalizarHexPreview(corPrimaria)}</p>
-                          <p>Secundária: {normalizarHexPreview(corSecundaria)}</p>
-                          <p>Atualizado: {formatDataPerfil(perfilConta)}</p>
-                        </div>
-                      </aside>
-                    </div>
                   </section>
                 ) : null}
 
@@ -4892,11 +6106,9 @@ export default function App() {
                 loginForm={loginForm}
                 registerMutation={registerMutation}
                 loginMutation={loginMutation}
-                sessaoMensagem={sessaoMensagem}
               />
               )}
             </div>
-            <FooterAplicacao temaVisual={temaVisual} />
           </section>
         </main>
       </div>
@@ -4919,7 +6131,7 @@ export default function App() {
             <header className="proposal-view-modal-header">
               <div>
                 <p className="text-sm font-medium text-primary">
-                  Visualizacao da proposta
+                  Visualização da proposta
                 </p>
                 <h2
                   id="proposal-view-modal-title"
@@ -4937,17 +6149,85 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => selecionarProposta(propostaVisualizacaoModal.id)}
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white transition hover:bg-blue-700"
+                  disabled={!propostaVisualizacaoModalPodeEditar}
+                  className="tooltip-icon-button proposal-modal-icon-action proposal-modal-icon-action-primary"
+                  aria-label={
+                    propostaVisualizacaoModalPodeEditar
+                      ? "Editar"
+                      : "Duplique para editar esta proposta"
+                  }
+                  data-tooltip={
+                    propostaVisualizacaoModalPodeEditar
+                      ? "Editar"
+                      : "Duplique para editar"
+                  }
                 >
                   <Edit3 size={16} aria-hidden="true" />
-                  Editar
                 </button>
                 <button
                   type="button"
+                  onClick={() =>
+                    duplicarPropostaComConfirmacao(propostaVisualizacaoModal)
+                  }
+                  disabled={duplicarPropostaMutation.isPending}
+                  className="tooltip-icon-button proposal-modal-icon-action"
+                  aria-label="Duplicar proposta"
+                  data-tooltip="Duplicar"
+                >
+                  <RefreshCw size={16} aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    void baixarPdfPropostaSalva(
+                      propostaVisualizacaoModal,
+                      propostaVisualizacaoExportDocumentoRef.current,
+                    )
+                  }
+                  disabled={!propostaVisualizacaoModalPodeExportar}
+                  className="tooltip-icon-button proposal-modal-icon-action"
+                  aria-label={
+                    propostaVisualizacaoModalPodeExportar
+                      ? "Baixar proposta em PDF"
+                      : "Gere a proposta antes de baixar"
+                  }
+                  data-tooltip={
+                    propostaVisualizacaoModalPodeExportar
+                      ? "Baixar PDF"
+                      : "Gere a proposta antes de baixar"
+                  }
+                >
+                  <Download size={16} aria-hidden="true" />
+                </button>
+                {propostaVisualizacaoModalPodeExportar ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      abrirModalCompartilharProposta(propostaVisualizacaoModal)
+                    }
+                    className="tooltip-icon-button proposal-modal-icon-action proposal-modal-icon-action-whatsapp"
+                    aria-label="Enviar proposta pelo WhatsApp"
+                    data-tooltip="WhatsApp"
+                  >
+                    <WhatsAppIcon size={16} aria-hidden="true" />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled
+                    className="tooltip-icon-button proposal-modal-icon-action"
+                    aria-label="Gere a proposta antes de enviar pelo WhatsApp"
+                    data-tooltip="Gere a proposta antes de enviar"
+                  >
+                    <WhatsAppIcon size={16} aria-hidden="true" />
+                  </button>
+                )}
+                <button
+                  type="button"
                   onClick={() => setPropostaVisualizacaoModalId(null)}
-                  className="tooltip-icon-button"
-                  aria-label="Fechar visualizacao da proposta"
-                  title="Fechar"
+                  className="tooltip-icon-button proposal-modal-icon-action"
+                  aria-label="Fechar visualização da proposta"
+                  data-tooltip="Fechar"
                 >
                   <X size={18} aria-hidden="true" />
                 </button>
@@ -4955,9 +6235,11 @@ export default function App() {
             </header>
             <div className="proposal-view-modal-stage">
               <PreviewPropostaVisual
+                ref={propostaVisualizacaoDocumentoRef}
                 perfilConta={perfilConta}
                 contaNome={conta.nome}
                 planoConta={conta.plano}
+                statusComercialConta={contaStatusComercial}
                 cliente={clienteVisualizacaoModal}
                 clienteNomeFallback={propostaVisualizacaoModal.clienteNome}
                 proposta={propostaVisualizacaoModalForm}
@@ -4968,6 +6250,24 @@ export default function App() {
               />
             </div>
           </section>
+        </div>
+      ) : null}
+      {propostaVisualizacaoModal && propostaVisualizacaoModalForm && conta ? (
+        <div className="proposal-export-buffer" aria-hidden="true">
+          <PreviewPropostaVisual
+            ref={propostaVisualizacaoExportDocumentoRef}
+            perfilConta={perfilConta}
+            contaNome={conta.nome}
+            planoConta={conta.plano}
+            statusComercialConta={contaStatusComercial}
+            cliente={clienteVisualizacaoModal}
+            clienteNomeFallback={propostaVisualizacaoModal.clienteNome}
+            proposta={propostaVisualizacaoModalForm}
+            numeroProposta={propostaVisualizacaoModal.numero}
+            subtotal={propostaVisualizacaoModal.subtotal}
+            desconto={propostaVisualizacaoModal.descontoValor}
+            total={propostaVisualizacaoModal.total}
+          />
         </div>
       ) : null}
       {propostaPreviewModalAberto && propostaEditorAtivo && conta ? (
@@ -4987,12 +6287,14 @@ export default function App() {
           >
             <header className="proposal-view-modal-header">
               <div>
-                <p className="text-sm font-medium text-primary">Preview</p>
+                <p className="text-sm font-medium text-primary">
+                  Visualização da proposta
+                </p>
                 <h2
                   id="proposal-editor-preview-title"
                   className="font-heading text-xl font-semibold"
                 >
-                  {propostaPreview.titulo || "Proposta em edicao"}
+                  {propostaPreview.titulo || "Proposta em edição"}
                 </h2>
                 <p className="mt-1 text-sm leading-5 text-muted">
                   {getPropostaTemplateLabel(
@@ -5004,7 +6306,7 @@ export default function App() {
                 type="button"
                 onClick={() => setPropostaPreviewModalAberto(false)}
                 className="tooltip-icon-button"
-                aria-label="Fechar preview da proposta"
+                aria-label="Fechar visualização da proposta"
                 title="Fechar"
               >
                 <X size={18} aria-hidden="true" />
@@ -5015,6 +6317,7 @@ export default function App() {
                 perfilConta={perfilConta}
                 contaNome={conta.nome}
                 planoConta={conta.plano}
+                statusComercialConta={contaStatusComercial}
                 cliente={clientePreview}
                 clienteNomeFallback={clienteNomePreviewFallback}
                 proposta={propostaPreviewVisual}
@@ -5045,7 +6348,7 @@ export default function App() {
             <header className="proposal-view-modal-header">
               <div>
                 <p className="text-sm font-medium text-primary">
-                  Preview do template padrao
+                  Preview do template padrão
                 </p>
                 <h2
                   id="personalization-template-preview-title"
@@ -5054,15 +6357,15 @@ export default function App() {
                   {getPropostaTemplateLabel(personalizacaoPreviewTemplateAberto)}
                 </h2>
                 <p className="mt-1 text-sm leading-5 text-muted">
-                  Previa real usando a logomarca, as cores e os dados atuais da
-                  personalizacao.
+                  Prévia real usando a logomarca, as cores e os dados atuais da
+                  personalização.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setPersonalizacaoPreviewTemplateAberto(null)}
                 className="tooltip-icon-button"
-                aria-label="Fechar preview do template padrao"
+                aria-label="Fechar preview do template padrão"
                 title="Fechar"
               >
                 <X size={18} aria-hidden="true" />
@@ -5073,6 +6376,7 @@ export default function App() {
                 perfilConta={perfilContaPersonalizacaoPreview}
                 contaNome={conta.nome}
                 planoConta={conta.plano}
+                statusComercialConta={contaStatusComercial}
                 cliente={undefined}
                 clienteNomeFallback="Cliente exemplo"
                 proposta={{
@@ -5150,7 +6454,7 @@ export default function App() {
                           </p>
                           {template.coresEstaticas ? (
                             <span className="proposal-template-card-badge">
-                              Cores estaticas
+                              Cores estáticas
                             </span>
                           ) : null}
                         </div>
@@ -5167,8 +6471,15 @@ export default function App() {
                         <button
                           type="button"
                           onClick={() => {
-                            selecionarTemplateProposta(template.value);
-                            setPropostaTemplateModalAberto(false);
+                            void (async () => {
+                              const selecionado = await selecionarTemplateProposta(
+                                template.value,
+                              );
+
+                              if (selecionado) {
+                                setPropostaTemplateModalAberto(false);
+                              }
+                            })();
                           }}
                           className="proposal-template-card-primary"
                         >
@@ -5191,12 +6502,12 @@ export default function App() {
           </section>
         </div>
       ) : null}
-      {propostaCompartilharModalAberto && propostaSelecionadaGerada ? (
+      {propostaCompartilharModalAberto && propostaCompartilhamentoAtiva ? (
         <div
           className="share-modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4"
           onMouseDown={(event) => {
             if (isBackdropClick(event)) {
-              setPropostaCompartilharModalAberto(false);
+              fecharModalCompartilharProposta();
             }
           }}
         >
@@ -5207,18 +6518,23 @@ export default function App() {
             aria-labelledby="proposal-share-title"
           >
             <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-sm font-medium text-primary">Compartilhar</p>
+              <div className="share-modal-heading">
+                <span className="share-modal-whatsapp-icon">
+                  <WhatsAppIcon size={20} aria-hidden="true" />
+                </span>
+                <div>
+                <p className="share-modal-kicker">WhatsApp</p>
                 <h2
                   id="proposal-share-title"
                   className="font-heading text-xl font-semibold"
                 >
-                  Escolha como enviar a proposta
+                  Como deseja enviar?
                 </h2>
+                </div>
               </div>
               <button
                 type="button"
-                onClick={() => setPropostaCompartilharModalAberto(false)}
+                onClick={fecharModalCompartilharProposta}
                 className="tooltip-icon-button"
                 aria-label="Fechar compartilhamento"
                 title="Fechar"
@@ -5226,85 +6542,98 @@ export default function App() {
                 <X size={18} aria-hidden="true" />
               </button>
             </div>
-            <div className="share-action-grid mt-5">
-              <button
-                type="button"
-                onClick={() => {
-                  setPropostaCompartilharModalAberto(false);
-                  void baixarPdfPropostaGerada();
-                }}
-                className="share-action-card"
-              >
-                <FileText size={22} aria-hidden="true" />
-                <strong>PDF</strong>
-                <span>Baixar arquivo para anexar.</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setPropostaCompartilharModalAberto(false);
-                  void baixarImagemPropostaGerada();
-                }}
-                className="share-action-card"
-              >
-                <ReceiptText size={22} aria-hidden="true" />
-                <strong>Imagem</strong>
-                <span>Gerar PNG da proposta.</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setPropostaCompartilharModalAberto(false);
-                  imprimirPropostaGerada();
-                }}
-                className="share-action-card"
-              >
-                <Printer size={22} aria-hidden="true" />
-                <strong>Imprimir</strong>
-                <span>Abrir impressao do navegador.</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setPropostaCompartilharModalAberto(false);
-                  void copiarMensagemWhatsappProposta();
-                }}
-                className="share-action-card"
-              >
-                <Mail size={22} aria-hidden="true" />
-                <strong>Copiar texto</strong>
-                <span>Copiar mensagem de acompanhamento.</span>
-              </button>
+            <div className="share-choice-grid mt-5">
               <a
-                href={propostaProntaParaEnvio ? whatsappPropostaUrl : undefined}
+                href={whatsappPropostaCompletaUrl}
                 target="_blank"
                 rel="noreferrer"
-                onClick={() => setPropostaCompartilharModalAberto(false)}
-                className="share-action-card"
+                onClick={() => {
+                  setPropostaExportacaoMensagem(
+                    "WhatsApp aberto com a proposta completa em texto.",
+                  );
+                  fecharModalCompartilharProposta();
+                }}
+                className="share-choice-card"
               >
-                <WhatsAppIcon size={22} />
-                <strong>WhatsApp</strong>
-                <span>Abrir conversa com texto pronto.</span>
+                <span className="share-choice-icon">
+                  <FileText size={22} aria-hidden="true" />
+                </span>
+                <strong>Proposta completa em texto</strong>
+                <span>Itens, valores, condições, listas e observações.</span>
               </a>
+              <a
+                href={whatsappPropostaArquivoUrl}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => {
+                  setPropostaExportacaoMensagem(
+                    "WhatsApp aberto com mensagem curta. Anexe o PDF ou a imagem em seguida.",
+                  );
+                  fecharModalCompartilharProposta();
+                }}
+                className="share-choice-card"
+              >
+                <span className="share-choice-icon is-attachment">
+                  <Send size={21} aria-hidden="true" />
+                  <Paperclip
+                    className="share-choice-icon-badge"
+                    size={14}
+                    aria-hidden="true"
+                  />
+                </span>
+                <strong>Mensagem curta + anexo</strong>
+                <span>Sem valor no texto. Envie PDF ou imagem em seguida.</span>
+              </a>
+            </div>
+            <div className="share-attachment-actions">
+              <span>Anexos</span>
               <button
                 type="button"
-                onClick={() => {
-                  setPropostaCompartilharModalAberto(false);
-                  void compartilharPropostaMobile();
-                }}
-                className="share-action-card"
+                onClick={() =>
+                  void baixarPdfPropostaSalva(
+                    propostaCompartilhamentoAtiva,
+                    propostaCompartilhamentoDocumentoRef.current,
+                  )
+                }
               >
-                <Send size={22} aria-hidden="true" />
-                <strong>Compartilhar</strong>
-                <span>Usar compartilhamento nativo quando disponivel.</span>
+                <Download size={16} aria-hidden="true" />
+                PDF
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  void baixarImagemPropostaSalva(
+                    propostaCompartilhamentoAtiva,
+                    propostaCompartilhamentoDocumentoRef.current,
+                  )
+                }
+              >
+                <ReceiptText size={16} aria-hidden="true" />
+                Imagem
               </button>
             </div>
-            {propostaExportacaoMensagem ? (
-              <p className="mt-4 rounded-md border border-blue-100 bg-blue-50 px-3 py-2 text-sm text-blue-900">
-                {propostaExportacaoMensagem}
-              </p>
-            ) : null}
           </section>
+        </div>
+      ) : null}
+      {propostaCompartilharModalAberto &&
+      propostaCompartilhamentoAtiva &&
+      propostaCompartilhamentoForm &&
+      conta ? (
+        <div className="proposal-export-buffer" aria-hidden="true">
+          <PreviewPropostaVisual
+            ref={propostaCompartilhamentoDocumentoRef}
+            perfilConta={perfilConta}
+            contaNome={conta.nome}
+            planoConta={conta.plano}
+            statusComercialConta={contaStatusComercial}
+            cliente={clienteCompartilhamentoAtivo}
+            clienteNomeFallback={propostaCompartilhamentoAtiva.clienteNome}
+            proposta={propostaCompartilhamentoForm}
+            numeroProposta={propostaCompartilhamentoAtiva.numero}
+            subtotal={propostaCompartilhamentoAtiva.subtotal}
+            desconto={propostaCompartilhamentoAtiva.descontoValor}
+            total={propostaCompartilhamentoAtiva.total}
+          />
         </div>
       ) : null}
       {clienteRapidoAberto && propostaEditorAtivo ? (
@@ -5324,12 +6653,12 @@ export default function App() {
           >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-sm font-medium text-primary">Cliente</p>
+                <p className="text-sm font-medium text-primary">Clientes</p>
                 <h2
                   id="quick-client-title"
                   className="font-heading text-xl font-semibold"
                 >
-                  Novo Cliente
+                  Novo cliente
                 </h2>
               </div>
               <button
@@ -5343,31 +6672,19 @@ export default function App() {
               </button>
             </div>
             <form
-              className="mt-5 space-y-3"
+              className="mt-5 space-y-4"
               onSubmit={clienteRapidoForm.handleSubmit((input) =>
                 criarClienteRapidoMutation.mutate(input),
               )}
             >
-              <CampoTexto
-                label="Nome"
-                error={clienteRapidoForm.formState.errors.nome?.message}
-                {...clienteRapidoForm.register("nome")}
+              <ClienteFormularioCampos
+                form={clienteRapidoForm}
+                complementaresAberto={clienteRapidoComplementaresAberto}
+                onToggleComplementares={() =>
+                  setClienteRapidoComplementaresAberto((aberto) => !aberto)
+                }
               />
-              <div className="grid gap-3 md:grid-cols-2">
-                <CampoTexto
-                  label="Email"
-                  type="email"
-                  error={clienteRapidoForm.formState.errors.email?.message}
-                  {...clienteRapidoForm.register("email")}
-                />
-                <CampoTexto
-                  label="Telefone"
-                  placeholder="(11) 99999-9999"
-                  error={clienteRapidoForm.formState.errors.telefone?.message}
-                  {...clienteRapidoForm.register("telefone")}
-                />
-              </div>
-              <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+              <div className="form-action-bar">
                 <button
                   type="button"
                   onClick={cancelarClienteRapido}
@@ -5376,16 +6693,18 @@ export default function App() {
                   <X size={16} aria-hidden="true" />
                   Cancelar
                 </button>
-                <button
-                  type="submit"
-                  disabled={criarClienteRapidoMutation.isPending}
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <Save size={16} aria-hidden="true" />
-                  {criarClienteRapidoMutation.isPending
-                    ? "Salvando..."
-                    : "Criar e selecionar"}
-                </button>
+                <div className="form-action-bar-right">
+                  <button
+                    type="submit"
+                    disabled={criarClienteRapidoMutation.isPending}
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {criarClienteRapidoMutation.isPending
+                      ? "Salvando..."
+                      : "Próximo"}
+                    <ArrowRight size={16} aria-hidden="true" />
+                  </button>
+                </div>
               </div>
               <MensagemErro error={criarClienteRapidoMutation.error} />
             </form>
@@ -5410,7 +6729,7 @@ export default function App() {
             <div className="template-preview-toolbar flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-medium text-primary">
-                  Visualizacao do template
+                  Visualização do template
                 </p>
                 <h2
                   id="template-preview-title"
@@ -5420,7 +6739,7 @@ export default function App() {
                 </h2>
                 {isTemplateCoresEstaticas(templatePreviewAberto) ? (
                   <p className="mt-1 max-w-xl text-sm leading-5 text-muted">
-                    Este template usa cores estaticas profissionais e nao aplica
+                    Este template usa cores estáticas profissionais e não aplica
                     a paleta configurada no perfil. A logomarca e os dados da
                     conta continuam sendo usados normalmente.
                   </p>
@@ -5437,9 +6756,21 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => {
-                    selecionarTemplateProposta(templatePreviewAberto);
-                    setTemplatePreviewAberto(null);
-                    setPropostaTemplateModalAberto(false);
+                    const templateVisual = templatePreviewAberto;
+
+                    if (!templateVisual) {
+                      return;
+                    }
+
+                    void (async () => {
+                      const selecionado =
+                        await selecionarTemplateProposta(templateVisual);
+
+                      if (selecionado) {
+                        setTemplatePreviewAberto(null);
+                        setPropostaTemplateModalAberto(false);
+                      }
+                    })();
                   }}
                   className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-semibold text-white"
                 >
@@ -5461,6 +6792,7 @@ export default function App() {
                 perfilConta={perfilConta}
                 contaNome={conta.nome}
                 planoConta={conta.plano}
+                statusComercialConta={contaStatusComercial}
                 cliente={clientePreview}
                 clienteNomeFallback={clienteNomePreviewFallback}
                 proposta={{
@@ -5501,7 +6833,7 @@ export default function App() {
                 </h2>
                 <p className="mt-1 text-sm leading-6 text-muted">
                   Analisei {logoSugestaoPerfil.nomeArquivo} e preparei uma
-                  configuracao de cores para sua proposta.
+                  configuração de cores para sua proposta.
                 </p>
               </div>
             </div>
@@ -5542,8 +6874,247 @@ export default function App() {
           </section>
         </div>
       ) : null}
+      <ModalConfirmacaoSistema
+        confirmacao={confirmacaoSistema}
+        onCancelar={() => responderConfirmacaoSistema(false)}
+        onConfirmar={() => responderConfirmacaoSistema(true)}
+      />
+      <ToastSistemaHost
+        toasts={toastsSistema}
+        onFechar={fecharToastSistema}
+      />
     </div>
   );
+}
+
+function ModalConfirmacaoSistema({
+  confirmacao,
+  onCancelar,
+  onConfirmar,
+}: {
+  confirmacao: ConfirmacaoSistemaState | null;
+  onCancelar: () => void;
+  onConfirmar: () => void;
+}) {
+  const tituloId = useId();
+  const descricaoId = useId();
+  const botaoCancelarRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    if (!confirmacao || typeof document === "undefined") {
+      return;
+    }
+
+    botaoCancelarRef.current?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onCancelar();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [confirmacao, onCancelar]);
+
+  if (!confirmacao || typeof document === "undefined") {
+    return null;
+  }
+
+  const variante = confirmacao.variante ?? "warning";
+  const Icone =
+    variante === "danger"
+      ? Trash2
+      : variante === "success"
+        ? CheckCircle2
+        : variante === "info"
+          ? Info
+          : AlertTriangle;
+
+  return createPortal(
+    <div
+      className="system-confirm-overlay"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (isBackdropClick(event)) {
+          onCancelar();
+        }
+      }}
+    >
+      <section
+        className={`system-confirm-dialog is-${variante}`}
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby={tituloId}
+        aria-describedby={descricaoId}
+      >
+        <div className="system-confirm-header">
+          <span className="system-confirm-icon" aria-hidden="true">
+            <Icone size={22} />
+          </span>
+          <div className="min-w-0">
+            <p className="system-confirm-eyebrow">Confirmação</p>
+            <h2 id={tituloId}>{confirmacao.titulo}</h2>
+          </div>
+        </div>
+        <div id={descricaoId} className="system-confirm-content">
+          <p>{confirmacao.mensagem}</p>
+          {confirmacao.detalhe ? <span>{confirmacao.detalhe}</span> : null}
+        </div>
+        <div className="system-confirm-actions">
+          <button
+            ref={botaoCancelarRef}
+            type="button"
+            className="system-confirm-button system-confirm-button-secondary"
+            onClick={onCancelar}
+          >
+            {confirmacao.textoCancelar ?? "Não"}
+          </button>
+          <button
+            type="button"
+            className="system-confirm-button system-confirm-button-primary"
+            onClick={onConfirmar}
+          >
+            {confirmacao.textoConfirmar ?? "Sim"}
+          </button>
+        </div>
+      </section>
+    </div>,
+    document.body,
+  );
+}
+
+function ToastSistemaHost({
+  toasts,
+  onFechar,
+}: {
+  toasts: ToastSistemaItem[];
+  onFechar: (id: number) => void;
+}) {
+  if (!toasts.length || typeof document === "undefined") {
+    return null;
+  }
+
+  return createPortal(
+    <div className="toast-system-region" aria-live="polite" aria-atomic="false">
+      {toasts.map((toast) => (
+        <ToastSistemaCard
+          key={toast.id}
+          toast={toast}
+          onFechar={() => onFechar(toast.id)}
+        />
+      ))}
+    </div>,
+    document.body,
+  );
+}
+
+function ToastSistemaCard({
+  toast,
+  onFechar,
+}: {
+  toast: ToastSistemaItem;
+  onFechar: () => void;
+}) {
+  useEffect(() => {
+    const timeoutId = window.setTimeout(onFechar, toast.duracaoMs);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [onFechar, toast.duracaoMs]);
+
+  const Icone =
+    toast.variante === "success"
+      ? CheckCircle2
+      : toast.variante === "warning"
+        ? AlertTriangle
+        : toast.variante === "error"
+          ? XCircle
+          : Info;
+
+  return (
+    <section
+      className={`toast-system-card is-${toast.variante}`}
+      role={toast.variante === "success" || toast.variante === "info" ? "status" : "alert"}
+    >
+      <span className="toast-system-icon" aria-hidden="true">
+        <Icone size={18} />
+      </span>
+      <div className="toast-system-content">
+        <strong>{getToastSistemaTitulo(toast.variante)}</strong>
+        <p>{toast.mensagem}</p>
+      </div>
+      <button
+        type="button"
+        className="toast-system-close"
+        onClick={onFechar}
+        aria-label="Fechar notificação"
+      >
+        <X size={15} aria-hidden="true" />
+      </button>
+      <span
+        className="toast-system-progress"
+        style={{ animationDuration: `${toast.duracaoMs}ms` }}
+        aria-hidden="true"
+      />
+    </section>
+  );
+}
+
+function getToastSistemaTitulo(variante: ToastSistemaVariante): string {
+  const titulos: Record<ToastSistemaVariante, string> = {
+    success: "Sucesso",
+    warning: "Atenção",
+    info: "Informação",
+    error: "Erro",
+  };
+
+  return titulos[variante];
+}
+
+function getToastSistemaVariante(
+  mensagem: string,
+  origem: ToastSistemaOrigem,
+): ToastSistemaVariante {
+  const texto = mensagem.toLowerCase();
+
+  if (origem === "sessao") {
+    return "warning";
+  }
+
+  if (texto.includes("não foi possível") || texto.includes("nao foi possivel")) {
+    return "error";
+  }
+
+  if (
+    texto.includes("preencha") ||
+    texto.includes("revise os campos") ||
+    texto.includes("salve o rascunho antes") ||
+    texto.includes("salve as alterações antes") ||
+    texto.includes("salve as alteracoes antes") ||
+    texto.includes("trial expirado") ||
+    texto.includes("limite recomendado") ||
+    texto.includes("use uma imagem") ||
+    texto.includes("não abriu") ||
+    texto.includes("nao abriu")
+  ) {
+    return "warning";
+  }
+
+  if (
+    origem === "perfil" ||
+    origem === "exportacao" ||
+    texto.includes("copiada") ||
+    texto.includes("gerando")
+  ) {
+    return "info";
+  }
+
+  return "success";
 }
 
 type CampoTextoProps = InputHTMLAttributes<HTMLInputElement> & {
@@ -5591,6 +7162,60 @@ const CampoTexto = forwardRef<HTMLInputElement, CampoTextoProps>(
 );
 
 CampoTexto.displayName = "CampoTexto";
+
+type CampoMoedaRealProps = Omit<
+  InputHTMLAttributes<HTMLInputElement>,
+  "inputMode" | "onChange" | "type" | "value"
+> & {
+  label: string;
+  value: number | null | undefined;
+  onValueChange: (value: number) => void;
+  error?: string;
+  helperText?: string;
+};
+
+const CampoMoedaReal = forwardRef<HTMLInputElement, CampoMoedaRealProps>(
+  ({ label, value, onValueChange, error, helperText, id, ...props }, ref) => {
+    const campoId = useId();
+    const inputId = id ?? campoId;
+    const descricaoId = `${inputId}-descricao`;
+    const erroId = `${inputId}-erro`;
+
+    return (
+      <label className="campo-texto block">
+        <span className="text-sm font-medium text-foreground">{label}</span>
+        <input
+          {...props}
+          ref={ref}
+          id={inputId}
+          type="text"
+          inputMode="numeric"
+          value={formatMoedaRealInput(value)}
+          onChange={(event) =>
+            onValueChange(parseMoedaRealInput(event.target.value))
+          }
+          aria-invalid={Boolean(error)}
+          aria-describedby={`${helperText ? descricaoId : ""} ${
+            error ? erroId : ""
+          }`.trim() || undefined}
+          className="mt-1 h-11 w-full rounded-md border border-border bg-white px-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-blue-100"
+        />
+        {helperText ? (
+          <span id={descricaoId} className="campo-helper mt-1 block text-xs text-muted">
+            {helperText}
+          </span>
+        ) : null}
+        {error ? (
+          <span id={erroId} className="campo-error mt-1 block text-sm text-red-600">
+            {error}
+          </span>
+        ) : null}
+      </label>
+    );
+  },
+);
+
+CampoMoedaReal.displayName = "CampoMoedaReal";
 
 type CampoSenhaAuthProps = InputHTMLAttributes<HTMLInputElement> & {
   label: string;
@@ -5755,6 +7380,376 @@ const CampoTextarea = forwardRef<HTMLTextAreaElement, CampoTextareaProps>(
 
 CampoTextarea.displayName = "CampoTextarea";
 
+type ClienteFormularioCamposProps = {
+  form: UseFormReturn<ClienteFormInput>;
+  complementaresAberto: boolean;
+  onToggleComplementares: () => void;
+};
+
+function ClienteFormularioCampos({
+  form,
+  complementaresAberto,
+  onToggleComplementares,
+}: ClienteFormularioCamposProps) {
+  const nome = useWatch({
+    control: form.control,
+    name: "nome",
+  });
+  const telefone = useWatch({
+    control: form.control,
+    name: "telefone",
+  });
+  const instagram = useWatch({
+    control: form.control,
+    name: "instagram",
+  });
+  const facebook = useWatch({
+    control: form.control,
+    name: "facebook",
+  });
+  const tiktok = useWatch({
+    control: form.control,
+    name: "tiktok",
+  });
+  const whatsappUrl = buildWhatsappContatoClienteUrl({ nome, telefone });
+  const instagramUrl = buildClienteSocialUrl("instagram", instagram);
+  const facebookUrl = buildClienteSocialUrl("facebook", facebook);
+  const tiktokUrl = buildClienteSocialUrl("tiktok", tiktok);
+
+  return (
+    <>
+      <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(15rem,20rem)] md:items-start">
+        <CampoTexto
+          label="Nome"
+          error={form.formState.errors.nome?.message}
+          {...form.register("nome")}
+        />
+        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+          <CampoTexto
+            label="Telefone"
+            placeholder="(11) 99999-9999"
+            error={form.formState.errors.telefone?.message}
+            {...buildTelefoneInputProps(
+              form.register("telefone", telefoneInputRegisterOptions),
+            )}
+          />
+          <ContatoWhatsappClienteButton
+            href={whatsappUrl}
+            ariaLabel="Entrar em contato com este cliente pelo WhatsApp"
+            size="lg"
+          />
+        </div>
+      </div>
+
+      <div className="rounded-md border border-border bg-slate-50/70">
+        <button
+          type="button"
+          aria-expanded={complementaresAberto}
+          onClick={onToggleComplementares}
+          className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm font-semibold text-foreground"
+        >
+          Informações complementares
+          {complementaresAberto ? (
+            <ChevronUp size={18} aria-hidden="true" />
+          ) : (
+            <ChevronDown size={18} aria-hidden="true" />
+          )}
+        </button>
+        {complementaresAberto ? (
+          <div className="grid gap-4 border-t border-border p-4">
+            <div className="grid gap-4 lg:grid-cols-3">
+              <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                <CampoTexto
+                  label="Instagram"
+                  placeholder="@usuario"
+                  error={form.formState.errors.instagram?.message}
+                  {...form.register("instagram")}
+                />
+                <LinkSocialClienteButton href={instagramUrl} label="Instagram" />
+              </div>
+              <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                <CampoTexto
+                  label="Facebook"
+                  placeholder="facebook.com/pagina"
+                  error={form.formState.errors.facebook?.message}
+                  {...form.register("facebook")}
+                />
+                <LinkSocialClienteButton href={facebookUrl} label="Facebook" />
+              </div>
+              <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                <CampoTexto
+                  label="TikTok"
+                  placeholder="@usuario"
+                  error={form.formState.errors.tiktok?.message}
+                  {...form.register("tiktok")}
+                />
+                <LinkSocialClienteButton href={tiktokUrl} label="TikTok" />
+              </div>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <CampoTexto
+                label="E-mail"
+                type="email"
+                error={form.formState.errors.email?.message}
+                {...form.register("email")}
+              />
+              <CampoTexto
+                label="CPF/CNPJ"
+                placeholder="000.000.000-00"
+                error={form.formState.errors.documento?.message}
+                {...buildCpfCnpjInputProps(
+                  form.register("documento", cpfCnpjInputRegisterOptions),
+                )}
+              />
+            </div>
+            <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(8rem,12rem)_minmax(11rem,16rem)]">
+              <CampoTexto
+                label="Endereço"
+                error={form.formState.errors.endereco?.message}
+                {...form.register("endereco")}
+              />
+              <CampoTexto
+                label="Número"
+                error={form.formState.errors.numero?.message}
+                {...form.register("numero")}
+              />
+              <CampoTexto
+                label="Cidade"
+                error={form.formState.errors.cidade?.message}
+                {...form.register("cidade")}
+              />
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      <CampoTextarea
+        label="Observações"
+        rows={4}
+        error={form.formState.errors.observacoes?.message}
+        {...form.register("observacoes")}
+      />
+    </>
+  );
+}
+
+type ListaDetalhamentoPropostaProps = {
+  label: string;
+  name: string;
+  value: string;
+  onChange: (value: string) => void;
+  onBlur: () => void;
+  placeholder: string;
+  error?: string;
+  variante: "positive" | "negative";
+};
+
+function ListaDetalhamentoProposta({
+  label,
+  name,
+  value,
+  onChange,
+  onBlur,
+  placeholder,
+  error,
+  variante,
+}: ListaDetalhamentoPropostaProps) {
+  const campoId = useId();
+  const inputId = `${campoId}-novo`;
+  const erroId = `${campoId}-erro`;
+  const itens = splitLinhasEditaveisFormulario(value);
+  const [novoItem, setNovoItem] = useState("");
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+
+  function atualizarItens(proximosItens: string[]) {
+    onChange(joinLinhasEditaveisFormulario(proximosItens));
+  }
+
+  function adicionarItem() {
+    const item = novoItem.trim();
+
+    if (!item) {
+      return;
+    }
+
+    atualizarItens([...itens, item]);
+    setNovoItem("");
+  }
+
+  function atualizarItem(index: number, proximoValor: string) {
+    const proximosItens = [...itens];
+    proximosItens[index] = proximoValor.length > 0 ? proximoValor : " ";
+    atualizarItens(proximosItens);
+  }
+
+  function finalizarEdicaoItem(index: number) {
+    const proximosItens = [...itens];
+    const itemNormalizado = proximosItens[index]?.trim() ?? "";
+
+    if (!itemNormalizado) {
+      proximosItens.splice(index, 1);
+    } else {
+      proximosItens[index] = itemNormalizado;
+    }
+
+    atualizarItens(proximosItens);
+    onBlur();
+  }
+
+  function removerItem(index: number) {
+    atualizarItens(itens.filter((_, itemIndex) => itemIndex !== index));
+  }
+
+  function moverItem(origem: number, destino: number) {
+    if (origem === destino || origem < 0 || destino < 0) {
+      return;
+    }
+
+    const proximosItens = [...itens];
+    const [itemMovido] = proximosItens.splice(origem, 1);
+
+    if (typeof itemMovido === "undefined") {
+      return;
+    }
+
+    proximosItens.splice(destino, 0, itemMovido);
+    atualizarItens(proximosItens);
+  }
+
+  function handleDragStart(index: number, event: DragEvent<HTMLLIElement>) {
+    setDragIndex(index);
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", String(index));
+  }
+
+  function handleDrop(index: number, event: DragEvent<HTMLLIElement>) {
+    event.preventDefault();
+    const origemTexto = event.dataTransfer.getData("text/plain");
+    const origem = dragIndex ?? Number(origemTexto);
+
+    if (Number.isInteger(origem)) {
+      moverItem(origem, index);
+    }
+
+    setDragIndex(null);
+  }
+
+  return (
+    <div
+      className={`proposal-detail-list proposal-detail-list-${variante}`}
+      aria-describedby={error ? erroId : undefined}
+    >
+      <div className="proposal-detail-list-header">
+        <label htmlFor={inputId}>{label}</label>
+        <span>{itens.filter((item) => item.trim()).length}</span>
+      </div>
+      <div className="proposal-detail-list-add">
+        <input
+          id={inputId}
+          name={`${name}-novo`}
+          type="text"
+          value={novoItem}
+          placeholder={placeholder}
+          onChange={(event) => setNovoItem(event.target.value)}
+          onBlur={onBlur}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              adicionarItem();
+            }
+          }}
+        />
+        <button
+          type="button"
+          onClick={adicionarItem}
+          disabled={!novoItem.trim()}
+          className="proposal-detail-list-add-button tooltip-icon-button"
+          aria-label={`Adicionar em ${label}`}
+          data-tooltip="Adicionar"
+          title="Adicionar"
+        >
+          <Plus size={16} aria-hidden="true" />
+        </button>
+      </div>
+      {itens.length ? (
+        <ul className="proposal-detail-list-items">
+          {itens.map((item, index) => (
+            <li
+              key={`${name}-${index}`}
+              draggable
+              onDragStart={(event) => handleDragStart(index, event)}
+              onDragOver={(event) => {
+                event.preventDefault();
+                event.dataTransfer.dropEffect = "move";
+              }}
+              onDrop={(event) => handleDrop(index, event)}
+              onDragEnd={() => setDragIndex(null)}
+              className={dragIndex === index ? "is-dragging" : ""}
+            >
+              <span
+                className="proposal-detail-list-drag"
+                aria-hidden="true"
+                title="Arrastar"
+              >
+                <GripVertical size={16} />
+              </span>
+              <input
+                name={`${name}-${index}`}
+                type="text"
+                value={item}
+                aria-label={`${label} ${index + 1}`}
+                onChange={(event) => atualizarItem(index, event.target.value)}
+                onBlur={() => finalizarEdicaoItem(index)}
+              />
+              <div className="proposal-detail-list-actions">
+                <button
+                  type="button"
+                  onClick={() => moverItem(index, index - 1)}
+                  disabled={index === 0}
+                  className="proposal-detail-list-action tooltip-icon-button"
+                  aria-label="Mover para cima"
+                  data-tooltip="Mover para cima"
+                  title="Mover para cima"
+                >
+                  <ChevronUp size={15} aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => moverItem(index, index + 1)}
+                  disabled={index === itens.length - 1}
+                  className="proposal-detail-list-action tooltip-icon-button"
+                  aria-label="Mover para baixo"
+                  data-tooltip="Mover para baixo"
+                  title="Mover para baixo"
+                >
+                  <ChevronDown size={15} aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => removerItem(index)}
+                  className="proposal-detail-list-action proposal-detail-list-remove tooltip-icon-button"
+                  aria-label="Remover item"
+                  data-tooltip="Remover"
+                  title="Remover"
+                >
+                  <Trash2 size={15} aria-hidden="true" />
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <div className="proposal-detail-list-empty">Nenhum item adicionado.</div>
+      )}
+      {error ? (
+        <span id={erroId} className="campo-error mt-1 block text-sm text-red-600">
+          {error}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 function SubmitButton({ label, loading }: { label: string; loading: boolean }) {
   return (
     <button
@@ -5789,19 +7784,65 @@ function MensagemErro({
   );
 }
 
-function MensagemSucesso({ mensagem }: { mensagem: string | null }) {
-  if (!mensagem) {
-    return null;
-  }
-
+function PropostaWizardBar({
+  etapas,
+  etapaAtiva,
+  onEtapaClick,
+  sticky = false,
+}: {
+  etapas: PropostaWizardStepItem[];
+  etapaAtiva: PropostaWizardEtapaId;
+  onEtapaClick?: (etapa: PropostaWizardEtapaId) => void;
+  sticky?: boolean;
+}) {
   return (
-    <p
-      role="status"
-      aria-live="polite"
-      className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700"
+    <div
+      className={`proposal-wizard-steps ${sticky ? "is-sticky" : ""}`}
+      aria-label="Etapas da nova proposta"
     >
-      {mensagem}
-    </p>
+      {etapas.map((step, index) => {
+        const ativo = step.id === etapaAtiva;
+        const conteudo = (
+          <>
+            <strong>
+              {step.concluido ? (
+                <CheckCircle2 size={16} aria-hidden="true" />
+              ) : (
+                index + 1
+              )}
+            </strong>
+            {step.label}
+          </>
+        );
+
+        if (!onEtapaClick) {
+          return (
+            <span
+              key={step.id}
+              className={`${ativo ? "is-active" : ""} ${
+                step.concluido ? "is-complete" : ""
+              }`}
+            >
+              {conteudo}
+            </span>
+          );
+        }
+
+        return (
+          <button
+            key={step.id}
+            type="button"
+            disabled={step.bloqueado}
+            onClick={() => onEtapaClick(step.id)}
+            className={`${ativo ? "is-active" : ""} ${
+              step.concluido ? "is-complete" : ""
+            }`}
+          >
+            {conteudo}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -5943,47 +7984,6 @@ function BrandAssinatura({
   );
 }
 
-function FooterAplicacao({ temaVisual }: { temaVisual: TemaVisual }) {
-  const logoSrc = temaVisual === "dark" ? emprelyLogoDarkSrc : emprelyLogoSrc;
-
-  return (
-    <footer className="app-footer mt-6 grid gap-3 border-t border-border py-4 text-sm text-muted md:grid-cols-[1fr_auto_1fr] md:items-center">
-      <div className="footer-brand flex items-center gap-2">
-        <img
-          src={logoSrc}
-          alt="Emprely"
-          className="h-8 w-auto object-contain"
-        />
-      </div>
-      <p className="footer-rights text-center">
-        © 2026 Emprely Orçamentos. Todos os direitos reservados.
-      </p>
-      <div className="footer-actions flex items-center justify-center gap-2 md:justify-end">
-        <a
-          href="https://wa.me/5531999990000"
-          target="_blank"
-          rel="noreferrer"
-          aria-label="Suporte no WhatsApp"
-          title="Suporte no WhatsApp"
-          data-tooltip="Suporte no WhatsApp"
-          className="tooltip-icon-button footer-icon-button"
-        >
-          <WhatsAppIcon size={18} aria-hidden="true" />
-        </a>
-        <a
-          href="mailto:suporte@emprely.com.br"
-          aria-label="Enviar email para suporte"
-          title="Enviar email para suporte"
-          data-tooltip="Enviar email para suporte"
-          className="tooltip-icon-button footer-icon-button"
-        >
-          <Mail size={18} aria-hidden="true" />
-        </a>
-      </div>
-    </footer>
-  );
-}
-
 function WhatsAppIcon({
   size = 18,
   ...props
@@ -6023,7 +8023,7 @@ function ContatoWhatsappClienteButton({
 }) {
   const tooltip = href
     ? "Entrar em contato pelo WhatsApp"
-    : "Cliente sem telefone valido para WhatsApp";
+    : "Cliente sem telefone válido para WhatsApp";
   const sizeClass = size === "lg" ? "h-11 w-11" : "h-11 w-11";
   const className = `tooltip-icon-button inline-flex shrink-0 items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 text-emerald-700 transition hover:border-emerald-400 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:border-border disabled:bg-slate-50 disabled:text-muted disabled:opacity-60 ${sizeClass}`;
 
@@ -6032,7 +8032,7 @@ function ContatoWhatsappClienteButton({
       <button
         type="button"
         disabled
-        aria-label="Cliente sem telefone valido para WhatsApp"
+        aria-label="Cliente sem telefone válido para WhatsApp"
         title={tooltip}
         data-tooltip={tooltip}
         className={className}
@@ -6053,6 +8053,47 @@ function ContatoWhatsappClienteButton({
       className={className}
     >
       <WhatsAppIcon size={size === "lg" ? 20 : 16} />
+    </a>
+  );
+}
+
+function LinkSocialClienteButton({
+  href,
+  label,
+}: {
+  href: string;
+  label: string;
+}) {
+  const tooltip = href ? `Abrir ${label}` : `${label} não informado`;
+  const className =
+    "tooltip-icon-button inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-border bg-white text-muted transition hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-60";
+
+  if (!href) {
+    return (
+      <button
+        type="button"
+        disabled
+        aria-label={tooltip}
+        title={tooltip}
+        data-tooltip={tooltip}
+        className={className}
+      >
+        <ExternalLink size={16} aria-hidden="true" />
+      </button>
+    );
+  }
+
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      aria-label={tooltip}
+      title={tooltip}
+      data-tooltip={tooltip}
+      className={className}
+    >
+      <ExternalLink size={16} aria-hidden="true" />
     </a>
   );
 }
@@ -6194,11 +8235,11 @@ function ListagemAcoes({
           ref={buttonRef}
           type="button"
           className="table-action-icon tooltip-icon-button"
-          aria-label="Abrir menu de acoes"
+          aria-label="Abrir menu de ações"
           aria-haspopup="menu"
           aria-expanded={menuAberto}
-          data-tooltip="Mais acoes"
-          title="Mais acoes"
+          data-tooltip="Mais ações"
+          title="Mais ações"
           onClick={() => {
             if (!menuAberto) {
               atualizarPosicaoDropdown();
@@ -6381,7 +8422,7 @@ function PaginacaoLista<T>({
           onClick={() => onChangePagina(paginacao.paginaAtual + 1)}
           className="inline-flex h-11 items-center rounded-md border border-border px-4 font-semibold text-foreground disabled:opacity-50"
         >
-          Proxima
+          Próxima
         </button>
       </div>
     </div>
@@ -6392,6 +8433,7 @@ type PreviewPropostaVisualProps = {
   perfilConta: PerfilContaResponse | undefined;
   contaNome: string;
   planoConta: ContaAtualResponse["plano"];
+  statusComercialConta: ContaAtualResponse["statusComercial"];
   cliente: ClienteResponse | undefined;
   clienteNomeFallback?: string;
   proposta: PropostaPreviewInput;
@@ -6427,7 +8469,7 @@ type PropostaDocumentoDados = {
   emailMarca: string;
   instagramMarca: string;
   siteMarca: string;
-  isPlanoFundador: boolean;
+  watermark: "nenhuma" | "trial-ativo" | "trial-expirado";
   itens: PropostaDocumentoItem[];
   beneficios: string[];
   itensInclusos: string[];
@@ -6447,6 +8489,7 @@ const PreviewPropostaVisual = forwardRef<HTMLDivElement, PreviewPropostaVisualPr
       perfilConta,
       contaNome,
       planoConta,
+      statusComercialConta,
       cliente,
       clienteNomeFallback,
       proposta,
@@ -6472,9 +8515,9 @@ const PreviewPropostaVisual = forwardRef<HTMLDivElement, PreviewPropostaVisualPr
   const validadeTexto = formatValidadeProposta(proposta.validadeDias);
   const numeroTexto = numeroProposta
     ? formatNumeroProposta(numeroProposta)
-    : "Ainda nao salva";
+    : "Ainda não salva";
   const contatoMarca = buildContatoMarca(perfilConta);
-  const isPlanoFundador = planoConta === "Fundador";
+  const watermark = getWatermarkDocumentoProposta(planoConta, statusComercialConta);
   const clienteNome = cliente?.nome ?? clienteNomeFallback ?? "";
   const logoUrl = resolveApiAssetUrl(perfilConta?.logoUrl) || null;
   const beneficios = splitLinhasFormulario(proposta.beneficiosTexto);
@@ -6502,11 +8545,11 @@ const PreviewPropostaVisual = forwardRef<HTMLDivElement, PreviewPropostaVisualPr
     numeroTexto,
     tipoTexto: inferirTipoProposta(proposta, itens),
     contatoMarca,
-    telefoneMarca: perfilConta?.telefoneContato?.trim() ?? "",
+    telefoneMarca: formatTelefoneOpcional(perfilConta?.telefoneContato),
     emailMarca: perfilConta?.emailContato?.trim() ?? "",
     instagramMarca: normalizarInstagramDocumento(perfilConta?.instagram),
     siteMarca: perfilConta?.siteUrl?.trim() ?? "",
-    isPlanoFundador,
+    watermark,
     itens: itens
       .map((item) => ({
         nome: item.nome?.trim() ?? "",
@@ -6569,8 +8612,10 @@ const TemplateDocumentoProposta = forwardRef<
     style={style}
     aria-label={`Preview do template ${documento.templateLabel}`}
   >
-    {!documento.isPlanoFundador ? (
-      <div className="doc-trial-watermark">Emprely Trial</div>
+    {documento.watermark !== "nenhuma" ? (
+      <div className={`doc-trial-watermark is-${documento.watermark}`}>
+        Emprely Trial
+      </div>
     ) : null}
     {renderTemplateDocumento(documento)}
   </article>
@@ -6605,6 +8650,62 @@ function renderTemplateDocumento(documento: PropostaDocumentoDados) {
     default:
       return <TemplateComercialMinimalista d={documento} />;
   }
+}
+
+function TemplateSelectionIcon({
+  templateVisual,
+}: {
+  templateVisual: PropostaTemplateVisualAtivo;
+}) {
+  const variant = getTemplateCssClass(templateVisual);
+
+  return (
+    <svg
+      className={`template-selection-svg ${variant}`}
+      viewBox="0 0 64 64"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      focusable="false"
+    >
+      <rect x="6" y="8" width="52" height="48" rx="12" className="template-svg-paper" />
+      <path d="M18 22h18" className="template-svg-line template-svg-line-strong" />
+      <path d="M18 30h28" className="template-svg-line" />
+      <path d="M18 38h20" className="template-svg-line" />
+      {templateVisual === "OrcamentoSimplificado" ? (
+        <path d="M44 18l6 6-16 16-8 2 2-8 16-16Z" className="template-svg-accent" />
+      ) : templateVisual === "PropostaCompleta" ? (
+        <>
+          <rect x="39" y="17" width="10" height="10" rx="2" className="template-svg-accent" />
+          <rect x="39" y="31" width="10" height="10" rx="2" className="template-svg-accent-muted" />
+        </>
+      ) : templateVisual === "LunaSocialStudio" || templateVisual === "InstagramPremium" ? (
+        <>
+          <circle cx="46" cy="23" r="7" className="template-svg-accent" />
+          <path d="M41 40c2.5-6 7.5-6 10 0" className="template-svg-stroke-accent" />
+        </>
+      ) : templateVisual === "DarkGrowth" ? (
+        <path d="M38 42l6-10 5 5 6-14" className="template-svg-stroke-accent" />
+      ) : templateVisual === "Claymorphism" ? (
+        <>
+          <circle cx="45" cy="24" r="8" className="template-svg-accent-muted" />
+          <circle cx="38" cy="36" r="6" className="template-svg-accent" />
+        </>
+      ) : templateVisual === "Emprely" ? (
+        <path d="M39 20h12v12H39zM39 36h12v8H39z" className="template-svg-accent" />
+      ) : templateVisual === "ExecutivoEditorial" ? (
+        <path d="M42 18v28M48 18v28" className="template-svg-stroke-accent" />
+      ) : templateVisual === "CorporativoBoard" ? (
+        <>
+          <rect x="38" y="19" width="14" height="8" rx="2" className="template-svg-accent" />
+          <rect x="38" y="31" width="14" height="8" rx="2" className="template-svg-accent-muted" />
+        </>
+      ) : templateVisual === "InstitucionalClean" ? (
+        <path d="M40 20h10M40 28h10M40 36h10" className="template-svg-stroke-accent" />
+      ) : (
+        <rect x="40" y="20" width="10" height="20" rx="3" className="template-svg-accent" />
+      )}
+    </svg>
+  );
 }
 
 function TemplateMiniatura({
@@ -6655,7 +8756,7 @@ function TemplateComercialMinimalista({ d }: TemplateDocumentoBaseProps) {
       <header className="doc-minimal-header">
         <DocumentoMarca d={d} />
         <div className="doc-minimal-title">
-          <span className="doc-kicker">Orcamento Comercial</span>
+          <span className="doc-kicker">Orçamento Comercial</span>
           <DocumentoTitulo titulo={d.titulo} className="doc-minimal-title-main" />
           <span className="doc-title-rule" />
         </div>
@@ -6671,7 +8772,7 @@ function TemplateComercialMinimalista({ d }: TemplateDocumentoBaseProps) {
       </section>
 
       <DocumentoCondicoes d={d} compact />
-      <DocumentoFooter d={d} cta="Aprovar orcamento" minimal />
+      <DocumentoFooter d={d} cta="Aprovar orçamento" minimal />
     </div>
   );
 }
@@ -6688,9 +8789,9 @@ function TemplateOrcamentoSimplificado({ d }: TemplateDocumentoBaseProps) {
       <section className="doc-simple-title">
         <span />
         <div>
-          <small>Orcamento Simplificado</small>
+          <small>Orçamento Simplificado</small>
           <DocumentoTitulo titulo={d.titulo} className="doc-simple-title-main" />
-          <p>Proposta objetiva com os principais itens para aprovacao rapida.</p>
+          <p>Proposta objetiva com os principais itens para aprovação rápida.</p>
         </div>
       </section>
 
@@ -6714,7 +8815,7 @@ function TemplateOrcamentoSimplificado({ d }: TemplateDocumentoBaseProps) {
         <DocumentoCondicoes d={d} icon />
         <div className="doc-cta doc-cta-simple">
           <CheckCircle2 size={30} />
-          <strong>Aprovar orcamento</strong>
+          <strong>Aprovar orçamento</strong>
         </div>
       </section>
 
@@ -6729,9 +8830,9 @@ function TemplatePropostaCompleta({ d }: TemplateDocumentoBaseProps) {
   const resumoIndex = d.introducao ? `${sectionIndex++}.` : "";
   const beneficiosIndex = d.beneficios.length ? `${sectionIndex++}.` : "";
   const escopoIndex = `${sectionIndex++}.`;
-  const inclusosTitle = inclusos.length ? `${sectionIndex++}. O que esta incluso` : "";
+  const inclusosTitle = inclusos.length ? `${sectionIndex++}. O que está incluso` : "";
   const naoInclusosTitle = d.itensNaoInclusos.length
-    ? `${sectionIndex++}. O que nao esta incluso`
+    ? `${sectionIndex++}. O que não está incluso`
     : "";
   const cronogramaIndex = d.cronograma.length ? `${sectionIndex++}.` : "";
   const investimentoIndex = `${sectionIndex++}.`;
@@ -6745,7 +8846,7 @@ function TemplatePropostaCompleta({ d }: TemplateDocumentoBaseProps) {
         <div className="doc-complete-heading">
           <span>Proposta comercial</span>
           <DocumentoTitulo titulo={d.titulo} className="doc-complete-title-main" />
-          <small>Estrategia, conteudo e consistencia para transformar seguidores em clientes.</small>
+          <small>Estratégia, conteúdo e consistência para transformar seguidores em clientes.</small>
         </div>
       </header>
 
@@ -6762,7 +8863,7 @@ function TemplatePropostaCompleta({ d }: TemplateDocumentoBaseProps) {
           <DocumentoSectionTitle
             icon={<Target size={22} />}
             index={beneficiosIndex}
-            title="Objetivos e beneficios"
+            title="Objetivos e benefícios"
           />
           <DocumentoBeneficios d={d} mode="wide" />
         </>
@@ -6773,7 +8874,7 @@ function TemplatePropostaCompleta({ d }: TemplateDocumentoBaseProps) {
           <DocumentoSectionTitle
             icon={<PackageCheck size={22} />}
             index={escopoIndex}
-            title="Escopo e entregaveis"
+            title="Escopo e entregáveis"
           />
           <DocumentoTabelaServicos d={d} compact />
         </div>
@@ -6783,10 +8884,10 @@ function TemplatePropostaCompleta({ d }: TemplateDocumentoBaseProps) {
 
       {d.cronograma.length ? (
         <>
-          <DocumentoSectionTitle
-            icon={<Clock3 size={22} />}
-            index={cronogramaIndex}
-            title="Cronograma e condicoes"
+            <DocumentoSectionTitle
+              icon={<Clock3 size={22} />}
+              index={cronogramaIndex}
+              title="Cronograma e condições"
           />
           <DocumentoTimeline d={d} horizontal />
         </>
@@ -6800,7 +8901,7 @@ function TemplatePropostaCompleta({ d }: TemplateDocumentoBaseProps) {
           <DocumentoSectionTitle
             icon={<Info size={22} />}
             index={observacoesIndex}
-            title="Observacoes finais"
+            title="Observações finais"
           />
           <p className="doc-paragraph doc-observacao">
             {d.observacoes || d.condicoesPagamento}
@@ -6857,8 +8958,8 @@ function TemplateSocialDetalhado({
 
         {getInclusosDocumento(d).length || d.itensNaoInclusos.length ? (
           <section className="doc-social-lists">
-            <DocumentoLista titulo="O que esta incluso" itens={getInclusosDocumento(d)} positive />
-            <DocumentoLista titulo="O que nao esta incluso" itens={d.itensNaoInclusos} />
+            <DocumentoLista titulo="O que está incluso" itens={getInclusosDocumento(d)} positive />
+            <DocumentoLista titulo="O que não está incluso" itens={d.itensNaoInclusos} />
           </section>
         ) : null}
 
@@ -6866,9 +8967,9 @@ function TemplateSocialDetalhado({
           <>
             <DocumentoSectionTitle
               icon={<Clock3 size={20} />}
-              title="Cronograma e condicoes"
+              title="Cronograma e condições"
             />
-            <DocumentoTimeline d={d} horizontal numbered />
+            <DocumentoTimeline d={d} horizontal />
           </>
         ) : null}
 
@@ -6876,7 +8977,7 @@ function TemplateSocialDetalhado({
           <DocumentoInvestimentoBloco d={d} />
           {d.observacoes || d.condicoesPagamento ? (
             <div className="doc-observation-card">
-              <DocumentoSectionTitle icon={<Sparkles size={20} />} title="Observacoes finais" />
+              <DocumentoSectionTitle icon={<Sparkles size={20} />} title="Observações finais" />
               <p>{d.observacoes || d.condicoesPagamento}</p>
               <div className="doc-cta">
                 <CheckCircle2 size={24} />
@@ -6923,12 +9024,12 @@ function TemplateInstagramPremium({ d }: TemplateDocumentoBaseProps) {
 
       <section className="doc-instagram-grid">
         <div>
-          <DocumentoSectionTitle title="Escopo / servicos contratados" />
+          <DocumentoSectionTitle title="Escopo / serviços contratados" />
           <DocumentoTabelaServicos d={d} compact detailed icons />
         </div>
         <div className="doc-stack">
-          <DocumentoLista titulo="O que esta incluso" itens={getInclusosDocumento(d)} positive />
-          <DocumentoLista titulo="O que nao esta incluso" itens={d.itensNaoInclusos} />
+          <DocumentoLista titulo="O que está incluso" itens={getInclusosDocumento(d)} positive />
+          <DocumentoLista titulo="O que não está incluso" itens={d.itensNaoInclusos} />
         </div>
       </section>
 
@@ -6982,8 +9083,8 @@ function TemplateClaymorphism({ d }: TemplateDocumentoBaseProps) {
 
       {getInclusosDocumento(d).length || d.itensNaoInclusos.length ? (
         <section className="doc-clay-lists">
-          <DocumentoLista titulo="O que esta incluso" itens={getInclusosDocumento(d)} positive />
-          <DocumentoLista titulo="O que nao esta incluso" itens={d.itensNaoInclusos} />
+          <DocumentoLista titulo="O que está incluso" itens={getInclusosDocumento(d)} positive />
+          <DocumentoLista titulo="O que não está incluso" itens={d.itensNaoInclusos} />
         </section>
       ) : null}
 
@@ -7052,7 +9153,7 @@ function TemplateEmprely({ d }: TemplateDocumentoBaseProps) {
       {d.cronograma.length ? (
         <>
           <DocumentoSectionTitle icon={<Clock3 size={20} />} title="Próximos passos" />
-          <DocumentoTimeline d={d} horizontal numbered />
+          <DocumentoTimeline d={d} horizontal />
         </>
       ) : null}
 
@@ -7113,7 +9214,7 @@ function TemplateExecutivoEditorial({ d }: TemplateDocumentoBaseProps) {
 
       {inclusos.length || d.itensNaoInclusos.length ? (
         <section className="doc-executive-lists">
-          <DocumentoLista titulo="Incluido" itens={inclusos} positive />
+          <DocumentoLista titulo="Incluído" itens={inclusos} positive />
           <DocumentoLista titulo="Fora do escopo" itens={d.itensNaoInclusos} />
         </section>
       ) : null}
@@ -7165,8 +9266,8 @@ function TemplateCorporativoBoard({ d }: TemplateDocumentoBaseProps) {
 
         {inclusos.length || d.itensNaoInclusos.length ? (
           <aside>
-            <DocumentoLista titulo="Incluido" itens={inclusos} positive />
-            <DocumentoLista titulo="Nao incluido" itens={d.itensNaoInclusos} />
+            <DocumentoLista titulo="Incluído" itens={inclusos} positive />
+            <DocumentoLista titulo="Não incluído" itens={d.itensNaoInclusos} />
           </aside>
         ) : null}
       </section>
@@ -7174,7 +9275,7 @@ function TemplateCorporativoBoard({ d }: TemplateDocumentoBaseProps) {
       {d.cronograma.length ? (
         <section className="doc-board-timeline">
           <DocumentoSectionTitle icon={<Clock3 size={20} />} title="Etapas" />
-          <DocumentoTimeline d={d} horizontal numbered />
+          <DocumentoTimeline d={d} horizontal />
         </section>
       ) : null}
 
@@ -7201,7 +9302,7 @@ function TemplateInstitucionalClean({ d }: TemplateDocumentoBaseProps) {
       </header>
 
       <section className="doc-institutional-title">
-        <span className="doc-kicker">Orcamento comercial</span>
+        <span className="doc-kicker">Orçamento comercial</span>
         <DocumentoTitulo titulo={d.titulo} className="doc-institutional-title-main" />
         {d.introducao ? <p>{d.introducao}</p> : null}
       </section>
@@ -7217,7 +9318,7 @@ function TemplateInstitucionalClean({ d }: TemplateDocumentoBaseProps) {
             </>
           ) : null}
 
-          <DocumentoSectionTitle icon={<PackageCheck size={20} />} title="Servicos e investimento" />
+          <DocumentoSectionTitle icon={<PackageCheck size={20} />} title="Serviços e investimento" />
           <DocumentoTabelaServicos d={d} compact totalColumn />
         </main>
 
@@ -7229,8 +9330,8 @@ function TemplateInstitucionalClean({ d }: TemplateDocumentoBaseProps) {
 
       {inclusos.length || d.itensNaoInclusos.length ? (
         <section className="doc-institutional-lists">
-          <DocumentoLista titulo="Incluido" itens={inclusos} positive />
-          <DocumentoLista titulo="Nao incluido" itens={d.itensNaoInclusos} />
+          <DocumentoLista titulo="Incluído" itens={inclusos} positive />
+          <DocumentoLista titulo="Não incluído" itens={d.itensNaoInclusos} />
         </section>
       ) : null}
 
@@ -7264,7 +9365,11 @@ function DocumentoMarca({
   return (
     <div className={`doc-brand ${large ? "doc-brand-large" : ""} ${dark ? "doc-brand-dark" : ""}`}>
       {d.logoUrl ? (
-        <img src={d.logoUrl} alt={`Logo ${d.nomeMarca}`} />
+        <img
+          src={d.logoUrl}
+          alt={`Logo ${d.nomeMarca}`}
+          crossOrigin="anonymous"
+        />
       ) : (
         <span className="doc-brand-fallback">{getIniciaisMarca(d.nomeMarca)}</span>
       )}
@@ -7339,7 +9444,7 @@ function DocumentoMetaPanel({
   d,
   dark = false,
 }: TemplateDocumentoBaseProps & { dark?: boolean }) {
-  const itens = getMetadadosDocumento(d).filter((item) => item.label !== "Numero");
+  const itens = getMetadadosDocumento(d).filter((item) => item.label !== "Número");
 
   if (!itens.length) {
     return null;
@@ -7434,13 +9539,13 @@ function DocumentoBeneficios({
   return (
     <section className={`doc-benefit-grid ${mode === "wide" ? "doc-benefit-grid-wide" : ""}`}>
       {beneficios.map((beneficio, index) => {
-        const beneficioDocumento = parseBeneficioDocumento(beneficio, index);
+        const beneficioDocumento = parseBeneficioDocumento(beneficio);
 
         return (
           <article key={`${beneficio}-${index}`} className="doc-benefit-card">
             <span>{icons[index % icons.length]}</span>
             <strong>{beneficioDocumento.titulo}</strong>
-            <p>{beneficioDocumento.descricao}</p>
+            {beneficioDocumento.descricao ? <p>{beneficioDocumento.descricao}</p> : null}
           </article>
         );
       })}
@@ -7485,10 +9590,10 @@ function DocumentoTabelaServicos({
       <table>
         <thead>
           <tr>
-            <th>Servico</th>
+            <th>Serviço</th>
             {mostrarDetalhamento ? <th>Detalhamento / entrega</th> : null}
             <th>{compact ? "Qtd." : "Quantidade"}</th>
-            <th>{totalColumn ? "Valor unitario" : "Valor"}</th>
+            <th>{totalColumn ? "Valor unitário" : "Valor"}</th>
             {totalColumn ? <th>Total</th> : null}
           </tr>
         </thead>
@@ -7533,13 +9638,13 @@ function DocumentoLista({
   return (
     <section className={`doc-list-card ${positive ? "doc-list-card-positive" : ""}`}>
       <h3>
-        {positive ? <CheckCircle2 size={24} /> : <XCircle size={24} />}
+        {positive ? <CheckCircle2 size={24} /> : <CircleMinus size={24} />}
         {titulo}
       </h3>
       <ul>
         {itens.map((item, index) => (
           <li key={`${item}-${index}`}>
-            {positive ? <CheckCircle2 size={15} /> : <XCircle size={15} />}
+            {positive ? <CheckCircle2 size={15} /> : <CircleMinus size={15} />}
             <span>{item}</span>
           </li>
         ))}
@@ -7551,10 +9656,8 @@ function DocumentoLista({
 function DocumentoTimeline({
   d,
   horizontal = false,
-  numbered = false,
 }: TemplateDocumentoBaseProps & {
   horizontal?: boolean;
-  numbered?: boolean;
 }) {
   const itens = getCronogramaDocumento(d);
 
@@ -7571,20 +9674,15 @@ function DocumentoTimeline({
   ];
 
   return (
-    <section
-      className={`doc-timeline ${horizontal ? "doc-timeline-horizontal" : ""} ${
-        numbered ? "doc-timeline-numbered" : ""
-      }`}
-    >
+    <section className={`doc-timeline ${horizontal ? "doc-timeline-horizontal" : ""}`}>
       {itens.map((item, index) => {
         const [titulo, ...descricao] = item.split(":");
+        const texto = descricao.join(":").trim() || titulo.trim();
 
         return (
           <article key={`${item}-${index}`}>
-            {numbered ? <small>{String(index + 1).padStart(2, "0")}</small> : null}
             <span>{icons[index % icons.length]}</span>
-            <strong>{titulo.trim()}</strong>
-            <p>{descricao.join(":").trim() || item}</p>
+            <p>{texto}</p>
           </article>
         );
       })}
@@ -7735,9 +9833,37 @@ function DocumentoFooter({
 }
 
 function DocumentoContatoInline({ d }: TemplateDocumentoBaseProps) {
-  const contatos = [d.telefoneMarca, d.emailMarca, d.instagramMarca || d.siteMarca].filter(
-    Boolean,
-  );
+  const contatos: Array<{ key: string; valor: string; icon: ReactNode }> = [];
+
+  if (d.telefoneMarca) {
+    contatos.push({
+      key: "telefone",
+      valor: d.telefoneMarca,
+      icon: <Phone size={14} />,
+    });
+  }
+
+  if (d.emailMarca) {
+    contatos.push({
+      key: "email",
+      valor: d.emailMarca,
+      icon: <Mail size={14} />,
+    });
+  }
+
+  if (d.instagramMarca) {
+    contatos.push({
+      key: "instagram",
+      valor: d.instagramMarca,
+      icon: <AtSign size={14} />,
+    });
+  } else if (d.siteMarca) {
+    contatos.push({
+      key: "site",
+      valor: d.siteMarca,
+      icon: <Globe2 size={14} />,
+    });
+  }
 
   if (!contatos.length && !d.contatoMarca) {
     return null;
@@ -7746,9 +9872,17 @@ function DocumentoContatoInline({ d }: TemplateDocumentoBaseProps) {
   return (
     <div className="doc-contact-inline">
       {contatos.length ? (
-        contatos.map((contato) => <span key={contato}>{contato}</span>)
+        contatos.map((contato) => (
+          <span className="doc-contact-item" key={contato.key}>
+            {contato.icon}
+            <span>{contato.valor}</span>
+          </span>
+        ))
       ) : (
-        <span>{d.contatoMarca}</span>
+        <span className="doc-contact-item">
+          <Mail size={14} />
+          <span>{d.contatoMarca}</span>
+        </span>
       )}
     </div>
   );
@@ -7771,29 +9905,18 @@ function getBeneficiosDocumento(d: PropostaDocumentoDados): string[] {
   return [];
 }
 
-function parseBeneficioDocumento(
-  beneficio: string,
-  index: number,
-): { titulo: string; descricao: string } {
+function parseBeneficioDocumento(beneficio: string): {
+  titulo: string;
+  descricao: string | null;
+} {
   const [titulo, ...descricao] = beneficio.split(":");
   const tituloNormalizado = titulo.trim() || beneficio.trim();
   const descricaoNormalizada = descricao.join(":").trim();
 
   return {
     titulo: tituloNormalizado,
-    descricao: descricaoNormalizada || getBeneficioDescricaoFallback(index),
+    descricao: descricaoNormalizada || null,
   };
-}
-
-function getBeneficioDescricaoFallback(index: number): string {
-  const descricoes = [
-    "Frequencia e padronizacao para manter o perfil ativo e memoravel.",
-    "Conteudo alinhado a identidade e ao publico.",
-    "Calendario e planejamento para dar previsibilidade.",
-    "Decisoes melhores com acompanhamento simples e direcionamento.",
-  ];
-
-  return descricoes[index % descricoes.length] ?? descricoes[0];
 }
 
 function getInclusosDocumento(d: PropostaDocumentoDados): string[] {
@@ -7889,26 +10012,19 @@ function DashboardContent({
       <div className="dashboard-hero rounded-md border border-border bg-surface p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="max-w-2xl">
-            <p className="inline-flex items-center gap-2 rounded-md bg-violet-50 px-3 py-1 text-sm font-medium text-primary">
+            <p className="inline-flex max-w-full items-center gap-2 rounded-md bg-violet-50 px-3 py-1.5 font-heading text-lg font-semibold leading-snug text-slate-950 sm:text-xl">
               <Sparkles size={16} aria-hidden="true" />
-              Emprely Orçamentos
-            </p>
-            <h1 className="mt-4 font-heading text-3xl font-semibold leading-10">
               Crie orçamentos profissionais em minutos
-            </h1>
-            <p className="mt-2 text-sm leading-6 text-muted">
-              Cadastre seus serviços uma vez, selecione o cliente e envie a
-              proposta pelo WhatsApp com aparência profissional.
             </p>
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap lg:justify-end">
             <button
               type="button"
               onClick={onNovaProposta}
               className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-primary px-5 text-sm font-semibold text-white shadow-sm"
             >
               <Plus size={18} aria-hidden="true" />
-              Criar nova proposta
+              Cadastrar proposta
             </button>
             <button
               type="button"
@@ -7917,6 +10033,14 @@ function DashboardContent({
             >
               <PackageCheck size={18} aria-hidden="true" />
               Cadastrar serviço
+            </button>
+            <button
+              type="button"
+              onClick={onCadastrarCliente}
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-md border border-border bg-white px-5 text-sm font-semibold"
+            >
+              <UsersRound size={18} aria-hidden="true" />
+              Cadastrar cliente
             </button>
           </div>
         </div>
@@ -7958,9 +10082,6 @@ function DashboardContent({
               <strong className="mt-2 block text-3xl font-semibold">
                 {metrica.value}
               </strong>
-              <span className="mt-1 block text-sm text-muted">
-                {metrica.detail}
-              </span>
             </article>
           );
         })}
@@ -7972,9 +10093,6 @@ function DashboardContent({
             <h2 className="font-heading text-xl font-semibold">
               Propostas recentes
             </h2>
-            <p className="mt-1 text-sm text-muted">
-              Acompanhe o status e volte rápido para o histórico.
-            </p>
           </div>
           <button
             type="button"
@@ -7986,8 +10104,8 @@ function DashboardContent({
           </button>
         </div>
         {propostasRecentes.length > 0 ? (
-        <div className="mt-5 overflow-x-auto">
-          <table className="data-table w-full min-w-[720px] text-left text-sm">
+        <div className="data-table-shell mt-5">
+          <table className="data-table data-table-propostas data-table-recentes w-full text-left text-sm">
             <thead>
               <tr>
                 <th>Cliente</th>
@@ -7995,7 +10113,7 @@ function DashboardContent({
                 <th>Total</th>
                 <th>Status</th>
                 <th>Data</th>
-                <th>Acoes</th>
+                <th>Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -8022,7 +10140,7 @@ function DashboardContent({
                     <td data-label="Data">{formatDataCurta(proposta.createdAt)}</td>
                     <td data-label="Ações">
                       <ListagemAcoes
-                        ariaLabel={`Acoes da proposta ${proposta.titulo}`}
+                        ariaLabel={`Ações da proposta ${proposta.titulo}`}
                         acoes={[
                           {
                             label: "Ir para propostas",
@@ -8092,9 +10210,9 @@ function TrialUpsellBanner({ conta }: { conta: ContaAtualResponse }) {
               Plano Trial com marca d&apos;água
             </p>
             <p className="mt-1 text-sm leading-6 text-amber-800">
-              Você tem {formatTrialConta(conta).toLowerCase()}. Contrate o Plano
-              Fundador para remover a marca d&apos;água e liberar a experiência
-              comercial completa.
+              Você tem {formatTrialConta(conta).toLowerCase()}. Ative o plano
+              para remover a marca d&apos;água e liberar a experiência comercial
+              completa.
             </p>
           </div>
         </div>
@@ -8104,7 +10222,7 @@ function TrialUpsellBanner({ conta }: { conta: ContaAtualResponse }) {
           rel="noreferrer"
           className="inline-flex h-11 items-center justify-center rounded-md bg-primary px-4 text-sm font-semibold text-white"
         >
-          Contratar plano
+          Ativar plano
         </a>
       </div>
     </section>
@@ -8258,28 +10376,24 @@ function buildMetricasDashboard(
     {
       label: "Propostas aprovadas",
       value: aceitasTotal.toString(),
-      detail: "Fechamentos confirmados",
       icon: Sparkles,
       tone: "purple",
     },
     {
       label: "Serviços salvos",
       value: servicosTotal.toString(),
-      detail: "Pacotes reutilizáveis",
       icon: PackageCheck,
       tone: "teal",
     },
     {
       label: "Propostas enviadas",
       value: enviadasTotal.toString(),
-      detail: "Aguardando resposta",
       icon: FileText,
       tone: "blue",
     },
     {
       label: "Em rascunho",
       value: rascunhosTotal.toString(),
-      detail: "Prontas para finalizar",
       icon: ReceiptText,
       tone: "red",
     },
@@ -8293,7 +10407,6 @@ function AuthContent({
   loginForm,
   registerMutation,
   loginMutation,
-  sessaoMensagem,
 }: {
   authMode: AuthMode;
   setAuthMode: (authMode: AuthMode) => void;
@@ -8301,7 +10414,6 @@ function AuthContent({
   loginForm: ReturnType<typeof useForm<LoginUsuarioInput>>;
   registerMutation: ReturnType<typeof useMutation<AuthUsuarioResponse, Error, RegisterUsuarioInput>>;
   loginMutation: ReturnType<typeof useMutation<AuthUsuarioResponse, Error, LoginUsuarioInput>>;
-  sessaoMensagem: string | null;
 }) {
   const isCadastro = authMode === "cadastro";
   const [senhaCadastroVisivel, setSenhaCadastroVisivel] = useState(false);
@@ -8329,7 +10441,7 @@ function AuthContent({
           </div>
 
           <div className="auth-brand-copy">
-            <h2>Orçamentos em 2 minutos</h2>
+            <h2>Orçamentos profissionais em 2 minutos.</h2>
             <p>
               Troque mensagens soltas no WhatsApp por propostas profissionais,
               claras e com mais credibilidade.
@@ -8372,11 +10484,6 @@ function AuthContent({
                 ? "Teste o Emprely antes de escolher seu plano"
                 : "Bem-vindo de volta"}
             </h1>
-            <p className="auth-form-subtitle">
-              {isCadastro
-                ? "Crie orçamentos profissionais, organize clientes e veja como o Emprely funciona no seu dia a dia."
-                : "Acesse seus orçamentos, clientes e propostas."}
-            </p>
           </div>
 
           <div
@@ -8430,11 +10537,11 @@ function AuthContent({
               />
               <CampoTexto
                 label="Telefone"
-                type="tel"
-                autoComplete="tel"
                 placeholder="(11) 99999-9999"
                 error={registerForm.formState.errors.telefone?.message}
-                {...registerForm.register("telefone")}
+                {...buildTelefoneInputProps(
+                  registerForm.register("telefone", telefoneInputRegisterOptions),
+                )}
               />
               <CampoSenhaAuth
                 label="Senha"
@@ -8521,11 +10628,6 @@ function AuthContent({
             </button>
           </p>
 
-          {sessaoMensagem ? (
-            <p className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-              {sessaoMensagem}
-            </p>
-          ) : null}
         </div>
       </div>
     </section>
@@ -8643,10 +10745,10 @@ function mapPerfilContaForm(
   return {
     nomeComercial: perfilConta.nomeComercial,
     emailContato: perfilConta.emailContato ?? usuario?.email ?? "",
-    telefoneContato: perfilConta.telefoneContato ?? "",
+    telefoneContato: formatTelefoneCampo(perfilConta.telefoneContato),
     siteUrl: perfilConta.siteUrl ?? "",
     instagram: perfilConta.instagram ?? "",
-    documento: perfilConta.documento ?? "",
+    documento: formatCpfCnpjCampo(perfilConta.documento),
     corPrimaria: perfilConta.corPrimaria,
     corSecundaria: perfilConta.corSecundaria,
     corSistemaPrimaria:
@@ -8659,26 +10761,16 @@ function mapPerfilContaForm(
   };
 }
 
-function buildSenhaUsuarioPayload(
-  input: SenhaUsuarioFormInput,
-): ChangeSenhaUsuarioInput {
-  return {
-    senhaAtual: input.senhaAtual,
-    novaSenha: input.novaSenha,
-    confirmarNovaSenha: input.confirmarNovaSenha,
-  };
-}
-
 function buildPerfilContaPayload(
   input: PerfilContaFormInput,
 ): UpdatePerfilContaInput {
   return {
     nomeComercial: input.nomeComercial.trim(),
     emailContato: normalizarOpcional(input.emailContato),
-    telefoneContato: normalizarOpcional(input.telefoneContato),
+    telefoneContato: normalizarOpcional(formatTelefoneCampo(input.telefoneContato)),
     siteUrl: normalizarOpcional(input.siteUrl),
     instagram: normalizarOpcional(input.instagram),
-    documento: normalizarOpcional(input.documento),
+    documento: normalizarOpcional(formatCpfCnpjCampo(input.documento)),
     corPrimaria: normalizarHexPreview(input.corPrimaria),
     corSecundaria: normalizarHexPreview(input.corSecundaria),
     corSistemaPrimaria: normalizarHexPreview(input.corSistemaPrimaria),
@@ -8692,8 +10784,14 @@ function mapClienteForm(cliente: ClienteResponse): ClienteFormInput {
   return {
     nome: cliente.nome,
     email: cliente.email ?? "",
-    telefone: cliente.telefone ?? "",
-    documento: cliente.documento ?? "",
+    telefone: formatTelefoneCampo(cliente.telefone),
+    documento: formatCpfCnpjCampo(cliente.documento),
+    endereco: cliente.endereco ?? "",
+    numero: cliente.numero ?? "",
+    cidade: cliente.cidade ?? "",
+    instagram: cliente.instagram ?? "",
+    facebook: cliente.facebook ?? "",
+    tiktok: cliente.tiktok ?? "",
     observacoes: cliente.observacoes ?? "",
   };
 }
@@ -8704,20 +10802,48 @@ function buildClientePayload(
   return {
     nome: input.nome.trim(),
     email: normalizarOpcional(input.email),
-    telefone: normalizarOpcional(input.telefone),
-    documento: normalizarOpcional(input.documento),
+    telefone: normalizarOpcional(formatTelefoneCampo(input.telefone)),
+    documento: normalizarOpcional(formatCpfCnpjCampo(input.documento)),
+    endereco: normalizarOpcional(input.endereco),
+    numero: normalizarOpcional(input.numero),
+    cidade: normalizarOpcional(input.cidade),
+    instagram: normalizarOpcional(input.instagram),
+    facebook: normalizarOpcional(input.facebook),
+    tiktok: normalizarOpcional(input.tiktok),
     observacoes: normalizarOpcional(input.observacoes),
   };
 }
 
-function buildClienteRapidoPayload(input: ClienteRapidoFormInput): CreateClienteInput {
-  return {
-    nome: input.nome.trim(),
-    email: normalizarOpcional(input.email),
-    telefone: normalizarOpcional(input.telefone),
-    documento: null,
-    observacoes: null,
-  };
+function hasClienteDadosComplementares(
+  cliente:
+    | Pick<
+        ClienteResponse,
+        | "email"
+        | "documento"
+        | "endereco"
+        | "numero"
+        | "cidade"
+        | "instagram"
+        | "facebook"
+        | "tiktok"
+      >
+    | null
+    | undefined,
+): boolean {
+  if (!cliente) {
+    return false;
+  }
+
+  return [
+    cliente.email,
+    cliente.documento,
+    cliente.endereco,
+    cliente.numero,
+    cliente.cidade,
+    cliente.instagram,
+    cliente.facebook,
+    cliente.tiktok,
+  ].some((valor) => Boolean(valor?.trim()));
 }
 
 function buildTituloAutomaticoProposta(
@@ -8813,6 +10939,42 @@ function buildPropostaPayload(
   };
 }
 
+function getPrimeiraEtapaPendenteProposta(
+  input: PropostaFormInput | PropostaPreviewInput,
+): PropostaWizardEtapaId {
+  if (!input.clienteId || valorSeguro(input.validadeDias) < 1) {
+    return "cliente";
+  }
+
+  if (!input.titulo?.trim()) {
+    return "proposta";
+  }
+
+  const itens = input.itens ?? [];
+  const itensValidos =
+    itens.length > 0 &&
+    itens.every(
+      (item) =>
+        Boolean(item?.nome?.trim()) &&
+        isQuantidadeItemValida(item?.quantidade) &&
+        valorSeguro(item?.valorUnitario) >= 0,
+    );
+
+  if (!itensValidos) {
+    return "itens";
+  }
+
+  const subtotal = calcularTotalItens(
+    itens.map((item) => ({
+      quantidade: item?.quantidade,
+      valorUnitario: item?.valorUnitario,
+    })),
+  );
+  const desconto = valorSeguro(input.descontoValor);
+
+  return desconto >= 0 && desconto <= subtotal ? "revisao" : "detalhamento";
+}
+
 function calcularTotalItens(
   itens: Array<{ quantidade?: number; valorUnitario?: number }>,
 ): number {
@@ -8835,8 +10997,12 @@ function contarPropostasPorStatus(
   return propostas.filter((proposta) => proposta.status === status).length;
 }
 
-function valorSeguro(valor: number | undefined): number {
+function valorSeguro(valor: number | null | undefined): number {
   return Number.isFinite(valor) ? valor ?? 0 : 0;
+}
+
+function isQuantidadeItemValida(valor: number | null | undefined): boolean {
+  return Number.isInteger(valor) && valorSeguro(valor) > 0;
 }
 
 function normalizarTemplateVisual(
@@ -8923,6 +11089,18 @@ function splitLinhasFormulario(valor: string | null | undefined): string[] {
     .filter(Boolean);
 }
 
+function splitLinhasEditaveisFormulario(valor: string | null | undefined): string[] {
+  if (!valor) {
+    return [];
+  }
+
+  return valor.split(/\r?\n/);
+}
+
+function joinLinhasEditaveisFormulario(valores: string[]): string {
+  return valores.join("\n");
+}
+
 function joinLinhasFormulario(valores: string[] | null | undefined): string {
   return valores?.join("\n") ?? "";
 }
@@ -8935,7 +11113,7 @@ function normalizarListaOpcional(valor: string | null | undefined): string[] | n
 function formatQuantidade(valor: number | undefined): string {
   return new Intl.NumberFormat("pt-BR", {
     minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
+    maximumFractionDigits: 0,
   }).format(valorSeguro(valor));
 }
 
@@ -8979,6 +11157,12 @@ function baixarBlobArquivo(blob: Blob, nomeArquivo: string): void {
   link.click();
   link.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
+}
+
+function aguardarProximoFrame(): Promise<void> {
+  return new Promise((resolve) => {
+    window.requestAnimationFrame(() => resolve());
+  });
 }
 
 function blobToDataUrl(blob: Blob): Promise<string> {
@@ -9030,10 +11214,59 @@ function buildWhatsappContatoClienteUrl(
 
   const nomeCliente = cliente?.nome?.trim();
   const mensagem = nomeCliente
-    ? `Ola, ${nomeCliente}! Tudo bem?`
-    : "Ola! Tudo bem?";
+    ? `Olá, ${nomeCliente}! Tudo bem?`
+    : "Olá! Tudo bem?";
 
   return `https://wa.me/${telefone}?text=${encodeURIComponent(mensagem)}`;
+}
+
+type RedeSocialCliente = "instagram" | "facebook" | "tiktok";
+
+function buildClienteSocialUrl(
+  rede: RedeSocialCliente,
+  valor: string | null | undefined,
+): string {
+  const texto = valor?.trim();
+
+  if (!texto) {
+    return "";
+  }
+
+  if (/^https?:\/\//i.test(texto)) {
+    return texto;
+  }
+
+  if (/^www\./i.test(texto)) {
+    return `https://${texto}`;
+  }
+
+  const usuario = texto.replace(/^@/, "").replace(/^\/+/, "");
+
+  if (!usuario) {
+    return "";
+  }
+
+  if (rede === "instagram") {
+    if (/instagram\.com/i.test(usuario)) {
+      return `https://${usuario}`;
+    }
+
+    return `https://www.instagram.com/${usuario}`;
+  }
+
+  if (rede === "facebook") {
+    if (/(facebook|fb)\.com/i.test(usuario)) {
+      return `https://${usuario}`;
+    }
+
+    return `https://www.facebook.com/${usuario}`;
+  }
+
+  if (/tiktok\.com/i.test(usuario)) {
+    return `https://${usuario}`;
+  }
+
+  return `https://www.tiktok.com/@${usuario}`;
 }
 
 function buildWhatsappPropostaUrl(
@@ -9041,6 +11274,7 @@ function buildWhatsappPropostaUrl(
   cliente: ClienteResponse | undefined,
   perfilConta: PerfilContaResponse | undefined,
   contaNome: string,
+  modo: PropostaWhatsappModo,
 ): string {
   const telefone = normalizarTelefoneWhatsapp(cliente?.telefone);
   const mensagem = buildMensagemWhatsappProposta(
@@ -9048,6 +11282,7 @@ function buildWhatsappPropostaUrl(
     cliente,
     perfilConta,
     contaNome,
+    modo,
   );
   const textQuery = `text=${encodeURIComponent(mensagem)}`;
 
@@ -9061,22 +11296,156 @@ function buildMensagemWhatsappProposta(
   cliente: ClienteResponse | undefined,
   perfilConta: PerfilContaResponse | undefined,
   contaNome: string,
+  modo: PropostaWhatsappModo,
+): string {
+  if (modo === "completa") {
+    return buildMensagemWhatsappPropostaCompleta(
+      proposta,
+      cliente,
+      perfilConta,
+      contaNome,
+    );
+  }
+
+  return buildMensagemWhatsappPropostaArquivo(
+    proposta,
+    cliente,
+    perfilConta,
+    contaNome,
+  );
+}
+
+function buildMensagemWhatsappPropostaArquivo(
+  proposta: PropostaResponse,
+  cliente: ClienteResponse | undefined,
+  perfilConta: PerfilContaResponse | undefined,
+  contaNome: string,
 ): string {
   const nomeCliente = cliente?.nome ?? proposta.clienteNome;
   const nomeMarca = perfilConta?.nomeComercial?.trim() || contaNome;
   const numeroProposta = formatNumeroProposta(proposta.numero);
   const linhas = [
-    `Ola, ${nomeCliente}.`,
+    `Olá, ${nomeCliente}.`,
     "",
-    `Estou enviando abaixo o orçamento detalhado ${numeroProposta} - "${proposta.titulo}" no valor de ${formatMoney(
-      proposta.total,
-    )}.`,
-    "Anexei o PDF ou a imagem do orçamento nesta conversa.",
+    `Segue a proposta ${numeroProposta} - "${proposta.titulo}" para sua avaliação.`,
+    "Vou enviar o PDF ou a imagem da proposta em sequência por aqui.",
+    "Fico à disposição para qualquer ajuste.",
   ];
 
   linhas.push("", `Enviado por ${nomeMarca}.`);
 
   return linhas.join("\n");
+}
+
+function buildMensagemWhatsappPropostaCompleta(
+  proposta: PropostaResponse,
+  cliente: ClienteResponse | undefined,
+  perfilConta: PerfilContaResponse | undefined,
+  contaNome: string,
+): string {
+  const nomeCliente = cliente?.nome ?? proposta.clienteNome;
+  const nomeMarca = perfilConta?.nomeComercial?.trim() || contaNome;
+  const numeroProposta = formatNumeroProposta(proposta.numero);
+  const linhas = [
+    `Olá, ${nomeCliente}.`,
+    "",
+    `Segue a proposta completa ${numeroProposta} - "${proposta.titulo}".`,
+    `Enviado por ${nomeMarca}.`,
+  ];
+
+  adicionarSecaoTextoWhatsapp(linhas, "Mensagem inicial", proposta.introducao);
+
+  linhas.push(
+    "",
+    "Dados da proposta",
+    `Cliente: ${nomeCliente}`,
+    `Data: ${formatDataCurta(proposta.createdAt)}`,
+    `Validade: ${
+      proposta.validadeDias
+        ? `${proposta.validadeDias} dia${proposta.validadeDias === 1 ? "" : "s"}`
+        : "Não informada"
+    }`,
+  );
+
+  linhas.push("", "Itens");
+  proposta.itens
+    .slice()
+    .sort((itemA, itemB) => itemA.ordem - itemB.ordem)
+    .forEach((item, index) => {
+      if (index > 0) {
+        linhas.push("");
+      }
+
+      linhas.push(
+        `${index + 1}. ${item.nome}`,
+        `Quantidade: ${formatQuantidade(item.quantidade)}`,
+        `Valor unitário: ${formatMoney(item.valorUnitario)}`,
+        `Total do item: ${formatMoney(item.total)}`,
+      );
+
+      if (item.descricao?.trim()) {
+        linhas.push(`Descrição: ${item.descricao.trim()}`);
+      }
+    });
+
+  adicionarListaWhatsapp(linhas, "O que está incluso", proposta.itensInclusos);
+  adicionarListaWhatsapp(
+    linhas,
+    "O que não está incluso",
+    proposta.itensNaoInclusos,
+  );
+  adicionarListaWhatsapp(linhas, "Cronograma", proposta.cronograma);
+  adicionarListaWhatsapp(linhas, "Benefícios", proposta.beneficios);
+  adicionarSecaoTextoWhatsapp(linhas, "Observações finais", proposta.observacoes);
+  adicionarSecaoTextoWhatsapp(
+    linhas,
+    "Condições de pagamento",
+    proposta.condicoesPagamento,
+  );
+
+  linhas.push(
+    "",
+    "Resumo financeiro",
+    `Subtotal: ${formatMoney(proposta.subtotal)}`,
+  );
+
+  if (proposta.descontoValor > 0) {
+    linhas.push(`Desconto: ${formatMoney(proposta.descontoValor)}`);
+  }
+
+  linhas.push(`Total final: ${formatMoney(proposta.total)}`);
+
+  return linhas.join("\n");
+}
+
+function adicionarSecaoTextoWhatsapp(
+  linhas: string[],
+  titulo: string,
+  texto: string | null | undefined,
+) {
+  const textoNormalizado = texto?.trim();
+
+  if (!textoNormalizado) {
+    return;
+  }
+
+  linhas.push("", titulo, textoNormalizado);
+}
+
+function adicionarListaWhatsapp(
+  linhas: string[],
+  titulo: string,
+  itens: string[] | null | undefined,
+) {
+  const itensValidos = itens
+    ?.map((item) => item.trim())
+    .filter(Boolean);
+
+  if (!itensValidos?.length) {
+    return;
+  }
+
+  linhas.push("", titulo, ...itensValidos.map((item) => `- ${item}`));
 }
 
 function normalizarTelefoneWhatsapp(
@@ -9086,17 +11455,13 @@ function normalizarTelefoneWhatsapp(
     return "";
   }
 
-  const digitos = telefone?.replace(/\D/g, "") ?? "";
+  const digitos = extrairDigitosTelefoneNacional(telefone);
 
   if (digitos.length === 0) {
     return "";
   }
 
-  if (digitos.startsWith("55")) {
-    return digitos;
-  }
-
-  if (digitos.length >= 10 && digitos.length <= 11) {
+  if (isQuantidadeDigitosTelefoneValida(digitos.length)) {
     return `55${digitos}`;
   }
 
@@ -9104,26 +11469,197 @@ function normalizarTelefoneWhatsapp(
 }
 
 function isTelefoneWhatsappValido(telefone: string | null | undefined): boolean {
-  const telefoneNormalizado = telefone?.trim() ?? "";
-
-  if (telefoneNormalizado.length === 0) {
+  if (!telefone?.trim()) {
     return true;
   }
 
+  return isQuantidadeDigitosTelefoneValida(
+    extrairDigitosTelefoneNacional(telefone).length,
+  );
+}
+
+function formatTelefoneCampo(telefone: string | null | undefined): string {
+  const digitos = extrairDigitosTelefoneNacional(telefone);
+
+  if (digitos.length === 0) {
+    return "";
+  }
+
+  if (digitos.length <= 2) {
+    return `(${digitos}`;
+  }
+
+  const ddd = digitos.slice(0, 2);
+  const numero = digitos.slice(2);
+
+  if (numero.length <= 4) {
+    return `(${ddd}) ${numero}`;
+  }
+
+  if (numero.length <= 8) {
+    return `(${ddd}) ${numero.slice(0, 4)}-${numero.slice(4)}`;
+  }
+
+  return `(${ddd}) ${numero.slice(0, 5)}-${numero.slice(5)}`;
+}
+
+function formatTelefoneOpcional(telefone: string | null | undefined): string {
+  return formatTelefoneCampo(telefone) || telefone?.trim() || "";
+}
+
+function formatTelefoneExibicao(telefone: string | null | undefined): string {
+  return formatTelefoneOpcional(telefone) || "Não informado";
+}
+
+function extrairDigitosTelefoneNacional(
+  telefone: string | null | undefined,
+): string {
+  const digitos = telefone?.replace(/\D/g, "") ?? "";
+
   if (
-    telefoneNormalizado.startsWith("+") &&
-    !telefoneNormalizado.startsWith("+55")
+    digitos.length > telefoneDigitosMaximosNacionais &&
+    digitos.startsWith("55")
   ) {
-    return false;
+    return digitos.slice(2, 2 + telefoneDigitosMaximosNacionais);
   }
 
-  const digitos = telefoneNormalizado.replace(/\D/g, "");
+  return digitos.slice(0, telefoneDigitosMaximosNacionais);
+}
 
-  if (digitos.startsWith("55")) {
-    return digitos.length === 12 || digitos.length === 13;
+function isQuantidadeDigitosTelefoneValida(quantidade: number): boolean {
+  return (
+    quantidade === telefoneDigitosFixoNacionais ||
+    quantidade === telefoneDigitosCelularNacionais
+  );
+}
+
+function formatCpfCnpjCampo(valor: string | null | undefined): string {
+  const digitos = extrairDigitosCpfCnpj(valor);
+
+  if (digitos.length <= cpfDigitos) {
+    return formatCpfCampo(digitos);
   }
 
-  return digitos.length === 10 || digitos.length === 11;
+  return formatCnpjCampo(digitos);
+}
+
+function formatCpfCampo(digitos: string): string {
+  if (digitos.length <= 3) {
+    return digitos;
+  }
+
+  if (digitos.length <= 6) {
+    return `${digitos.slice(0, 3)}.${digitos.slice(3)}`;
+  }
+
+  if (digitos.length <= 9) {
+    return `${digitos.slice(0, 3)}.${digitos.slice(3, 6)}.${digitos.slice(6)}`;
+  }
+
+  return `${digitos.slice(0, 3)}.${digitos.slice(3, 6)}.${digitos.slice(
+    6,
+    9,
+  )}-${digitos.slice(9)}`;
+}
+
+function formatCnpjCampo(digitos: string): string {
+  if (digitos.length <= 2) {
+    return digitos;
+  }
+
+  if (digitos.length <= 5) {
+    return `${digitos.slice(0, 2)}.${digitos.slice(2)}`;
+  }
+
+  if (digitos.length <= 8) {
+    return `${digitos.slice(0, 2)}.${digitos.slice(2, 5)}.${digitos.slice(5)}`;
+  }
+
+  if (digitos.length <= 12) {
+    return `${digitos.slice(0, 2)}.${digitos.slice(2, 5)}.${digitos.slice(
+      5,
+      8,
+    )}/${digitos.slice(8)}`;
+  }
+
+  return `${digitos.slice(0, 2)}.${digitos.slice(2, 5)}.${digitos.slice(
+    5,
+    8,
+  )}/${digitos.slice(8, 12)}-${digitos.slice(12)}`;
+}
+
+function formatCpfCnpjExibicao(valor: string | null | undefined): string {
+  return formatCpfCnpjCampo(valor) || "Não informado";
+}
+
+function extrairDigitosCpfCnpj(valor: string | null | undefined): string {
+  return (valor?.replace(/\D/g, "") ?? "").slice(0, cnpjDigitos);
+}
+
+function isCpfCnpjCampoValido(valor: string | null | undefined): boolean {
+  const valorNormalizado = valor?.trim() ?? "";
+
+  if (!valorNormalizado) {
+    return true;
+  }
+
+  const quantidade = extrairDigitosCpfCnpj(valorNormalizado).length;
+  return quantidade === cpfDigitos || quantidade === cnpjDigitos;
+}
+
+function buildCpfCnpjInputProps(
+  registerProps: UseFormRegisterReturn,
+): Omit<
+  InputHTMLAttributes<HTMLInputElement>,
+  "name" | "onBlur" | "onChange" | "ref"
+> &
+  UseFormRegisterReturn {
+  return {
+    ...registerProps,
+    type: "text",
+    inputMode: "numeric",
+    maxLength: cpfCnpjMascaraMaxLength,
+    onChange: (event) => {
+      const target = event.target as HTMLInputElement;
+      target.value = formatCpfCnpjCampo(target.value);
+      return registerProps.onChange(event);
+    },
+  };
+}
+
+function buildTelefoneInputProps(
+  registerProps: UseFormRegisterReturn,
+): Omit<
+  InputHTMLAttributes<HTMLInputElement>,
+  "name" | "onBlur" | "onChange" | "ref"
+> &
+  UseFormRegisterReturn {
+  return {
+    ...registerProps,
+    type: "tel",
+    inputMode: "numeric",
+    autoComplete: "tel",
+    maxLength: telefoneMascaraMaxLength,
+    onChange: (event) => {
+      const target = event.target as HTMLInputElement;
+      target.value = formatTelefoneCampo(target.value);
+      return registerProps.onChange(event);
+    },
+  };
+}
+
+function bloquearQuantidadeDecimalKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
+  if ([".", ",", "-", "+", "e", "E"].includes(event.key)) {
+    event.preventDefault();
+  }
+}
+
+function bloquearQuantidadeDecimalPaste(event: ReactClipboardEvent<HTMLInputElement>) {
+  const texto = event.clipboardData.getData("text");
+
+  if (!/^\d+$/.test(texto.trim())) {
+    event.preventDefault();
+  }
 }
 
 function normalizarOpcional(valor: string): string | null {
@@ -9189,6 +11725,20 @@ function formatMoney(valor: number): string {
   }).format(valor);
 }
 
+function formatMoedaRealInput(valor: number | null | undefined): string {
+  return formatMoney(valorSeguro(valor)).replace(/\u00a0/g, " ");
+}
+
+function parseMoedaRealInput(valor: string): number {
+  const digitos = valor.replace(/\D/g, "");
+
+  if (!digitos) {
+    return 0;
+  }
+
+  return Number(digitos) / 100;
+}
+
 function hasDescontoDocumento(d: PropostaDocumentoDados): boolean {
   return Math.abs(d.desconto) >= 0.01;
 }
@@ -9221,23 +11771,60 @@ function getStatusPropostaClass(status: PropostaStatus): string {
   return classes[status];
 }
 
+function isStatusPropostaComDocumentoFinal(status: PropostaStatus): boolean {
+  return (
+    status === "Gerada" ||
+    status === "Enviada" ||
+    status === "Aceita" ||
+    status === "Recusada"
+  );
+}
+
+function isStatusPropostaEditavelDiretamente(status: PropostaStatus): boolean {
+  return status === "Rascunho" || status === "Gerada";
+}
+
 function normalizarHexPreview(valor: string): string {
   return /^#[0-9A-Fa-f]{6}$/.test(valor) ? valor.toUpperCase() : "#000000";
 }
 
-function formatDataPerfil(perfilConta: PerfilContaResponse | undefined): string {
-  if (!perfilConta?.updatedAt) {
-    return "Não salvo";
-  }
+function canExportPropostaConta(conta: ContaAtualResponse): boolean {
+  const statusComercial = getStatusComercialContaEfetivo(conta);
 
-  return new Intl.DateTimeFormat("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "short",
-  }).format(new Date(perfilConta.updatedAt));
+  return (
+    conta.plano === "Fundador" ||
+    statusComercial === "TrialAtivo" ||
+    statusComercial === "FundadorAtivo"
+  );
 }
 
-function canExportPropostaConta(conta: ContaAtualResponse): boolean {
-  return conta.plano === "Fundador" || conta.statusComercial !== "TrialExpirado";
+function getStatusComercialContaEfetivo(
+  conta: ContaAtualResponse,
+): ContaAtualResponse["statusComercial"] {
+  if (conta.plano === "Fundador") {
+    return "FundadorAtivo";
+  }
+
+  const trialEndsAt = new Date(conta.trialEndsAt).getTime();
+
+  if (Number.isFinite(trialEndsAt) && trialEndsAt <= Date.now()) {
+    return "TrialExpirado";
+  }
+
+  return conta.statusComercial;
+}
+
+function getWatermarkDocumentoProposta(
+  planoConta: ContaAtualResponse["plano"],
+  statusComercialConta: ContaAtualResponse["statusComercial"],
+): "nenhuma" | "trial-ativo" | "trial-expirado" {
+  if (planoConta === "Fundador") {
+    return "nenhuma";
+  }
+
+  return statusComercialConta === "TrialExpirado"
+    ? "trial-expirado"
+    : "trial-ativo";
 }
 
 function getMensagemBloqueioPlano(
@@ -9247,21 +11834,7 @@ function getMensagemBloqueioPlano(
     return "";
   }
 
-  return "Trial expirado. Solicite a ativacao do Plano Fundador para gerar, imprimir ou compartilhar propostas.";
-}
-
-function formatPlanoConta(conta: ContaAtualResponse): string {
-  return conta.plano === "Fundador" ? "Fundador" : "Trial";
-}
-
-function formatStatusComercialConta(conta: ContaAtualResponse): string {
-  const labels: Record<string, string> = {
-    TrialAtivo: "Trial ativo",
-    TrialExpirado: "Trial expirado",
-    FundadorAtivo: "Fundador ativo",
-  };
-
-  return labels[conta.statusComercial] ?? "Trial ativo";
+  return "Trial expirado. Ative o plano para gerar, imprimir ou compartilhar propostas.";
 }
 
 function formatTrialConta(conta: ContaAtualResponse): string {
@@ -9269,7 +11842,7 @@ function formatTrialConta(conta: ContaAtualResponse): string {
     return "Plano ativo";
   }
 
-  if (conta.statusComercial === "TrialExpirado") {
+  if (getStatusComercialContaEfetivo(conta) === "TrialExpirado") {
     return `Expirado em ${formatDataConta(conta.trialEndsAt)}`;
   }
 
@@ -9277,7 +11850,7 @@ function formatTrialConta(conta: ContaAtualResponse): string {
 
   return `${diasRestantes} dia${diasRestantes === 1 ? "" : "s"} restante${
     diasRestantes === 1 ? "" : "s"
-  } ate ${formatDataConta(conta.trialEndsAt)}`;
+  } até ${formatDataConta(conta.trialEndsAt)}`;
 }
 
 function formatDataConta(data: string | null | undefined): string {

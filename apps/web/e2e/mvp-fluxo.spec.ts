@@ -199,7 +199,7 @@ test("fluxo principal do MVP no web", async ({ page }) => {
   ).toBeVisible();
 });
 
-test("troca senha do usuario autenticado", async ({ page }) => {
+test("exibe configuracoes do perfil sem plano e seguranca", async ({ page }) => {
   await configurarApiMockada(page);
 
   await page.goto("/");
@@ -224,16 +224,11 @@ test("troca senha do usuario autenticado", async ({ page }) => {
   await expect(page.getByLabel("E-mail de acesso")).toHaveValue("bruno@emprely.dev");
   await expect(page.getByLabel("E-mail de acesso")).toHaveAttribute("readonly", "");
   await expect(page.getByLabel("Telefone").first()).toHaveValue("(11) 99999-9999");
-
-  await page.getByLabel("Senha atual").fill("Senha123");
-  await page.getByLabel("Nova senha", { exact: true }).fill("NovaSenha123");
-  await page.getByLabel("Confirmar nova senha").fill("NovaSenha123");
-  await page.getByRole("button", { name: "Atualizar senha" }).click();
-
-  await expect(page.getByText("Senha atualizada.")).toBeVisible();
-  await expect(page.getByLabel("Senha atual")).toHaveValue("");
-  await expect(page.getByLabel("Nova senha", { exact: true })).toHaveValue("");
-  await expect(page.getByLabel("Confirmar nova senha")).toHaveValue("");
+  await expect(page.getByText("Logomarca do negócio")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Salvar perfil" })).toBeVisible();
+  await expect(page.getByText("Plano e segurança")).toBeHidden();
+  await expect(page.getByLabel("Senha atual")).toBeHidden();
+  await expect(page.getByRole("button", { name: "Atualizar senha" })).toBeHidden();
 });
 
 async function configurarApiMockada(page: Page) {
