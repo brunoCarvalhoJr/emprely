@@ -24,6 +24,13 @@ export type AuthUsuarioResponse = {
   conta: ContaAtualResponse;
 };
 
+export type RegisterUsuarioResponse = {
+  usuarioId: string;
+  email: string;
+  emailConfirmationRequired: boolean;
+  message: string;
+};
+
 export type MeUsuarioResponse = {
   usuario: UsuarioAtualResponse;
   conta: ContaAtualResponse;
@@ -46,4 +53,19 @@ export type ChangeSenhaUsuarioInput = {
   senhaAtual: string;
   novaSenha: string;
   confirmarNovaSenha: string;
+};
+
+export type EmailUsuarioInput = {
+  email: string;
+};
+
+export type ResetSenhaUsuarioInput = {
+  usuarioId: string;
+  token: string;
+  novaSenha: string;
+  confirmarNovaSenha: string;
+};
+
+export type ChangeEmailUsuarioInput = {
+  novoEmail: string;
 };

@@ -45,6 +45,13 @@ type PropostaMock = {
   introducao: string | null;
   observacoes: string | null;
   validadeDias: number;
+  templateVisual: string;
+  descontoValor: number;
+  condicoesPagamento: string | null;
+  itensInclusos: string[];
+  itensNaoInclusos: string[];
+  cronograma: string[];
+  beneficios: string[];
   status: string;
   total: number;
   itens: PropostaItemMock[];
@@ -132,12 +139,11 @@ test("limpa sessao quando endpoint autenticado retorna 401", async ({ page }) =>
 
 test("fluxo principal do MVP no web", async ({ page }) => {
   await configurarApiMockada(page);
+  await adicionarSessaoValida(page);
 
   await page.goto("/");
-  await preencherCadastroInicial(page);
-  await page.getByRole("button", { name: "Iniciar teste de 7 dias" }).click();
 
-  await expect(page.getByRole("button", { name: "Sair" })).toBeVisible();
+  await expect(page.locator(".sidebar-account-button")).toBeVisible();
   await expect(page.getByText("Primeiros passos")).toBeVisible();
   await expect(
     page.getByText("Crie orçamentos profissionais em minutos"),
@@ -149,8 +155,7 @@ test("fluxo principal do MVP no web", async ({ page }) => {
   ).toBeVisible();
   await page.getByRole("button", { name: "Novo cliente" }).first().click();
   await page.getByLabel("Nome").fill("Cliente E2E");
-  await page.getByRole("textbox", { name: "Email" }).fill("cliente@emprely.dev");
-  await page.getByLabel("Telefone").fill("(11) 99999-9999");
+  await page.getByRole("textbox", { name: "Telefone" }).fill("(11) 99999-9999");
   await page.getByRole("button", { name: "Salvar cliente" }).click();
   await expect(page.getByText("Cliente salvo.")).toBeVisible();
   await page.getByRole("button", { name: "Clientes", exact: true }).click();
@@ -175,14 +180,16 @@ test("fluxo principal do MVP no web", async ({ page }) => {
     page.getByRole("heading", { name: "Propostas", exact: true }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Nova proposta" }).first().click();
-  await page.locator('select[name="clienteId"]').selectOption({
-    label: "Cliente E2E",
-  });
-  await page.getByLabel("Adicionar do catálogo").selectOption("servico-1");
-  await page.getByRole("button", { name: "Adicionar" }).click();
+  await page.getByRole("button", { name: /Cliente já cadastrado/ }).click();
+  await page.getByRole("button", { name: /Cliente E2E/ }).click();
   await page.getByLabel("Título").fill("Proposta MVP E2E");
-  await page.getByRole("button", { name: "Salvar proposta" }).click();
-  await expect(page.getByText("Proposta salva.")).toBeVisible();
+  await page.getByRole("button", { name: "Próximo" }).click();
+  await page.getByLabel("Selecionar do catálogo").selectOption("servico-1");
+  await page.getByRole("button", { name: "Adicionar" }).click();
+  await page.getByRole("button", { name: "Próximo" }).click();
+  await page.getByRole("button", { name: "Próximo" }).click();
+  await page.getByRole("button", { name: "Salvar rascunho" }).click();
+  await expect(page.getByRole("heading", { name: "Editar proposta" })).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Proposta MVP E2E" }).first(),
   ).toBeVisible();
@@ -192,19 +199,15 @@ test("fluxo principal do MVP no web", async ({ page }) => {
     page.getByText("Proposta gerada. Agora você pode imprimir ou enviar pelo WhatsApp."),
   ).toBeVisible();
   await expect(
-    page.getByRole("link", { name: "WhatsApp" }).first(),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Marcar enviada" }).first(),
+    page.getByRole("button", { name: /WhatsApp/ }).first(),
   ).toBeVisible();
 });
 
 test("exibe configuracoes do perfil sem plano e seguranca", async ({ page }) => {
   await configurarApiMockada(page);
+  await adicionarSessaoValida(page);
 
   await page.goto("/");
-  await preencherCadastroInicial(page);
-  await page.getByRole("button", { name: "Iniciar teste de 7 dias" }).click();
   await page.locator(".sidebar-account-button").click();
   await expect(
     page.getByRole("menuitem", { name: "Configurações" }),
@@ -214,10 +217,12 @@ test("exibe configuracoes do perfil sem plano e seguranca", async ({ page }) => 
     page.getByRole("menuitem", { name: "Configurações" }),
   ).toBeHidden();
   await page.locator(".sidebar-account-button").click();
-  await page.getByRole("menuitemradio", { name: "Escuro" }).click();
+  await page.getByRole("menuitem", { name: "Personalização" }).click();
+  await page.getByRole("button", { name: /Escuro/ }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  await page.getByRole("menuitemradio", { name: "Claro" }).click();
+  await page.getByRole("button", { name: /Claro/ }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await page.locator(".sidebar-account-button").click();
   await page.getByRole("menuitem", { name: "Configurações" }).click();
 
   await expect(page.getByLabel("Responsável")).toHaveValue("Bruno Carvalho");
@@ -231,12 +236,30 @@ test("exibe configuracoes do perfil sem plano e seguranca", async ({ page }) => 
   await expect(page.getByRole("button", { name: "Atualizar senha" })).toBeHidden();
 });
 
+test("cadastro exige confirmacao e recuperacao de senha usa fluxo interno", async ({ page }) => {
+  await configurarApiMockada(page);
+
+  await page.goto("/");
+  await preencherCadastroInicial(page);
+  await page.getByRole("button", { name: "Iniciar teste de 7 dias" }).click();
+
+  await expect(page.getByText("Confirme seu email")).toBeVisible();
+  await page.getByRole("button", { name: "Reenviar confirmação" }).click();
+  await page.getByRole("tab", { name: "Entrar" }).click();
+  await page.getByRole("button", { name: "Esqueci minha senha" }).click();
+  await page.getByLabel("E-mail").fill("bruno@emprely.dev");
+  await page.getByRole("button", { name: "Enviar link de recuperação" }).click();
+  await expect(
+    page.getByText("Se houver uma conta com este email, enviaremos um link de recuperação."),
+  ).toBeVisible();
+});
+
 async function configurarApiMockada(page: Page) {
   const agora = new Date().toISOString();
   let usuario = {
     id: "usuario-1",
-    nome: "Usuario MVP",
-    email: "usuario@emprely.dev",
+    nome: "Bruno Carvalho",
+    email: "bruno@emprely.dev",
   };
   let conta = {
     id: "conta-1",
@@ -255,7 +278,7 @@ async function configurarApiMockada(page: Page) {
     contaId: conta.id,
     nomeComercial: conta.nome,
     emailContato: null,
-    telefoneContato: null,
+    telefoneContato: "(11) 99999-9999",
     siteUrl: null,
     instagram: null,
     documento: null,
@@ -269,6 +292,7 @@ async function configurarApiMockada(page: Page) {
   let servicos: ServicoMock[] = [];
   let propostas: PropostaMock[] = [];
   let proximoNumeroProposta = 1;
+  let emailConfirmado = false;
 
   await page.route("**/api/**", async (route) => {
     const request = route.request();
@@ -303,12 +327,36 @@ async function configurarApiMockada(page: Page) {
         emailContato: input.email,
         telefoneContato: input.telefone,
       };
+      emailConfirmado = false;
       await fulfillJson(route, 200, {
-        accessToken: "token-e2e",
-        expiresAtUtc: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
-        usuario,
-        conta,
+        usuarioId: usuario.id,
+        email: usuario.email,
+        emailConfirmationRequired: true,
+        message: "Cadastro criado. Confirme seu email para entrar.",
       });
+      return;
+    }
+
+    if (method === "POST" && path === "/api/auth/login") {
+      if (!emailConfirmado) {
+        await fulfillJson(route, 403, {
+          code: "EmailNotConfirmed",
+          message: "Confirme seu email antes de entrar.",
+        });
+        return;
+      }
+
+      await fulfillJson(route, 200, buildAuthMock(usuario, conta));
+      return;
+    }
+
+    if (method === "POST" && path === "/api/auth/resend-confirmation") {
+      await fulfillJson(route, 204, {});
+      return;
+    }
+
+    if (method === "POST" && path === "/api/auth/forgot-password") {
+      await fulfillJson(route, 204, {});
       return;
     }
 
@@ -401,6 +449,13 @@ async function configurarApiMockada(page: Page) {
         introducao: string | null;
         observacoes: string | null;
         validadeDias: number;
+        templateVisual?: string;
+        descontoValor?: number;
+        condicoesPagamento?: string | null;
+        itensInclusos?: string[];
+        itensNaoInclusos?: string[];
+        cronograma?: string[];
+        beneficios?: string[];
         itens: Array<{
           servicoId: string | null;
           nome: string;
@@ -429,8 +484,17 @@ async function configurarApiMockada(page: Page) {
         introducao: input.introducao,
         observacoes: input.observacoes,
         validadeDias: input.validadeDias,
+        templateVisual: input.templateVisual ?? "Emprely",
+        descontoValor: input.descontoValor ?? 0,
+        condicoesPagamento: input.condicoesPagamento ?? null,
+        itensInclusos: input.itensInclusos ?? [],
+        itensNaoInclusos: input.itensNaoInclusos ?? [],
+        cronograma: input.cronograma ?? [],
+        beneficios: input.beneficios ?? [],
         status: "Rascunho",
-        total: itens.reduce((total, item) => total + item.total, 0),
+        total:
+          itens.reduce((total, item) => total + item.total, 0) -
+          (input.descontoValor ?? 0),
         itens,
         createdAt: agora,
         updatedAt: null,
@@ -470,6 +534,44 @@ async function preencherCadastroInicial(page: Page) {
   await page.getByLabel("Telefone").fill("(11) 99999-9999");
   await page.getByLabel("Senha", { exact: true }).fill("Senha123");
   await page.getByLabel("Nome da empresa").fill("Emprely");
+}
+
+async function adicionarSessaoValida(page: Page) {
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      "emprely.authSession",
+      JSON.stringify({
+        accessToken: "token-e2e",
+        expiresAtUtc: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        usuario: {
+          id: "usuario-1",
+          nome: "Bruno Carvalho",
+          email: "bruno@emprely.dev",
+        },
+        conta: {
+          id: "conta-1",
+          nome: "Emprely",
+          slug: "emprely",
+          papel: "Dono",
+          plano: "Trial",
+          statusComercial: "TrialAtivo",
+          trialEndsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+          trialDiasRestantes: 7,
+          planoFundadorAtivadoAt: null,
+          planoFundadorPrecoMensal: 49,
+        },
+      }),
+    );
+  });
+}
+
+function buildAuthMock(usuario: unknown, conta: unknown) {
+  return {
+    accessToken: "token-e2e",
+    expiresAtUtc: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    usuario,
+    conta,
+  };
 }
 
 async function fulfillJson(route: Route, status: number, body: unknown) {

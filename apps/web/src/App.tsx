@@ -94,15 +94,25 @@ import type {
 } from "@/types/account";
 import {
   createCliente,
+  createContatoPublico,
+  adminResendConfirmacaoEmail,
+  changeEmailUsuario,
+  confirmChangeEmailUsuario,
+  confirmEmailUsuario,
   createServico,
+  createSuporteSolicitacao,
   deleteCliente,
   deleteServico,
+  forgotSenhaUsuario,
+  getAdminEmailsHistorico,
   getClientesConta,
   getPerfilContaAtual,
   getServicosConta,
   getUsuarioAtual,
   loginUsuario,
   registerUsuario,
+  resendConfirmacaoEmail,
+  resetSenhaUsuario,
   resolveApiAssetUrl,
   updateCliente,
   updatePerfilConta,
@@ -121,11 +131,24 @@ import {
 } from "@/lib/api";
 import type {
   AuthUsuarioResponse,
+  ChangeEmailUsuarioInput,
   ContaAtualResponse,
+  EmailUsuarioInput,
   LoginUsuarioInput,
   RegisterUsuarioInput,
+  RegisterUsuarioResponse,
+  ResetSenhaUsuarioInput,
   UsuarioAtualResponse,
 } from "@/types/auth";
+import type {
+  AdminEmailHistoricoResponse,
+  AdminResendConfirmacaoEmailInput,
+} from "@/types/admin";
+import type {
+  ContatoPublicoResponse,
+  CreateContatoPublicoInput,
+  CreateSuporteSolicitacaoInput,
+} from "@/types/support";
 import type {
   ClienteResponse,
   CreateClienteInput,
@@ -270,6 +293,46 @@ const loginSchema = z.object({
   senha: z.string().min(1, "Este campo é obrigatório."),
 });
 
+const emailUsuarioSchema = z.object({
+  email: z.string().trim().email("Digite um e-mail válido."),
+});
+
+const resetSenhaSchema = z.object({
+  usuarioId: z.string().min(1),
+  token: z.string().min(1),
+  novaSenha: z.string().min(8, "A senha precisa ter pelo menos 8 caracteres."),
+  confirmarNovaSenha: z.string().min(1, "Confirme a nova senha."),
+}).refine((input) => input.novaSenha === input.confirmarNovaSenha, {
+  message: "A confirmação precisa ser igual à nova senha.",
+  path: ["confirmarNovaSenha"],
+});
+
+const changeEmailSchema = z.object({
+  novoEmail: z.string().trim().email("Digite um e-mail válido."),
+});
+
+const suporteSchema = z.object({
+  assunto: z.string().trim().min(3, "Informe o assunto.").max(120),
+  mensagem: z.string().trim().min(10, "Descreva melhor o problema.").max(4000),
+});
+
+const contatoPublicoSchema = z.object({
+  nome: z.string().trim().min(2, "Informe seu nome.").max(120),
+  email: z.string().trim().email("Digite um e-mail valido.").max(200),
+  telefone: z
+    .string()
+    .trim()
+    .max(telefoneMascaraMaxLength)
+    .refine((valor) => valor.length === 0 || isTelefoneWhatsappValido(valor), telefoneMensagemFormato),
+  empresa: z.string().trim().max(120),
+  interesse: z.enum(["duvida", "compra", "plano-fundador", "suporte", "outro"]),
+  mensagem: z.string().trim().min(10, "Escreva uma mensagem com mais detalhes.").max(2000),
+});
+
+const adminResendConfirmacaoEmailSchema = z.object({
+  email: z.string().trim().email("Digite um e-mail válido."),
+});
+
 const perfilContaSchema = z.object({
   nomeComercial: z.string().min(2, "Informe o nome comercial.").max(160),
   emailContato: z
@@ -403,20 +466,30 @@ const propostaSchema = z.object({
   },
 );
 
-type AuthMode = "cadastro" | "login";
+type AuthMode =
+  | "cadastro"
+  | "login"
+  | "confirmacao-pendente"
+  | "confirmar-email"
+  | "recuperar-senha"
+  | "redefinir-senha"
+  | "confirmar-alteracao-email";
 type AppView =
   | "dashboard"
   | "clientes"
   | "servicos"
   | "propostas"
   | "conta"
-  | "personalizacao";
+  | "personalizacao"
+  | "suporte"
+  | "adminEmails";
 type CrudModo = "lista" | "novo" | "editar" | "visualizar" | "assistente";
 type PropostaAssistenteEtapa = "inicio" | "existente" | "novo";
 type PropostaWizardEtapaId =
   | "cliente"
   | "proposta"
   | "itens"
+  | "template"
   | "detalhamento"
   | "revisao";
 type PerfilContaFormInput = z.infer<typeof perfilContaSchema>;
@@ -424,6 +497,12 @@ type ClienteFormInput = z.infer<typeof clienteSchema>;
 type ClienteRapidoFormInput = ClienteFormInput;
 type ServicoFormInput = z.infer<typeof servicoSchema>;
 type PropostaFormInput = z.infer<typeof propostaSchema>;
+type EmailUsuarioFormInput = z.infer<typeof emailUsuarioSchema>;
+type ResetSenhaUsuarioFormInput = z.infer<typeof resetSenhaSchema>;
+type ChangeEmailUsuarioFormInput = z.infer<typeof changeEmailSchema>;
+type SuporteFormInput = z.infer<typeof suporteSchema>;
+type ContatoPublicoFormInput = z.infer<typeof contatoPublicoSchema>;
+type AdminResendConfirmacaoEmailFormInput = z.infer<typeof adminResendConfirmacaoEmailSchema>;
 type PropostaPreviewInput = Partial<Omit<PropostaFormInput, "itens">> & {
   itens?: Array<Partial<PropostaFormInput["itens"][number]>>;
 };
@@ -481,6 +560,7 @@ const propostaWizardEtapasOrdem: PropostaWizardEtapaId[] = [
   "cliente",
   "proposta",
   "itens",
+  "template",
   "detalhamento",
   "revisao",
 ];
@@ -516,6 +596,8 @@ const navegacaoPrincipal: NavegacaoPrincipalItem[] = [
     quickAction: "novaProposta",
     quickLabel: "Nova proposta",
   },
+  { label: "Suporte", view: "suporte", icon: HeartHandshake },
+  { label: "Admin emails", view: "adminEmails", icon: ShieldCheck },
 ];
 
 const filtrosStatusProposta: Array<{
@@ -612,6 +694,9 @@ type ToastSistemaOrigem =
   | "sessao"
   | "senha"
   | "perfil"
+  | "seguranca"
+  | "suporte"
+  | "admin"
   | "cliente"
   | "servico"
   | "proposta"
@@ -632,7 +717,9 @@ const toastSistemaDuracaoMs = 3000;
 export default function App() {
   const queryClient = useQueryClient();
   const [sessaoInicial] = useState<SessaoInicialUsuario>(readSessaoInicialUsuario);
-  const [authMode, setAuthMode] = useState<AuthMode>("login");
+  const [authMode, setAuthMode] = useState<AuthMode>(() => getAuthModeInicial());
+  const [authEmailPendente, setAuthEmailPendente] = useState("");
+  const authUrlParams = getAuthUrlParams();
   const [appView, setAppView] = useState<AppView>("dashboard");
   const [accessToken, setAccessToken] = useState<string | null>(
     sessaoInicial.accessToken,
@@ -644,6 +731,10 @@ export default function App() {
     sessaoInicial.mensagem,
   );
   const [perfilMensagem, setPerfilMensagem] = useState<string | null>(null);
+  const [segurancaMensagem, setSegurancaMensagem] = useState<string | null>(null);
+  const [suporteMensagem, setSuporteMensagem] = useState<string | null>(null);
+  const [adminEmailMensagem, setAdminEmailMensagem] = useState<string | null>(null);
+  const [adminEmailKey, setAdminEmailKey] = useState("");
   const [clienteMensagem, setClienteMensagem] = useState<string | null>(null);
   const [clienteModo, setClienteModo] = useState<CrudModo>("lista");
   const [clienteSelecionadoId, setClienteSelecionadoId] = useState<string | null>(
@@ -726,11 +817,13 @@ export default function App() {
   const propostaWizardClienteRef = useRef<HTMLDivElement | null>(null);
   const propostaWizardMensagemRef = useRef<HTMLDivElement | null>(null);
   const propostaWizardItensRef = useRef<HTMLDivElement | null>(null);
+  const propostaWizardTemplateRef = useRef<HTMLDivElement | null>(null);
   const propostaWizardDetalhamentoRef = useRef<HTMLDivElement | null>(null);
   const propostaWizardRevisaoRef = useRef<HTMLDivElement | null>(null);
   const [filtroStatusProposta, setFiltroStatusProposta] =
     useState<FiltroStatusProposta>("Todas");
   const [contaMenuAberto, setContaMenuAberto] = useState(false);
+  const [mobileMenuAberto, setMobileMenuAberto] = useState(false);
   const [sidebarRecolhida, setSidebarRecolhida] = useState(false);
   const [temaVisual, setTemaVisual] = useState<TemaVisual>(getTemaVisualInicial);
   const [toastsSistema, setToastsSistema] = useState<ToastSistemaItem[]>([]);
@@ -834,6 +927,18 @@ export default function App() {
   }, [exibirMensagemSistema, perfilMensagem]);
 
   useEffect(() => {
+    exibirMensagemSistema(segurancaMensagem, "seguranca");
+  }, [exibirMensagemSistema, segurancaMensagem]);
+
+  useEffect(() => {
+    exibirMensagemSistema(suporteMensagem, "suporte");
+  }, [exibirMensagemSistema, suporteMensagem]);
+
+  useEffect(() => {
+    exibirMensagemSistema(adminEmailMensagem, "admin");
+  }, [adminEmailMensagem, exibirMensagemSistema]);
+
+  useEffect(() => {
     exibirMensagemSistema(clienteMensagem, "cliente");
   }, [clienteMensagem, exibirMensagemSistema]);
 
@@ -884,6 +989,13 @@ export default function App() {
     retry: false,
   });
 
+  const adminEmailsQuery = useQuery({
+    queryKey: ["admin-emails", adminEmailKey],
+    queryFn: () => getAdminEmailsHistorico(adminEmailKey),
+    enabled: Boolean(adminEmailKey) && appView === "adminEmails",
+    retry: false,
+  });
+
   const registerForm = useForm<RegisterUsuarioInput>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
@@ -900,6 +1012,57 @@ export default function App() {
     defaultValues: {
       email: "",
       senha: "",
+    },
+  });
+
+  const recuperarSenhaForm = useForm<EmailUsuarioFormInput>({
+    resolver: zodResolver(emailUsuarioSchema),
+    defaultValues: {
+      email: "",
+    },
+  });
+
+  const resetSenhaForm = useForm<ResetSenhaUsuarioFormInput>({
+    resolver: zodResolver(resetSenhaSchema),
+    defaultValues: {
+      usuarioId: authUrlParams.usuarioId,
+      token: authUrlParams.token,
+      novaSenha: "",
+      confirmarNovaSenha: "",
+    },
+  });
+
+  const changeEmailForm = useForm<ChangeEmailUsuarioFormInput>({
+    resolver: zodResolver(changeEmailSchema),
+    defaultValues: {
+      novoEmail: "",
+    },
+  });
+
+  const suporteForm = useForm<SuporteFormInput>({
+    resolver: zodResolver(suporteSchema),
+    defaultValues: {
+      assunto: "",
+      mensagem: "",
+    },
+  });
+
+  const contatoPublicoForm = useForm<ContatoPublicoFormInput>({
+    resolver: zodResolver(contatoPublicoSchema),
+    defaultValues: {
+      nome: "",
+      email: "",
+      telefone: "",
+      empresa: "",
+      interesse: "duvida",
+      mensagem: "",
+    },
+  });
+
+  const adminResendConfirmacaoEmailForm = useForm<AdminResendConfirmacaoEmailFormInput>({
+    resolver: zodResolver(adminResendConfirmacaoEmailSchema),
+    defaultValues: {
+      email: "",
     },
   });
 
@@ -960,6 +1123,7 @@ export default function App() {
       clearSessaoUsuarioStorage();
       setAccessToken(null);
       setAuthUsuario(null);
+      setAuthMode("login");
       setSessaoMensagem(mensagem);
       setPerfilMensagem(null);
       setClienteMensagem(null);
@@ -996,6 +1160,9 @@ export default function App() {
       resetPropostaForm(propostaDefaultValues);
       tituloAutomaticoPropostaRef.current = null;
       setAppView("dashboard");
+      if (window.location.search.includes("auth=")) {
+        window.history.replaceState({}, "", window.location.pathname);
+      }
       queryClient.removeQueries({ queryKey: ["usuario-atual"] });
       queryClient.removeQueries({ queryKey: ["perfil-conta"] });
       queryClient.removeQueries({ queryKey: ["clientes"] });
@@ -1033,6 +1200,28 @@ export default function App() {
     document.documentElement.dataset.theme = temaVisual;
     window.localStorage.setItem(temaVisualStorageKey, temaVisual);
   }, [temaVisual]);
+
+  useEffect(() => {
+    if (!mobileMenuAberto) {
+      document.body.classList.remove("is-mobile-menu-open");
+      return;
+    }
+
+    document.body.classList.add("is-mobile-menu-open");
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setMobileMenuAberto(false);
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.classList.remove("is-mobile-menu-open");
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [mobileMenuAberto]);
 
   useEffect(() => {
     return () => {
@@ -1241,14 +1430,19 @@ export default function App() {
         isQuantidadeItemValida(item?.quantidade) &&
         valorSeguro(item?.valorUnitario) >= 0,
     );
+  const propostaWizardTemplateConcluido = Boolean(
+    propostaPreview.templateVisual,
+  );
   const propostaWizardDetalhamentoConcluido =
     propostaWizardItensConcluido &&
+    propostaWizardTemplateConcluido &&
     valorSeguro(propostaPreview.descontoValor) >= 0 &&
     valorSeguro(propostaPreview.descontoValor) <= propostaSubtotalPreview;
   const propostaWizardRevisaoConcluida =
     propostaWizardClienteConcluido &&
     propostaWizardDadosConcluido &&
     propostaWizardItensConcluido &&
+    propostaWizardTemplateConcluido &&
     propostaWizardDetalhamentoConcluido &&
     Boolean(propostaSelecionadaRascunho) &&
     !propostaTemAlteracoes;
@@ -1269,8 +1463,13 @@ export default function App() {
       concluido: propostaWizardItensConcluido,
     },
     {
+      id: "template",
+      label: "Template",
+      concluido: propostaWizardTemplateConcluido,
+    },
+    {
       id: "detalhamento",
-      label: "Detalhamento",
+      label: "Detalhes",
       concluido: propostaWizardDetalhamentoConcluido,
     },
     {
@@ -1303,8 +1502,9 @@ export default function App() {
   const propostaPreviewVisual = propostaFontePreview
     ? mapPropostaForm(propostaFontePreview)
     : propostaPreview;
-  const propostaSubtotalVisual =
-    propostaFontePreview?.subtotal ?? propostaSubtotalPreview;
+  const propostaSubtotalVisual = propostaFontePreview
+    ? getSubtotalProposta(propostaFontePreview)
+    : propostaSubtotalPreview;
   const propostaDescontoVisual =
     propostaFontePreview?.descontoValor ?? propostaDescontoPreview;
   const propostaTotalVisual = propostaFontePreview?.total ?? propostaTotalPreview;
@@ -1448,12 +1648,102 @@ export default function App() {
 
   const registerMutation = useMutation({
     mutationFn: registerUsuario,
-    onSuccess: handleAuthSuccess,
+    onSuccess: (response: RegisterUsuarioResponse) => {
+      setAuthEmailPendente(response.email);
+      recuperarSenhaForm.setValue("email", response.email);
+      setAuthMode("confirmacao-pendente");
+    },
   });
 
   const loginMutation = useMutation({
     mutationFn: loginUsuario,
     onSuccess: handleAuthSuccess,
+  });
+
+  const confirmEmailMutation = useMutation({
+    mutationFn: confirmEmailUsuario,
+    onSuccess: () => {
+      setAuthMode("login");
+      setSessaoMensagem("Email confirmado. Entre com seus dados.");
+    },
+  });
+
+  const confirmChangeEmailMutation = useMutation({
+    mutationFn: confirmChangeEmailUsuario,
+    onSuccess: () => {
+      setAuthMode("login");
+      setSessaoMensagem("Email alterado. Entre novamente com o novo email.");
+    },
+  });
+
+  const resendConfirmacaoMutation = useMutation({
+    mutationFn: resendConfirmacaoEmail,
+    onSuccess: () => {
+      setSessaoMensagem("Se houver uma conta pendente, um novo email será enviado.");
+    },
+  });
+
+  const forgotSenhaMutation = useMutation({
+    mutationFn: forgotSenhaUsuario,
+    onSuccess: () => {
+      setSessaoMensagem("Se houver uma conta com este email, enviaremos um link de recuperação.");
+    },
+  });
+
+  const resetSenhaMutation = useMutation({
+    mutationFn: resetSenhaUsuario,
+    onSuccess: () => {
+      setSessaoMensagem("Senha redefinida. Entre com a nova senha.");
+      setAuthMode("login");
+      resetSenhaForm.reset({
+        usuarioId: authUrlParams.usuarioId,
+        token: authUrlParams.token,
+        novaSenha: "",
+        confirmarNovaSenha: "",
+      });
+    },
+  });
+
+  const changeEmailMutation = useMutation({
+    mutationFn: (input: ChangeEmailUsuarioInput) => changeEmailUsuario(input, accessToken!),
+    onSuccess: () => {
+      setSegurancaMensagem("Enviamos um link para confirmar o novo email.");
+      changeEmailForm.reset({ novoEmail: "" });
+    },
+  });
+
+  const suporteMutation = useMutation({
+    mutationFn: (input: CreateSuporteSolicitacaoInput) =>
+      createSuporteSolicitacao(input, accessToken!),
+    onSuccess: (response) => {
+      setSuporteMensagem(`Solicitação enviada: ${response.assunto}.`);
+      suporteForm.reset({ assunto: "", mensagem: "" });
+    },
+  });
+
+  const contatoPublicoMutation = useMutation({
+    mutationFn: (input: CreateContatoPublicoInput) => createContatoPublico(input),
+    onSuccess: (response) => {
+      setSuporteMensagem(response.mensagem);
+      contatoPublicoForm.reset({
+        nome: "",
+        email: "",
+        telefone: "",
+        empresa: "",
+        interesse: "duvida",
+        mensagem: "",
+      });
+    },
+  });
+
+  const adminResendConfirmacaoMutation = useMutation({
+    mutationFn: (input: AdminResendConfirmacaoEmailInput) =>
+      adminResendConfirmacaoEmail(input, adminEmailKey),
+    onSuccess: async () => {
+      setAdminEmailMensagem("Reenvio solicitado.");
+      adminResendConfirmacaoEmailForm.reset({ email: "" });
+      await adminEmailsQuery.refetch();
+    },
   });
 
   const perfilMutation = useMutation({
@@ -1498,17 +1788,30 @@ export default function App() {
     },
     onSuccess: async () => {
       const eraEdicao = Boolean(clienteSelecionadoId && clienteSelecionado);
+      const eraPrimeiroCliente = !eraEdicao && clientes.length === 0;
       await queryClient.invalidateQueries({ queryKey: ["clientes", accessToken] });
       resetClienteForm(clienteDefaultValues);
       setClienteSelecionadoId(null);
-      setClienteModo(eraEdicao ? "lista" : "novo");
+      setClienteModo(eraEdicao || eraPrimeiroCliente ? "lista" : "novo");
       setClienteComplementaresAberto(false);
       setClientePagina(1);
+      if (eraPrimeiroCliente) {
+        prepararNovoServico();
+        setServicoMensagem(
+          "Cliente salvo. Agora cadastre o primeiro serviço para usar na proposta.",
+        );
+        setAppView("servicos");
+      }
       setClienteMensagem(
-        eraEdicao
+        eraPrimeiroCliente
+          ? "Cliente salvo. Próximo passo: cadastre o primeiro serviço."
+          : eraEdicao
           ? "Cliente atualizado. Você voltou para a listagem."
           : "Cliente salvo. Cadastre o próximo cliente quando quiser.",
       );
+      if (eraPrimeiroCliente) {
+        setClienteMensagem(null);
+      }
     },
   });
 
@@ -1567,16 +1870,29 @@ export default function App() {
     },
     onSuccess: async () => {
       const eraEdicao = Boolean(servicoSelecionadoId && servicoSelecionado);
+      const eraPrimeiroServico = !eraEdicao && servicos.length === 0;
       await queryClient.invalidateQueries({ queryKey: ["servicos", accessToken] });
       resetServicoForm(servicoDefaultValues);
       setServicoSelecionadoId(null);
-      setServicoModo(eraEdicao ? "lista" : "novo");
+      setServicoModo(eraEdicao || eraPrimeiroServico ? "lista" : "novo");
       setServicoPagina(1);
+      if (eraPrimeiroServico) {
+        prepararAssistenteNovaProposta();
+        setPropostaMensagem(
+          "Serviço salvo. Agora monte a primeira proposta com cliente e serviço.",
+        );
+        setAppView("propostas");
+      }
       setServicoMensagem(
-        eraEdicao
+        eraPrimeiroServico
+          ? "Serviço salvo. Próximo passo: crie a primeira proposta."
+          : eraEdicao
           ? "Serviço atualizado. Você voltou para a listagem."
           : "Serviço salvo. Cadastre o próximo serviço quando quiser.",
       );
+      if (eraPrimeiroServico) {
+        setServicoMensagem(null);
+      }
     },
   });
 
@@ -1801,6 +2117,7 @@ export default function App() {
   function navegarParaView(view: AppView) {
     executarComConfirmacaoDescarte(() => {
       setContaMenuAberto(false);
+      setMobileMenuAberto(false);
       setPropostaVisualizacaoModalId(null);
       setPropostaPreviewModalAberto(false);
       setPropostaTemplateModalAberto(false);
@@ -2010,6 +2327,7 @@ export default function App() {
       cliente: propostaWizardClienteRef,
       proposta: propostaWizardMensagemRef,
       itens: propostaWizardItensRef,
+      template: propostaWizardTemplateRef,
       detalhamento: propostaWizardDetalhamentoRef,
       revisao: propostaWizardRevisaoRef,
     };
@@ -2031,20 +2349,16 @@ export default function App() {
       cliente: ["clienteId", "validadeDias"],
       proposta: ["titulo"],
       itens: ["itens"],
-      detalhamento: [
-        "descontoValor",
-        "condicoesPagamento",
-        "itensInclusosTexto",
-        "itensNaoInclusosTexto",
-        "cronogramaTexto",
-        "beneficiosTexto",
-      ],
+      template: ["templateVisual"],
+      detalhamento: [],
       revisao: [],
     };
     const campos = camposPorEtapa[propostaWizardEtapaAtiva];
 
     if (campos.length === 0) {
-      return propostaForm.trigger();
+      return propostaWizardEtapaAtiva === "revisao"
+        ? propostaForm.trigger()
+        : true;
     }
 
     const etapaValida = await propostaForm.trigger(campos);
@@ -2913,6 +3227,8 @@ export default function App() {
     enviarPropostaMutation.isPending ||
     aceitarPropostaMutation.isPending ||
     recusarPropostaMutation.isPending;
+  const exibindoSuportePublico = isSuportePublicoPath();
+  const tituloTelaMobile = getAppViewLabel(appView);
 
   return (
     <div className="app-shell min-h-screen bg-background text-foreground">
@@ -2933,7 +3249,13 @@ export default function App() {
             />
             <button
               type="button"
-              onClick={() => setAuthMode("login")}
+              onClick={() => {
+                if (exibindoSuportePublico) {
+                  window.history.pushState(null, "", "/");
+                }
+
+                setAuthMode("login");
+              }}
               className="brand-primary-action inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
             >
               <FileText size={18} aria-hidden="true" />
@@ -2949,6 +3271,245 @@ export default function App() {
               : "grid flex-1 gap-5 py-6"
           }
         >
+          {usuario && conta ? (
+            <>
+              <header className="mobile-app-topbar">
+                <button
+                  type="button"
+                  className="mobile-topbar-icon-button"
+                  aria-label="Abrir menu"
+                  aria-expanded={mobileMenuAberto}
+                  aria-controls="mobile-navigation-drawer"
+                  onClick={() => {
+                    setContaMenuAberto(false);
+                    setMobileMenuAberto(true);
+                  }}
+                >
+                  <Menu size={22} aria-hidden="true" />
+                </button>
+                <div className="mobile-topbar-account">
+                  {logoMarcaTopo ? (
+                    <img src={logoMarcaTopo} alt="" aria-hidden="true" />
+                  ) : (
+                    <span aria-hidden="true">
+                      {nomeMarcaTopo.slice(0, 2).toUpperCase()}
+                    </span>
+                  )}
+                  <div>
+                    <strong>{tituloTelaMobile}</strong>
+                    <small>{nomeMarcaTopo}</small>
+                  </div>
+                </div>
+              </header>
+
+              {mobileMenuAberto ? (
+                <div
+                  className="mobile-navigation-overlay"
+                  role="presentation"
+                  onMouseDown={(event) => {
+                    if (event.target === event.currentTarget) {
+                      setMobileMenuAberto(false);
+                    }
+                  }}
+                >
+                  <aside
+                    id="mobile-navigation-drawer"
+                    className="mobile-navigation-drawer"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Menu principal"
+                  >
+                    <div className="mobile-drawer-header">
+                      <div className="mobile-drawer-account">
+                        {logoMarcaTopo ? (
+                          <img src={logoMarcaTopo} alt="" aria-hidden="true" />
+                        ) : (
+                          <span aria-hidden="true">
+                            {nomeMarcaTopo.slice(0, 2).toUpperCase()}
+                          </span>
+                        )}
+                        <div>
+                          <strong>{nomeMarcaTopo}</strong>
+                          <small>{subtituloMarcaTopo}</small>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="mobile-topbar-icon-button"
+                        aria-label="Fechar menu"
+                        onClick={() => setMobileMenuAberto(false)}
+                      >
+                        <X size={20} aria-hidden="true" />
+                      </button>
+                    </div>
+
+                    <div className="mobile-drawer-primary-actions">
+                      <button
+                        type="button"
+                        className="mobile-drawer-primary-button"
+                        onClick={() => {
+                          setMobileMenuAberto(false);
+                          novaProposta();
+                        }}
+                      >
+                        <Plus size={18} aria-hidden="true" />
+                        Nova proposta
+                      </button>
+                      <button
+                        type="button"
+                        className="mobile-drawer-secondary-button"
+                        onClick={() => {
+                          setMobileMenuAberto(false);
+                          abrirNovoCliente();
+                        }}
+                      >
+                        <UsersRound size={17} aria-hidden="true" />
+                        Cliente
+                      </button>
+                      <button
+                        type="button"
+                        className="mobile-drawer-secondary-button"
+                        onClick={() => {
+                          setMobileMenuAberto(false);
+                          abrirNovoServico();
+                        }}
+                      >
+                        <PackageCheck size={17} aria-hidden="true" />
+                        Servico
+                      </button>
+                    </div>
+
+                    <nav className="mobile-drawer-nav" aria-label="Navegacao principal">
+                      {navegacaoPrincipal.map((item) => {
+                        const Icon = item.icon;
+                        const itemAtivo = appView === item.view;
+
+                        return (
+                          <button
+                            key={item.label}
+                            type="button"
+                            className={`mobile-drawer-nav-item ${
+                              itemAtivo ? "is-active" : ""
+                            }`}
+                            aria-current={itemAtivo ? "page" : undefined}
+                            onClick={() => navegarParaView(item.view)}
+                          >
+                            <Icon size={18} aria-hidden="true" />
+                            <span>{item.label}</span>
+                          </button>
+                        );
+                      })}
+                    </nav>
+
+                    <div className="mobile-drawer-section">
+                      <p>Conta</p>
+                      <button
+                        type="button"
+                        className={`mobile-drawer-nav-item ${
+                          appView === "conta" ? "is-active" : ""
+                        }`}
+                        onClick={() => navegarParaView("conta")}
+                      >
+                        <Settings size={18} aria-hidden="true" />
+                        <span>Configuracoes</span>
+                      </button>
+                      <button
+                        type="button"
+                        className={`mobile-drawer-nav-item ${
+                          appView === "personalizacao" ? "is-active" : ""
+                        }`}
+                        onClick={() => navegarParaView("personalizacao")}
+                      >
+                        <Palette size={18} aria-hidden="true" />
+                        <span>Personalizacao</span>
+                      </button>
+                    </div>
+
+                    <div className="mobile-drawer-theme" aria-label="Tema visual">
+                      <button
+                        type="button"
+                        aria-pressed={temaVisual === "light"}
+                        className={temaVisual === "light" ? "is-active" : ""}
+                        onClick={() => setTemaVisual("light")}
+                      >
+                        <Sun size={16} aria-hidden="true" />
+                        Claro
+                      </button>
+                      <button
+                        type="button"
+                        aria-pressed={temaVisual === "dark"}
+                        className={temaVisual === "dark" ? "is-active" : ""}
+                        onClick={() => setTemaVisual("dark")}
+                      >
+                        <Moon size={16} aria-hidden="true" />
+                        Escuro
+                      </button>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="mobile-drawer-logout"
+                      onClick={() => {
+                        setMobileMenuAberto(false);
+                        logoutUsuario();
+                      }}
+                    >
+                      <LogOut size={18} aria-hidden="true" />
+                      Sair
+                    </button>
+                  </aside>
+                </div>
+              ) : null}
+
+              <nav
+                className={`mobile-bottom-nav ${
+                  propostaEditorAtivo || propostaModo === "assistente" ? "is-hidden" : ""
+                }`}
+                aria-label="Navegacao rapida mobile"
+              >
+                {[
+                  { label: "Inicio", view: "dashboard" as AppView, icon: LayoutDashboard },
+                  { label: "Propostas", view: "propostas" as AppView, icon: FileText },
+                  { label: "Clientes", view: "clientes" as AppView, icon: UsersRound },
+                  { label: "Servicos", view: "servicos" as AppView, icon: PackageCheck },
+                ].map((item) => {
+                  const Icon = item.icon;
+                  const ativo = appView === item.view;
+
+                  return (
+                    <button
+                      key={item.view}
+                      type="button"
+                      aria-current={ativo ? "page" : undefined}
+                      className={ativo ? "is-active" : ""}
+                      onClick={(event) => {
+                        event.currentTarget.blur();
+                        navegarParaView(item.view);
+                      }}
+                    >
+                      <Icon size={18} aria-hidden="true" />
+                      <span>{item.label}</span>
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  aria-label="Abrir mais opcoes"
+                  onClick={() => {
+                    if (document.activeElement instanceof HTMLElement) {
+                      document.activeElement.blur();
+                    }
+                    setContaMenuAberto(false);
+                    setMobileMenuAberto(true);
+                  }}
+                >
+                  <Menu size={18} aria-hidden="true" />
+                  <span>Mais</span>
+                </button>
+              </nav>
+            </>
+          ) : null}
+
           {usuario && conta ? (
             <nav
               className={`app-sidebar border-r border-border bg-surface ${
@@ -3827,7 +4388,7 @@ export default function App() {
                         />
                         <div className="grid gap-4 md:grid-cols-2">
                           <CampoTexto
-                            label="Categoria"
+                            label="Categoria (opcional)"
                             error={servicoForm.formState.errors.categoria?.message}
                             {...servicoForm.register("categoria")}
                           />
@@ -3868,7 +4429,7 @@ export default function App() {
                           </CampoSelect>
                         </div>
                         <CampoTextarea
-                          label="Descrição"
+                          label="Descrição (opcional)"
                           rows={4}
                           error={servicoForm.formState.errors.descricao?.message}
                           {...servicoForm.register("descricao")}
@@ -3965,7 +4526,7 @@ export default function App() {
                     ) : null}
                     {propostaModo === "assistente" ? (
                       <div className="proposal-wizard-panel rounded-md border border-border bg-surface p-5">
-                        <div className="proposal-wizard-steps" aria-label="Etapas da nova proposta">
+                        <div className="proposal-assistant-steps" aria-label="Etapas da nova proposta">
                           {[
                             "Cliente",
                             "Proposta",
@@ -4216,6 +4777,29 @@ export default function App() {
                         sticky
                       />
 
+                      <div className="proposal-mobile-secondary-actions no-print">
+                        <button
+                          type="submit"
+                          form="proposta-editor-form"
+                          disabled={
+                            salvarPropostaMutation.isPending ||
+                            clientes.length === 0
+                          }
+                        >
+                          <Save size={16} aria-hidden="true" />
+                          {salvarPropostaMutation.isPending
+                            ? "Salvando..."
+                            : "Salvar"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPropostaPreviewModalAberto(true)}
+                        >
+                          <Eye size={16} aria-hidden="true" />
+                          Preview
+                        </button>
+                      </div>
+
                       {clientes.length === 0 ? (
                         <div className="mt-5 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
                           <p>Cadastre um cliente antes de criar propostas.</p>
@@ -4328,7 +4912,17 @@ export default function App() {
                             error={propostaForm.formState.errors.titulo?.message}
                             {...propostaForm.register("titulo")}
                           />
-                          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                          <details className="proposal-optional-section mt-4">
+                            <summary>
+                              <span>
+                                Detalhes opcionais da mensagem
+                                <small>
+                                  Introducao e observacoes podem ser preenchidas depois.
+                                </small>
+                              </span>
+                              <ChevronDown size={17} aria-hidden="true" />
+                            </summary>
+                            <div className="proposal-optional-section-body lg:grid-cols-2">
                             <CampoTextarea
                               label="Introdução"
                               rows={4}
@@ -4341,7 +4935,8 @@ export default function App() {
                               error={propostaForm.formState.errors.observacoes?.message}
                               {...propostaForm.register("observacoes")}
                             />
-                          </div>
+                            </div>
+                          </details>
                           <div className="proposal-step-actions">
                               <button
                                 type="button"
@@ -4568,6 +5163,102 @@ export default function App() {
                           </>
                         ) : null}
 
+                        {propostaWizardEtapaAtiva === "template" ? (
+                          <div
+                            ref={propostaWizardTemplateRef}
+                            className="proposal-section proposal-step-screen"
+                          >
+                            <div className="proposal-section-header">
+                              <span className="proposal-section-icon">
+                                <Palette size={18} aria-hidden="true" />
+                              </span>
+                              <div>
+                                <p className="proposal-step-label">Etapa 4</p>
+                                <h3>Escolha o template</h3>
+                              </div>
+                            </div>
+                            <p className="proposal-template-step-copy">
+                              O template define como a proposta aparece no preview,
+                              PDF, imagem e WhatsApp.
+                            </p>
+                            <div className="proposal-template-step-grid">
+                              {propostaTemplateVisualOpcoes.map((template) => {
+                                const templateSelecionado =
+                                  normalizarTemplateVisual(
+                                    propostaPreview.templateVisual,
+                                  ) === template.value;
+
+                                return (
+                                  <article
+                                    key={template.value}
+                                    className={`proposal-template-step-card ${
+                                      templateSelecionado ? "is-active" : ""
+                                    }`}
+                                  >
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        void selecionarTemplateProposta(
+                                          template.value,
+                                        );
+                                      }}
+                                      className="proposal-template-step-select"
+                                      aria-pressed={templateSelecionado}
+                                    >
+                                      <TemplateSelectionIcon
+                                        templateVisual={template.value}
+                                      />
+                                      <span>
+                                        <strong>{template.label}</strong>
+                                        <small>{template.detalhe}</small>
+                                      </span>
+                                      {templateSelecionado ? (
+                                        <CheckCircle2
+                                          size={18}
+                                          aria-hidden="true"
+                                        />
+                                      ) : null}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setTemplatePreviewAberto(template.value);
+                                        setPropostaTemplateModalAberto(true);
+                                      }}
+                                      className="proposal-template-step-preview"
+                                    >
+                                      <Eye size={14} aria-hidden="true" />
+                                      Preview
+                                    </button>
+                                  </article>
+                                );
+                              })}
+                            </div>
+                            <div className="proposal-step-actions">
+                              <button
+                                type="button"
+                                onClick={voltarEtapaProposta}
+                                className="page-heading-action"
+                              >
+                                <ArrowRight
+                                  className="rotate-180"
+                                  size={16}
+                                  aria-hidden="true"
+                                />
+                                Voltar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={avancarEtapaProposta}
+                                className="page-heading-action is-primary"
+                              >
+                                Próximo
+                                <ArrowRight size={16} aria-hidden="true" />
+                              </button>
+                            </div>
+                          </div>
+                        ) : null}
+
                         {propostaWizardEtapaAtiva === "detalhamento" ? (
                           <>
                         <div
@@ -4579,11 +5270,22 @@ export default function App() {
                               <ReceiptText size={18} aria-hidden="true" />
                             </span>
                             <div>
-                              <p className="proposal-step-label">Etapa 4</p>
+                              <p className="proposal-step-label">Etapa 5</p>
                               <h3>Detalhamento comercial</h3>
                             </div>
                           </div>
-                          <div className="grid gap-4 lg:grid-cols-2">
+                          <p className="proposal-template-step-copy">
+                            Esta etapa e opcional. Use apenas se quiser enriquecer a proposta.
+                          </p>
+                          <details className="proposal-optional-section mt-4">
+                            <summary>
+                              <span>
+                                Desconto e pagamento
+                                <small>Defina condicoes comerciais quando precisar.</small>
+                              </span>
+                              <ChevronDown size={17} aria-hidden="true" />
+                            </summary>
+                            <div className="proposal-optional-section-body lg:grid-cols-2">
                             <Controller
                               control={propostaForm.control}
                               name="descontoValor"
@@ -4611,8 +5313,17 @@ export default function App() {
                               }
                               {...propostaForm.register("condicoesPagamento")}
                             />
-                          </div>
-                          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                            </div>
+                          </details>
+                          <details className="proposal-optional-section mt-4">
+                            <summary>
+                              <span>
+                                Escopo, cronograma e beneficios
+                                <small>Adicione detalhes para propostas mais completas.</small>
+                              </span>
+                              <ChevronDown size={17} aria-hidden="true" />
+                            </summary>
+                            <div className="proposal-optional-section-body lg:grid-cols-2">
                             <Controller
                               control={propostaForm.control}
                               name="itensInclusosTexto"
@@ -4669,7 +5380,8 @@ export default function App() {
                               }
                               {...propostaForm.register("beneficiosTexto")}
                             />
-                          </div>
+                            </div>
+                          </details>
                           <div className="proposal-step-actions">
                             <button
                               type="button"
@@ -4706,7 +5418,7 @@ export default function App() {
                               <Eye size={18} aria-hidden="true" />
                             </span>
                             <div>
-                              <p className="proposal-step-label">Etapa 5</p>
+                              <p className="proposal-step-label">Etapa 6</p>
                               <h3>Revisão final</h3>
                             </div>
                           </div>
@@ -4966,6 +5678,20 @@ export default function App() {
                           </p>
                         ) : null}
                       </form>
+                      <PropostaWizardMobileDock
+                        etapaAtual={propostaWizardEtapaAtualIndex + 1}
+                        etapaLabel={propostaWizardEtapaAtualLabel}
+                        totalEtapas={propostaWizardEtapas.length}
+                        isPrimeiraEtapa={propostaWizardEtapaAtualIndex === 0}
+                        isRevisao={propostaWizardEtapaAtiva === "revisao"}
+                        podeSalvar={clientes.length > 0}
+                        salvando={salvarPropostaMutation.isPending}
+                        podeGerar={propostaProntaParaGerar}
+                        gerando={gerarPropostaMutation.isPending}
+                        onVoltar={voltarEtapaProposta}
+                        onProximo={avancarEtapaProposta}
+                        onGerar={gerarPropostaDoFluxo}
+                      />
                     </div>
                     ) : null}
 
@@ -5216,7 +5942,7 @@ export default function App() {
                             clienteNomeFallback={propostaParaImpressao.clienteNome}
                             proposta={mapPropostaForm(propostaParaImpressao)}
                             numeroProposta={propostaParaImpressao.numero}
-                            subtotal={propostaParaImpressao.subtotal}
+                            subtotal={getSubtotalProposta(propostaParaImpressao)}
                             desconto={propostaParaImpressao.descontoValor}
                             total={propostaParaImpressao.total}
                           />
@@ -5791,6 +6517,36 @@ export default function App() {
                           </button>
                         </div>
                       </form>
+                      <form
+                        className="mt-5 grid gap-4 rounded-md border border-border bg-white p-4"
+                        onSubmit={changeEmailForm.handleSubmit((input) =>
+                          changeEmailMutation.mutate(input),
+                        )}
+                      >
+                        <div>
+                          <h3 className="font-heading text-lg font-semibold">Segurança de acesso</h3>
+                          <p className="mt-1 text-sm text-muted">
+                            Altere o email de acesso confirmando o novo endereço.
+                          </p>
+                        </div>
+                        <CampoTexto
+                          label="Novo email de acesso"
+                          type="email"
+                          error={changeEmailForm.formState.errors.novoEmail?.message}
+                          {...changeEmailForm.register("novoEmail")}
+                        />
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+                          <MensagemErro error={changeEmailMutation.error} />
+                          <button
+                            type="submit"
+                            disabled={changeEmailMutation.isPending}
+                            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            <Mail size={18} aria-hidden="true" />
+                            {changeEmailMutation.isPending ? "Enviando..." : "Enviar confirmação"}
+                          </button>
+                        </div>
+                      </form>
                     </div>
                   </section>
                 ) : null}
@@ -6068,6 +6824,106 @@ export default function App() {
                   </section>
                 ) : null}
 
+                {appView === "suporte" ? (
+                  <section className="grid gap-4">
+                    <div className="page-heading">
+                      <div>
+                        <h1 className="font-heading text-3xl font-semibold">Suporte</h1>
+                      </div>
+                    </div>
+                    <form
+                      className="rounded-md border border-border bg-surface p-5 shadow-sm grid gap-4"
+                      onSubmit={suporteForm.handleSubmit((input) => suporteMutation.mutate(input))}
+                    >
+                      <div>
+                        <h2 className="font-heading text-xl font-semibold">Fale com o suporte Emprely</h2>
+                        <p className="mt-1 text-sm text-muted">
+                          Descreva o problema para registrarmos sua solicitação.
+                        </p>
+                      </div>
+                      <CampoTexto
+                        label="Assunto"
+                        error={suporteForm.formState.errors.assunto?.message}
+                        {...suporteForm.register("assunto")}
+                      />
+                      <CampoTextarea
+                        label="Mensagem"
+                        rows={6}
+                        error={suporteForm.formState.errors.mensagem?.message}
+                        {...suporteForm.register("mensagem")}
+                      />
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+                        <MensagemErro error={suporteMutation.error} />
+                        <button
+                          type="submit"
+                          disabled={suporteMutation.isPending}
+                          className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          <Send size={18} aria-hidden="true" />
+                          {suporteMutation.isPending ? "Enviando..." : "Enviar solicitação"}
+                        </button>
+                      </div>
+                    </form>
+                  </section>
+                ) : null}
+
+                {appView === "adminEmails" ? (
+                  <section className="grid gap-4">
+                    <div className="page-heading">
+                      <div>
+                        <h1 className="font-heading text-3xl font-semibold">Admin emails</h1>
+                      </div>
+                    </div>
+                    <div className="rounded-md border border-border bg-surface p-5 shadow-sm grid gap-4">
+                      <CampoTexto
+                        label="Chave super admin"
+                        type="password"
+                        value={adminEmailKey}
+                        onChange={(event) => setAdminEmailKey(event.target.value)}
+                        helperText="A mesma chave administrativa usada nas operações internas."
+                      />
+                      <form
+                        className="grid gap-3 rounded-md border border-border bg-white p-4"
+                        onSubmit={adminResendConfirmacaoEmailForm.handleSubmit((input) =>
+                          adminResendConfirmacaoMutation.mutate(input),
+                        )}
+                      >
+                        <h2 className="font-heading text-lg font-semibold">Reenviar confirmação</h2>
+                        <CampoTexto
+                          label="Email do usuário"
+                          type="email"
+                          error={adminResendConfirmacaoEmailForm.formState.errors.email?.message}
+                          {...adminResendConfirmacaoEmailForm.register("email")}
+                        />
+                        <MensagemErro error={adminResendConfirmacaoMutation.error} />
+                        <button
+                          type="submit"
+                          disabled={!adminEmailKey || adminResendConfirmacaoMutation.isPending}
+                          className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          <RefreshCw size={18} aria-hidden="true" />
+                          {adminResendConfirmacaoMutation.isPending ? "Reenviando..." : "Reenviar email"}
+                        </button>
+                      </form>
+                      <div className="grid gap-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <h2 className="font-heading text-lg font-semibold">Histórico recente</h2>
+                          <button
+                            type="button"
+                            disabled={!adminEmailKey || adminEmailsQuery.isFetching}
+                            onClick={() => void adminEmailsQuery.refetch()}
+                            className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-border px-3 text-sm font-semibold"
+                          >
+                            Atualizar
+                          </button>
+                        </div>
+                        <MensagemErro error={adminEmailsQuery.error} />
+                        <AdminEmailsTabela emails={adminEmailsQuery.data ?? []} loading={adminEmailsQuery.isLoading} />
+                      </div>
+                    </div>
+                  </section>
+                ) : null}
+
                 {appView === "dashboard" ? (
                   <DashboardContent
                     conta={conta}
@@ -6098,14 +6954,28 @@ export default function App() {
                   />
                 ) : null}
               </>
+            ) : exibindoSuportePublico ? (
+              <ContatoPublicoContent
+                contatoPublicoForm={contatoPublicoForm}
+                contatoPublicoMutation={contatoPublicoMutation}
+              />
             ) : (
               <AuthContent
                 authMode={authMode}
                 setAuthMode={setAuthMode}
                 registerForm={registerForm}
                 loginForm={loginForm}
+                recuperarSenhaForm={recuperarSenhaForm}
+                resetSenhaForm={resetSenhaForm}
                 registerMutation={registerMutation}
                 loginMutation={loginMutation}
+                confirmEmailMutation={confirmEmailMutation}
+                confirmChangeEmailMutation={confirmChangeEmailMutation}
+                resendConfirmacaoMutation={resendConfirmacaoMutation}
+                forgotSenhaMutation={forgotSenhaMutation}
+                resetSenhaMutation={resetSenhaMutation}
+                authEmailPendente={authEmailPendente}
+                authUrlParams={authUrlParams}
               />
               )}
             </div>
@@ -6244,7 +7114,7 @@ export default function App() {
                 clienteNomeFallback={propostaVisualizacaoModal.clienteNome}
                 proposta={propostaVisualizacaoModalForm}
                 numeroProposta={propostaVisualizacaoModal.numero}
-                subtotal={propostaVisualizacaoModal.subtotal}
+                subtotal={getSubtotalProposta(propostaVisualizacaoModal)}
                 desconto={propostaVisualizacaoModal.descontoValor}
                 total={propostaVisualizacaoModal.total}
               />
@@ -6264,7 +7134,7 @@ export default function App() {
             clienteNomeFallback={propostaVisualizacaoModal.clienteNome}
             proposta={propostaVisualizacaoModalForm}
             numeroProposta={propostaVisualizacaoModal.numero}
-            subtotal={propostaVisualizacaoModal.subtotal}
+            subtotal={getSubtotalProposta(propostaVisualizacaoModal)}
             desconto={propostaVisualizacaoModal.descontoValor}
             total={propostaVisualizacaoModal.total}
           />
@@ -6285,6 +7155,25 @@ export default function App() {
             aria-modal="true"
             aria-labelledby="proposal-editor-preview-title"
           >
+            <input
+              className="preview-zoom-radio"
+              type="radio"
+              name="proposal-preview-zoom"
+              id="proposal-preview-fit"
+              defaultChecked
+            />
+            <input
+              className="preview-zoom-radio"
+              type="radio"
+              name="proposal-preview-zoom"
+              id="proposal-preview-zoom"
+            />
+            <input
+              className="preview-zoom-radio"
+              type="radio"
+              name="proposal-preview-zoom"
+              id="proposal-preview-full"
+            />
             <header className="proposal-view-modal-header">
               <div>
                 <p className="text-sm font-medium text-primary">
@@ -6302,15 +7191,22 @@ export default function App() {
                   )}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => setPropostaPreviewModalAberto(false)}
-                className="tooltip-icon-button"
-                aria-label="Fechar visualização da proposta"
-                title="Fechar"
-              >
-                <X size={18} aria-hidden="true" />
-              </button>
+              <div className="preview-modal-actions">
+                <div className="preview-zoom-controls" aria-label="Zoom do preview">
+                  <label htmlFor="proposal-preview-fit">Inteiro</label>
+                  <label htmlFor="proposal-preview-zoom">Zoom</label>
+                  <label htmlFor="proposal-preview-full">100%</label>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPropostaPreviewModalAberto(false)}
+                  className="tooltip-icon-button"
+                  aria-label="Fechar visualização da proposta"
+                  title="Fechar"
+                >
+                  <X size={18} aria-hidden="true" />
+                </button>
+              </div>
             </header>
             <div className="proposal-view-modal-stage">
               <PreviewPropostaVisual
@@ -6630,7 +7526,7 @@ export default function App() {
             clienteNomeFallback={propostaCompartilhamentoAtiva.clienteNome}
             proposta={propostaCompartilhamentoForm}
             numeroProposta={propostaCompartilhamentoAtiva.numero}
-            subtotal={propostaCompartilhamentoAtiva.subtotal}
+            subtotal={getSubtotalProposta(propostaCompartilhamentoAtiva)}
             desconto={propostaCompartilhamentoAtiva.descontoValor}
             total={propostaCompartilhamentoAtiva.total}
           />
@@ -6726,6 +7622,25 @@ export default function App() {
             aria-modal="true"
             aria-labelledby="template-preview-title"
           >
+            <input
+              className="preview-zoom-radio"
+              type="radio"
+              name="template-preview-zoom"
+              id="template-preview-fit"
+              defaultChecked
+            />
+            <input
+              className="preview-zoom-radio"
+              type="radio"
+              name="template-preview-zoom"
+              id="template-preview-zoom"
+            />
+            <input
+              className="preview-zoom-radio"
+              type="radio"
+              name="template-preview-zoom"
+              id="template-preview-full"
+            />
             <div className="template-preview-toolbar flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-medium text-primary">
@@ -6743,15 +7658,20 @@ export default function App() {
                     a paleta configurada no perfil. A logomarca e os dados da
                     conta continuam sendo usados normalmente.
                   </p>
-                ) : null}
+                  ) : null}
               </div>
-              <div className="flex items-center gap-2">
+              <div className="preview-modal-actions">
+                <div className="preview-zoom-controls" aria-label="Zoom do preview">
+                  <label htmlFor="template-preview-fit">Inteiro</label>
+                  <label htmlFor="template-preview-zoom">Zoom</label>
+                  <label htmlFor="template-preview-full">100%</label>
+                </div>
                 <button
                   type="button"
                   onClick={() => setTemplatePreviewAberto(null)}
-                  className="inline-flex h-10 items-center justify-center rounded-md border border-border px-4 text-sm font-semibold transition hover:border-primary hover:text-primary"
+                  className="inline-flex h-10 items-center justify-center rounded-md border border-border px-3 text-sm font-semibold transition hover:border-primary hover:text-primary"
                 >
-                  Voltar aos templates
+                  Voltar
                 </button>
                 <button
                   type="button"
@@ -6772,9 +7692,9 @@ export default function App() {
                       }
                     })();
                   }}
-                  className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-semibold text-white"
+                  className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-3 text-sm font-semibold text-white"
                 >
-                  Usar este template
+                  Usar
                 </button>
                 <button
                   type="button"
@@ -7117,6 +8037,67 @@ function getToastSistemaVariante(
   return "success";
 }
 
+function AdminEmailsTabela({
+  emails,
+  loading,
+}: {
+  emails: AdminEmailHistoricoResponse[];
+  loading: boolean;
+}) {
+  if (loading) {
+    return <ListaCarregando label="Carregando histórico de emails" />;
+  }
+
+  if (emails.length === 0) {
+    return (
+      <EstadoVazio
+        titulo="Nenhum email encontrado"
+        detalhe="Informe a chave super admin e atualize para consultar o histórico recente."
+      />
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto rounded-md border border-border">
+      <table className="min-w-full divide-y divide-border text-sm">
+        <thead className="bg-muted/30 text-left text-xs font-semibold uppercase text-muted">
+          <tr>
+            <th className="px-3 py-2">Tipo</th>
+            <th className="px-3 py-2">Destinatário</th>
+            <th className="px-3 py-2">Status</th>
+            <th className="px-3 py-2">Criado em</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border bg-white">
+          {emails.map((email) => (
+            <tr key={email.id}>
+              <td className="px-3 py-2 font-medium text-foreground">{email.tipo}</td>
+              <td className="px-3 py-2 text-muted">{email.destinatario}</td>
+              <td className="px-3 py-2 text-muted">{email.status}</td>
+              <td className="px-3 py-2 text-muted">{formatDataHoraCurta(email.createdAt)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function formatDataHoraCurta(value: string) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
+function isCampoOpcional(label: string) {
+  return /\bopcional\b/i.test(label);
+}
+
+function formatCampoLabel(label: string) {
+  return label.replace(/\s*\(?opcional\)?\s*/i, " ").replace(/\s+/g, " ").trim();
+}
+
 type CampoTextoProps = InputHTMLAttributes<HTMLInputElement> & {
   label: string;
   error?: string;
@@ -7129,10 +8110,15 @@ const CampoTexto = forwardRef<HTMLInputElement, CampoTextoProps>(
     const inputId = id ?? campoId;
     const descricaoId = `${inputId}-descricao`;
     const erroId = `${inputId}-erro`;
+    const opcional = isCampoOpcional(label);
+    const labelDisplay = opcional ? formatCampoLabel(label) : label;
 
     return (
-      <label className="campo-texto block">
-        <span className="text-sm font-medium text-foreground">{label}</span>
+      <label
+        className="campo-texto block"
+        data-optional={opcional ? "true" : undefined}
+      >
+        <span className="text-sm font-medium text-foreground">{labelDisplay}</span>
         <input
           ref={ref}
           id={inputId}
@@ -7180,10 +8166,15 @@ const CampoMoedaReal = forwardRef<HTMLInputElement, CampoMoedaRealProps>(
     const inputId = id ?? campoId;
     const descricaoId = `${inputId}-descricao`;
     const erroId = `${inputId}-erro`;
+    const opcional = isCampoOpcional(label);
+    const labelDisplay = opcional ? formatCampoLabel(label) : label;
 
     return (
-      <label className="campo-texto block">
-        <span className="text-sm font-medium text-foreground">{label}</span>
+      <label
+        className="campo-texto block"
+        data-optional={opcional ? "true" : undefined}
+      >
+        <span className="text-sm font-medium text-foreground">{labelDisplay}</span>
         <input
           {...props}
           ref={ref}
@@ -7304,10 +8295,15 @@ const CampoSelect = forwardRef<HTMLSelectElement, CampoSelectProps>(
     const inputId = id ?? campoId;
     const descricaoId = `${inputId}-descricao`;
     const erroId = `${inputId}-erro`;
+    const opcional = isCampoOpcional(label);
+    const labelDisplay = opcional ? formatCampoLabel(label) : label;
 
     return (
-      <label className="campo-texto block">
-        <span className="text-sm font-medium text-foreground">{label}</span>
+      <label
+        className="campo-texto block"
+        data-optional={opcional ? "true" : undefined}
+      >
+        <span className="text-sm font-medium text-foreground">{labelDisplay}</span>
         <select
           ref={ref}
           id={inputId}
@@ -7349,10 +8345,15 @@ const CampoTextarea = forwardRef<HTMLTextAreaElement, CampoTextareaProps>(
     const inputId = id ?? campoId;
     const descricaoId = `${inputId}-descricao`;
     const erroId = `${inputId}-erro`;
+    const opcional = isCampoOpcional(label);
+    const labelDisplay = opcional ? formatCampoLabel(label) : label;
 
     return (
-      <label className="campo-texto block">
-        <span className="text-sm font-medium text-foreground">{label}</span>
+      <label
+        className="campo-texto block"
+        data-optional={opcional ? "true" : undefined}
+      >
+        <span className="text-sm font-medium text-foreground">{labelDisplay}</span>
         <textarea
           ref={ref}
           id={inputId}
@@ -7460,7 +8461,7 @@ function ClienteFormularioCampos({
             <div className="grid gap-4 lg:grid-cols-3">
               <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
                 <CampoTexto
-                  label="Instagram"
+                  label="Instagram (opcional)"
                   placeholder="@usuario"
                   error={form.formState.errors.instagram?.message}
                   {...form.register("instagram")}
@@ -7469,7 +8470,7 @@ function ClienteFormularioCampos({
               </div>
               <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
                 <CampoTexto
-                  label="Facebook"
+                  label="Facebook (opcional)"
                   placeholder="facebook.com/pagina"
                   error={form.formState.errors.facebook?.message}
                   {...form.register("facebook")}
@@ -7478,7 +8479,7 @@ function ClienteFormularioCampos({
               </div>
               <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
                 <CampoTexto
-                  label="TikTok"
+                  label="TikTok (opcional)"
                   placeholder="@usuario"
                   error={form.formState.errors.tiktok?.message}
                   {...form.register("tiktok")}
@@ -7488,13 +8489,13 @@ function ClienteFormularioCampos({
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <CampoTexto
-                label="E-mail"
+                label="E-mail (opcional)"
                 type="email"
                 error={form.formState.errors.email?.message}
                 {...form.register("email")}
               />
               <CampoTexto
-                label="CPF/CNPJ"
+                label="CPF/CNPJ (opcional)"
                 placeholder="000.000.000-00"
                 error={form.formState.errors.documento?.message}
                 {...buildCpfCnpjInputProps(
@@ -7504,17 +8505,17 @@ function ClienteFormularioCampos({
             </div>
             <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(8rem,12rem)_minmax(11rem,16rem)]">
               <CampoTexto
-                label="Endereço"
+                label="Endereço (opcional)"
                 error={form.formState.errors.endereco?.message}
                 {...form.register("endereco")}
               />
               <CampoTexto
-                label="Número"
+                label="Número (opcional)"
                 error={form.formState.errors.numero?.message}
                 {...form.register("numero")}
               />
               <CampoTexto
-                label="Cidade"
+                label="Cidade (opcional)"
                 error={form.formState.errors.cidade?.message}
                 {...form.register("cidade")}
               />
@@ -7524,7 +8525,7 @@ function ClienteFormularioCampos({
       </div>
 
       <CampoTextarea
-        label="Observações"
+        label="Observações (opcional)"
         rows={4}
         error={form.formState.errors.observacoes?.message}
         {...form.register("observacoes")}
@@ -7795,54 +8796,189 @@ function PropostaWizardBar({
   onEtapaClick?: (etapa: PropostaWizardEtapaId) => void;
   sticky?: boolean;
 }) {
+  const etapaAtivaIndex = Math.max(
+    etapas.findIndex((step) => step.id === etapaAtiva),
+    0,
+  );
+  const etapaAtual = etapas[etapaAtivaIndex] ?? etapas[0];
+  const progressoPercentual = Math.round(
+    ((etapaAtivaIndex + 1) / Math.max(etapas.length, 1)) * 100,
+  );
+
+  function renderEtapa(step: PropostaWizardStepItem, index: number) {
+    const ativo = step.id === etapaAtiva;
+    const statusLabel = step.concluido
+      ? "Concluido"
+      : ativo
+        ? "Atual"
+        : step.bloqueado
+          ? "Bloqueado"
+          : "Pendente";
+    const conteudo = (
+      <>
+        <strong className="proposal-wizard-step-marker">
+          {step.concluido ? (
+            <CheckCircle2 size={16} aria-hidden="true" />
+          ) : (
+            index + 1
+          )}
+        </strong>
+        <span className="proposal-wizard-step-copy">
+          <span className="proposal-wizard-step-order">Etapa {index + 1}</span>
+          <span className="proposal-wizard-step-label">{step.label}</span>
+        </span>
+        <span className="proposal-wizard-step-status">{statusLabel}</span>
+      </>
+    );
+
+    if (!onEtapaClick) {
+      return (
+        <span
+          key={step.id}
+          className={`${ativo ? "is-active" : ""} ${
+            step.concluido ? "is-complete" : ""
+          }`}
+        >
+          {conteudo}
+        </span>
+      );
+    }
+
+    return (
+      <button
+        key={step.id}
+        type="button"
+        disabled={step.bloqueado}
+        onClick={() => onEtapaClick(step.id)}
+        className={`${ativo ? "is-active" : ""} ${
+          step.concluido ? "is-complete" : ""
+        }`}
+      >
+        {conteudo}
+      </button>
+    );
+  }
+
   return (
-    <div
-      className={`proposal-wizard-steps ${sticky ? "is-sticky" : ""}`}
-      aria-label="Etapas da nova proposta"
-    >
-      {etapas.map((step, index) => {
-        const ativo = step.id === etapaAtiva;
-        const conteudo = (
-          <>
-            <strong>
-              {step.concluido ? (
-                <CheckCircle2 size={16} aria-hidden="true" />
-              ) : (
-                index + 1
-              )}
-            </strong>
-            {step.label}
-          </>
-        );
+    <div className={`proposal-wizard-nav ${sticky ? "is-sticky" : ""}`}>
+      <details className="proposal-wizard-mobile-steps">
+        <summary>
+          <span className="proposal-wizard-mobile-copy">
+            <small>
+              Etapa {etapaAtivaIndex + 1} de {etapas.length}
+            </small>
+            <strong>{etapaAtual?.label ?? "Proposta"}</strong>
+          </span>
+          <span className="proposal-wizard-mobile-meta">
+            Ver etapas
+          </span>
+          <span className="proposal-wizard-mobile-chevron" aria-hidden="true">
+            <ChevronDown size={17} />
+          </span>
+        </summary>
+        <div className="proposal-wizard-mobile-progress" aria-hidden="true">
+          <span style={{ width: `${progressoPercentual}%` }} />
+        </div>
+        <div className="proposal-wizard-mobile-list" aria-label="Etapas da nova proposta">
+          {etapas.map(renderEtapa)}
+        </div>
+      </details>
 
-        if (!onEtapaClick) {
-          return (
-            <span
-              key={step.id}
-              className={`${ativo ? "is-active" : ""} ${
-                step.concluido ? "is-complete" : ""
-              }`}
-            >
-              {conteudo}
-            </span>
-          );
-        }
-
-        return (
-          <button
-            key={step.id}
-            type="button"
-            disabled={step.bloqueado}
-            onClick={() => onEtapaClick(step.id)}
-            className={`${ativo ? "is-active" : ""} ${
-              step.concluido ? "is-complete" : ""
-            }`}
-          >
-            {conteudo}
-          </button>
-        );
-      })}
+      <div
+        className="proposal-wizard-steps"
+        aria-label="Etapas da nova proposta"
+      >
+        {etapas.map(renderEtapa)}
+      </div>
     </div>
+  );
+}
+
+function PropostaWizardMobileDock({
+  etapaAtual,
+  etapaLabel,
+  totalEtapas,
+  isPrimeiraEtapa,
+  isRevisao,
+  podeSalvar,
+  salvando,
+  podeGerar,
+  gerando,
+  onVoltar,
+  onProximo,
+  onGerar,
+}: {
+  etapaAtual: number;
+  etapaLabel: string;
+  totalEtapas: number;
+  isPrimeiraEtapa: boolean;
+  isRevisao: boolean;
+  podeSalvar: boolean;
+  salvando: boolean;
+  podeGerar: boolean;
+  gerando: boolean;
+  onVoltar: () => void;
+  onProximo: () => void;
+  onGerar: () => void;
+}) {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  return createPortal(
+    <div className="proposal-mobile-step-dock no-print" aria-label="Navegacao da etapa">
+      <div className="proposal-mobile-step-dock-copy">
+        <span>
+          Etapa {etapaAtual} de {totalEtapas}
+        </span>
+        <strong>{etapaLabel}</strong>
+      </div>
+      <div className="proposal-mobile-step-dock-actions">
+        {!isPrimeiraEtapa ? (
+          <button
+            type="button"
+            onClick={onVoltar}
+            className="proposal-mobile-step-dock-button"
+          >
+            <ArrowRight className="rotate-180" size={16} aria-hidden="true" />
+            Voltar
+          </button>
+        ) : null}
+        {isRevisao ? (
+          podeGerar ? (
+            <button
+              type="button"
+              onClick={onGerar}
+              disabled={gerando}
+              className="proposal-mobile-step-dock-button is-primary"
+            >
+              <CheckCircle2 size={16} aria-hidden="true" />
+              {gerando ? "Gerando..." : "Gerar"}
+            </button>
+          ) : (
+            <button
+              type="submit"
+              form="proposta-editor-form"
+              disabled={!podeSalvar || salvando}
+              className="proposal-mobile-step-dock-button is-primary"
+            >
+              <Save size={16} aria-hidden="true" />
+              {salvando ? "Salvando..." : "Salvar"}
+            </button>
+          )
+        ) : (
+          <button
+            type="button"
+            onClick={onProximo}
+            className="proposal-mobile-step-dock-button is-primary"
+          >
+            Proximo
+            <ArrowRight size={16} aria-hidden="true" />
+          </button>
+        )}
+      </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -10024,7 +11160,7 @@ function DashboardContent({
               className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-primary px-5 text-sm font-semibold text-white shadow-sm"
             >
               <Plus size={18} aria-hidden="true" />
-              Cadastrar proposta
+              Nova proposta
             </button>
             <button
               type="button"
@@ -10235,75 +11371,129 @@ function PrimeirosPassosDashboard({
   passos: PassoPrimeirosPassosDashboard[];
 }) {
   const passosConcluidos = passos.filter((passo) => passo.concluido).length;
+  const progressoPercentual = Math.round(
+    (passosConcluidos / Math.max(passos.length, 1)) * 100,
+  );
+  const passoAtualIndex = passos.findIndex((passo) => !passo.concluido);
+  const todosConcluidos = passoAtualIndex === -1;
+  const indiceAtual = todosConcluidos ? passos.length - 1 : passoAtualIndex;
   const passoAtual =
-    passos.find((passo) => !passo.concluido) ?? passos[passos.length - 1];
+    passos[indiceAtual] ?? passos[passos.length - 1];
 
   return (
-    <section className="rounded-md border border-border bg-surface p-5">
+    <section className="rounded-md border border-border bg-surface p-4 shadow-sm sm:p-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <p className="text-sm font-medium text-accent">Primeiros passos</p>
-          <h2 className="mt-1 font-heading text-xl font-semibold leading-7">
-            {passosConcluidos} de {passos.length} etapas concluídas
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-accent">Primeiros passos</p>
+          <h2 className="mt-1 font-heading text-xl font-semibold leading-7 text-slate-950">
+            Fluxo guiado de teste
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
-            Complete o mínimo operacional para cadastrar, montar e acompanhar
-            uma proposta no MVP.
+            {passosConcluidos} de {passos.length} etapas concluídas. Continue
+            pelo próximo passo para aprender o ciclo completo: cliente, serviço
+            e proposta.
           </p>
         </div>
         <button
           type="button"
           onClick={passoAtual.onClick}
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white transition hover:bg-blue-700"
+          className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 sm:w-auto"
         >
-          {passoAtual.concluido ? "Criar nova proposta" : passoAtual.acaoLabel}
+          {todosConcluidos
+            ? "Criar nova proposta"
+            : `Continuar: ${passoAtual.acaoLabel.toLowerCase()}`}
           <ArrowRight size={16} aria-hidden="true" />
         </button>
       </div>
 
-      <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        {passos.map((passo, index) => (
-          <article
-            key={passo.id}
-            className={`rounded-md border p-4 ${
-              passo.concluido
-                ? "border-emerald-200 bg-emerald-50"
-                : "border-border"
-            }`}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold uppercase text-muted">
-                  Etapa {index + 1}
-                </p>
-                <h3 className="mt-2 font-heading text-base font-semibold">
-                  {passo.titulo}
-                </h3>
-              </div>
-              {passo.concluido ? (
-                <CheckCircle2
-                  className="shrink-0 text-emerald-600"
-                  size={20}
-                  aria-hidden="true"
-                />
-              ) : (
-                <span className="inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded-md border border-border px-2 text-xs font-semibold text-muted">
-                  {index + 1}
-                </span>
-              )}
-            </div>
-            <p className="mt-3 min-h-10 text-sm leading-5 text-muted">
-              {passo.detalhe}
-            </p>
-            <button
-              type="button"
-              onClick={passo.onClick}
-              className="mt-4 inline-flex h-11 items-center justify-center gap-2 rounded-md border border-border px-4 text-sm font-semibold transition hover:border-primary hover:text-primary"
+      <div className="mt-4">
+        <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+          <div
+            className="h-full rounded-full bg-primary transition-all"
+            style={{ width: `${progressoPercentual}%` }}
+          />
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-3 lg:grid-cols-4">
+        {passos.map((passo, index) => {
+          const estaAtual = index === indiceAtual && !passo.concluido;
+          const estaBloqueado = !passo.concluido && index > indiceAtual;
+          const statusLabel = passo.concluido
+            ? "Concluído"
+            : estaAtual
+            ? "Agora"
+            : "Depois";
+
+          return (
+            <article
+              key={passo.id}
+              className={`rounded-md border p-4 transition ${
+                passo.concluido
+                  ? "border-emerald-200 bg-emerald-50"
+                  : estaAtual
+                  ? "border-primary bg-violet-50 shadow-sm"
+                  : "border-border bg-white"
+              } ${estaBloqueado ? "opacity-70" : ""}`}
             >
-              {passo.concluido ? "Revisar" : passo.acaoLabel}
-            </button>
-          </article>
-        ))}
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase text-muted">
+                    Etapa {index + 1}
+                  </p>
+                  <h3 className="mt-1 font-heading text-base font-semibold leading-6 text-slate-950">
+                    {passo.titulo}
+                  </h3>
+                </div>
+                {passo.concluido ? (
+                  <CheckCircle2
+                    className="shrink-0 text-emerald-600"
+                    size={20}
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <span
+                    className={`inline-flex h-7 min-w-7 shrink-0 items-center justify-center rounded-md border px-2 text-xs font-semibold ${
+                      estaAtual
+                        ? "border-primary bg-primary text-white"
+                        : "border-border bg-white text-muted"
+                    }`}
+                  >
+                    {index + 1}
+                  </span>
+                )}
+              </div>
+              <p className="mt-3 text-sm leading-5 text-muted">{passo.detalhe}</p>
+              <div className="mt-4 flex items-center justify-between gap-3">
+                <span
+                  className={`text-xs font-semibold uppercase ${
+                    passo.concluido
+                      ? "text-emerald-700"
+                      : estaAtual
+                      ? "text-primary"
+                      : "text-muted"
+                  }`}
+                >
+                  {statusLabel}
+                </span>
+                <button
+                  type="button"
+                  onClick={passo.onClick}
+                  disabled={estaBloqueado}
+                  className={`inline-flex h-10 items-center justify-center rounded-md px-3 text-sm font-semibold transition ${
+                    passo.concluido
+                      ? "border border-emerald-200 text-emerald-800 hover:border-emerald-300"
+                      : estaAtual
+                      ? "bg-primary text-white hover:bg-blue-700"
+                      : "border border-border text-muted"
+                  } disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400`}
+                >
+                  {passo.concluido ? "Revisar" : passo.acaoLabel}
+                </button>
+              </div>
+            </article>
+          );
+        })}
       </div>
     </section>
   );
@@ -10400,24 +11590,246 @@ function buildMetricasDashboard(
   ];
 }
 
+function ContatoPublicoContent({
+  contatoPublicoForm,
+  contatoPublicoMutation,
+}: {
+  contatoPublicoForm: UseFormReturn<ContatoPublicoFormInput>;
+  contatoPublicoMutation: ReturnType<
+    typeof useMutation<ContatoPublicoResponse, Error, CreateContatoPublicoInput>
+  >;
+}) {
+  const errors = contatoPublicoForm.formState.errors;
+
+  return (
+    <section className="mx-auto grid w-full max-w-5xl gap-5 py-2">
+      <div className="grid gap-2">
+        <span className="inline-flex w-fit items-center gap-2 rounded-md border border-blue-100 bg-blue-50 px-3 py-1 text-sm font-semibold text-primary">
+          <HeartHandshake size={16} aria-hidden="true" />
+          Suporte Emprely
+        </span>
+        <h1 className="font-heading text-3xl font-semibold text-foreground">
+          Fale com a Emprely
+        </h1>
+        <p className="max-w-2xl text-sm leading-6 text-muted">
+          Use este canal para duvidas, compra, Plano Fundador ou suporte antes de entrar no sistema.
+        </p>
+      </div>
+
+      <form
+        className="grid gap-4 rounded-md border border-border bg-surface p-5 shadow-sm"
+        onSubmit={contatoPublicoForm.handleSubmit((input) =>
+          contatoPublicoMutation.mutate(input),
+        )}
+      >
+        <div className="grid gap-4 md:grid-cols-2">
+          <CampoTexto
+            label="Nome"
+            autoComplete="name"
+            error={errors.nome?.message}
+            {...contatoPublicoForm.register("nome")}
+          />
+          <CampoTexto
+            label="E-mail"
+            type="email"
+            autoComplete="email"
+            error={errors.email?.message}
+            {...contatoPublicoForm.register("email")}
+          />
+          <CampoTexto
+            label="Telefone"
+            autoComplete="tel"
+            placeholder="(11) 99999-9999"
+            error={errors.telefone?.message}
+            {...buildTelefoneInputProps(
+              contatoPublicoForm.register("telefone", telefoneInputRegisterOptions),
+            )}
+          />
+          <CampoTexto
+            label="Empresa"
+            autoComplete="organization"
+            error={errors.empresa?.message}
+            {...contatoPublicoForm.register("empresa")}
+          />
+          <CampoSelect
+            label="Interesse"
+            error={errors.interesse?.message}
+            {...contatoPublicoForm.register("interesse")}
+          >
+            <option value="duvida">Tirar duvida</option>
+            <option value="compra">Compra</option>
+            <option value="plano-fundador">Plano Fundador</option>
+            <option value="suporte">Suporte</option>
+            <option value="outro">Outro</option>
+          </CampoSelect>
+        </div>
+
+        <CampoTextarea
+          label="Mensagem"
+          rows={7}
+          error={errors.mensagem?.message}
+          {...contatoPublicoForm.register("mensagem")}
+        />
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+          <MensagemErro error={contatoPublicoMutation.error} />
+          <button
+            type="submit"
+            disabled={contatoPublicoMutation.isPending}
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <Send size={18} aria-hidden="true" />
+            {contatoPublicoMutation.isPending ? "Enviando..." : "Enviar mensagem"}
+          </button>
+        </div>
+      </form>
+    </section>
+  );
+}
+
 function AuthContent({
   authMode,
   setAuthMode,
   registerForm,
   loginForm,
+  recuperarSenhaForm,
+  resetSenhaForm,
   registerMutation,
   loginMutation,
+  confirmEmailMutation,
+  confirmChangeEmailMutation,
+  resendConfirmacaoMutation,
+  forgotSenhaMutation,
+  resetSenhaMutation,
+  authEmailPendente,
+  authUrlParams,
 }: {
   authMode: AuthMode;
   setAuthMode: (authMode: AuthMode) => void;
   registerForm: ReturnType<typeof useForm<RegisterUsuarioInput>>;
   loginForm: ReturnType<typeof useForm<LoginUsuarioInput>>;
-  registerMutation: ReturnType<typeof useMutation<AuthUsuarioResponse, Error, RegisterUsuarioInput>>;
+  recuperarSenhaForm: ReturnType<typeof useForm<EmailUsuarioFormInput>>;
+  resetSenhaForm: ReturnType<typeof useForm<ResetSenhaUsuarioFormInput>>;
+  registerMutation: ReturnType<typeof useMutation<RegisterUsuarioResponse, Error, RegisterUsuarioInput>>;
   loginMutation: ReturnType<typeof useMutation<AuthUsuarioResponse, Error, LoginUsuarioInput>>;
+  confirmEmailMutation: ReturnType<typeof useMutation<void, Error, { usuarioId: string; token: string }>>;
+  confirmChangeEmailMutation: ReturnType<typeof useMutation<void, Error, { usuarioId: string; token: string }>>;
+  resendConfirmacaoMutation: ReturnType<typeof useMutation<void, Error, EmailUsuarioInput>>;
+  forgotSenhaMutation: ReturnType<typeof useMutation<void, Error, EmailUsuarioInput>>;
+  resetSenhaMutation: ReturnType<typeof useMutation<void, Error, ResetSenhaUsuarioInput>>;
+  authEmailPendente: string;
+  authUrlParams: { usuarioId: string; token: string };
 }) {
   const isCadastro = authMode === "cadastro";
+  const isLogin = authMode === "login";
   const [senhaCadastroVisivel, setSenhaCadastroVisivel] = useState(false);
   const [senhaLoginVisivel, setSenhaLoginVisivel] = useState(false);
+  const [senhaResetVisivel, setSenhaResetVisivel] = useState(false);
+
+  const renderConfirmacaoPendente = () => (
+    <div className="auth-form-fields auth-form-fields-login">
+      <div className="rounded-md border border-blue-100 bg-blue-50 p-4 text-sm text-blue-950">
+        <strong className="block">Confirme seu email</strong>
+        <span>
+          Enviamos um link para {authEmailPendente || "seu email"}. Confirme antes de entrar.
+        </span>
+      </div>
+      <button
+        type="button"
+        onClick={() =>
+          resendConfirmacaoMutation.mutate({
+            email: authEmailPendente || registerForm.getValues("email"),
+          })
+        }
+        disabled={resendConfirmacaoMutation.isPending}
+        className="inline-flex h-11 items-center justify-center rounded-md border border-border px-4 text-sm font-semibold"
+      >
+        Reenviar confirmação
+      </button>
+      <MensagemErro error={resendConfirmacaoMutation.error} />
+    </div>
+  );
+
+  const renderConfirmarEmail = () => (
+    <div className="auth-form-fields auth-form-fields-login">
+      <p className="text-sm text-muted">Confirme o link para ativar seu acesso ao Emprely.</p>
+      <button
+        type="button"
+        disabled={confirmEmailMutation.isPending}
+        onClick={() => confirmEmailMutation.mutate(authUrlParams)}
+        className="inline-flex h-11 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-semibold !text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {confirmEmailMutation.isPending ? "Processando..." : "Confirmar email"}
+      </button>
+      <MensagemErro error={confirmEmailMutation.error} mensagem="Link de confirmação inválido ou expirado." />
+      <button type="button" onClick={() => setAuthMode("login")} className="text-sm font-semibold text-primary">
+        Voltar para login
+      </button>
+    </div>
+  );
+
+  const renderConfirmarAlteracaoEmail = () => (
+    <div className="auth-form-fields auth-form-fields-login">
+      <p className="text-sm text-muted">Confirme o novo email de acesso.</p>
+      <button
+        type="button"
+        disabled={confirmChangeEmailMutation.isPending}
+        onClick={() => confirmChangeEmailMutation.mutate(authUrlParams)}
+        className="inline-flex h-11 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {confirmChangeEmailMutation.isPending ? "Processando..." : "Confirmar novo email"}
+      </button>
+      <MensagemErro error={confirmChangeEmailMutation.error} mensagem="Link de alteração inválido ou expirado." />
+    </div>
+  );
+
+  const renderRecuperarSenha = () => (
+    <form
+      className="auth-form-fields auth-form-fields-login"
+      onSubmit={recuperarSenhaForm.handleSubmit((input) => forgotSenhaMutation.mutate(input))}
+    >
+      <CampoTexto
+        label="E-mail"
+        type="email"
+        autoComplete="email"
+        error={recuperarSenhaForm.formState.errors.email?.message}
+        {...recuperarSenhaForm.register("email")}
+      />
+      <SubmitButton label="Enviar link de recuperação" loading={forgotSenhaMutation.isPending} />
+      <MensagemErro error={forgotSenhaMutation.error} />
+      <button type="button" onClick={() => setAuthMode("login")} className="text-sm font-semibold text-primary">
+        Voltar para login
+      </button>
+    </form>
+  );
+
+  const renderRedefinirSenha = () => (
+    <form
+      className="auth-form-fields auth-form-fields-login"
+      onSubmit={resetSenhaForm.handleSubmit((input) => resetSenhaMutation.mutate(input))}
+    >
+      <input type="hidden" {...resetSenhaForm.register("usuarioId")} />
+      <input type="hidden" {...resetSenhaForm.register("token")} />
+      <CampoSenhaAuth
+        label="Nova senha"
+        autoComplete="new-password"
+        senhaVisivel={senhaResetVisivel}
+        onToggleSenhaVisivel={() => setSenhaResetVisivel((visivel) => !visivel)}
+        error={resetSenhaForm.formState.errors.novaSenha?.message}
+        {...resetSenhaForm.register("novaSenha")}
+      />
+      <CampoSenhaAuth
+        label="Confirmar nova senha"
+        autoComplete="new-password"
+        senhaVisivel={senhaResetVisivel}
+        onToggleSenhaVisivel={() => setSenhaResetVisivel((visivel) => !visivel)}
+        error={resetSenhaForm.formState.errors.confirmarNovaSenha?.message}
+        {...resetSenhaForm.register("confirmarNovaSenha")}
+      />
+      <SubmitButton label="Redefinir senha" loading={resetSenhaMutation.isPending} />
+      <MensagemErro error={resetSenhaMutation.error} mensagem="Link de redefinição inválido ou expirado." />
+    </form>
+  );
 
   return (
     <section className={`auth-isolated-page auth-motion-surface auth-mode-${authMode}`}>
@@ -10480,9 +11892,7 @@ function AuthContent({
               {isCadastro ? "Teste grátis por 7 dias" : "Conexão segura"}
             </span>
             <h1 id="auth-title">
-              {isCadastro
-                ? "Teste o Emprely antes de escolher seu plano"
-                : "Bem-vindo de volta"}
+              {isCadastro ? "Teste o Emprely antes de escolher seu plano" : authMode === "recuperar-senha" ? "Recupere sua senha" : authMode === "redefinir-senha" ? "Crie uma nova senha" : "Bem-vindo de volta"}
             </h1>
           </div>
 
@@ -10495,9 +11905,9 @@ function AuthContent({
             <button
               type="button"
               role="tab"
-              aria-selected={!isCadastro}
+              aria-selected={isLogin}
               onClick={() => setAuthMode("login")}
-              className={!isCadastro ? "is-active" : ""}
+              className={isLogin ? "is-active" : ""}
             >
               Entrar
             </button>
@@ -10511,6 +11921,12 @@ function AuthContent({
               Testar 7 dias
             </button>
           </div>
+
+          {authMode === "confirmacao-pendente" ? renderConfirmacaoPendente() : null}
+          {authMode === "confirmar-email" ? renderConfirmarEmail() : null}
+          {authMode === "confirmar-alteracao-email" ? renderConfirmarAlteracaoEmail() : null}
+          {authMode === "recuperar-senha" ? renderRecuperarSenha() : null}
+          {authMode === "redefinir-senha" ? renderRedefinirSenha() : null}
 
           {isCadastro ? (
             <form
@@ -10576,7 +11992,7 @@ function AuthContent({
               </p>
               <MensagemErro error={registerMutation.error} />
             </form>
-          ) : (
+          ) : isLogin ? (
             <form
               key="login"
               className="auth-form-fields auth-form-fields-login"
@@ -10603,9 +12019,9 @@ function AuthContent({
                 {...loginForm.register("senha")}
               />
               <div className="auth-login-actions">
-                <a href="mailto:suporte@emprely.com.br?subject=Recuperar%20acesso%20ao%20Emprely">
+                <button type="button" onClick={() => setAuthMode("recuperar-senha")}>
                   Esqueci minha senha
-                </a>
+                </button>
               </div>
               <SubmitButton
                 label="Entrar na conta"
@@ -10613,10 +12029,20 @@ function AuthContent({
               />
               <MensagemErro
                 error={loginMutation.error}
-                mensagem="Não encontramos uma conta com esses dados."
               />
+              {loginMutation.error?.message.includes("Confirme") ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    resendConfirmacaoMutation.mutate({ email: loginForm.getValues("email") })
+                  }
+                  className="text-sm font-semibold text-primary"
+                >
+                  Reenviar email de confirmação
+                </button>
+              ) : null}
             </form>
-          )}
+          ) : null}
 
           <p className="auth-switch-copy">
             {isCadastro ? "Já usa o Emprely?" : "Novo no Emprely?"}{" "}
@@ -10638,6 +12064,38 @@ function getTemaVisualInicial(): TemaVisual {
   const temaSalvo = window.localStorage.getItem(temaVisualStorageKey);
 
   return temaSalvo === "dark" ? "dark" : "light";
+}
+
+function isSuportePublicoPath(): boolean {
+  const pathname = window.location.pathname.toLowerCase().replace(/\/+$/, "");
+  return pathname === "/suporte";
+}
+
+function getAuthModeInicial(): AuthMode {
+  const auth = new URLSearchParams(window.location.search).get("auth");
+
+  if (auth === "confirm-email") {
+    return "confirmar-email";
+  }
+
+  if (auth === "reset-password") {
+    return "redefinir-senha";
+  }
+
+  if (auth === "confirm-change-email") {
+    return "confirmar-alteracao-email";
+  }
+
+  return "login";
+}
+
+function getAuthUrlParams() {
+  const params = new URLSearchParams(window.location.search);
+
+  return {
+    usuarioId: params.get("userId") ?? "",
+    token: params.get("token") ?? "",
+  };
 }
 
 function readSessaoInicialUsuario(): SessaoInicialUsuario {
@@ -10964,6 +12422,10 @@ function getPrimeiraEtapaPendenteProposta(
     return "itens";
   }
 
+  if (!input.templateVisual) {
+    return "template";
+  }
+
   const subtotal = calcularTotalItens(
     itens.map((item) => ({
       quantidade: item?.quantidade,
@@ -10984,6 +12446,15 @@ function calcularTotalItens(
 
     return total + quantidade * valorUnitario;
   }, 0);
+}
+
+function getSubtotalProposta(proposta: PropostaResponse): number {
+  return calcularTotalItens(
+    proposta.itens.map((item) => ({
+      quantidade: item.quantidade,
+      valorUnitario: item.valorUnitario,
+    })),
+  );
 }
 
 function calcularTotalProposta(subtotal: number, desconto: number): number {
@@ -11406,7 +12877,7 @@ function buildMensagemWhatsappPropostaCompleta(
   linhas.push(
     "",
     "Resumo financeiro",
-    `Subtotal: ${formatMoney(proposta.subtotal)}`,
+    `Subtotal: ${formatMoney(getSubtotalProposta(proposta))}`,
   );
 
   if (proposta.descontoValor > 0) {
@@ -11835,6 +13306,21 @@ function getMensagemBloqueioPlano(
   }
 
   return "Trial expirado. Ative o plano para gerar, imprimir ou compartilhar propostas.";
+}
+
+function getAppViewLabel(view: AppView): string {
+  const labels: Record<AppView, string> = {
+    dashboard: "Dashboard",
+    clientes: "Clientes",
+    servicos: "Servicos",
+    propostas: "Propostas",
+    conta: "Configuracoes",
+    personalizacao: "Personalizacao",
+    suporte: "Suporte",
+    adminEmails: "Admin emails",
+  };
+
+  return labels[view];
 }
 
 function formatTrialConta(conta: ContaAtualResponse): string {

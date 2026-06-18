@@ -1,15 +1,47 @@
 import type {
+  AdminAlterarPlanoContaInput,
+  AdminAlterarPerfilAdminInput,
+  AdminContaCriadaResponse,
+  AdminCriarContaInput,
+  AdminCriarAdminInput,
+  AdminCriarUsuarioInput,
+  AdminDiasGratisContaInput,
+  AdminDiasGratisLoteInput,
+  AdminEmailPersonalizadoInput,
+  AdminEmailHistoricoResponse,
+  AdminLoginInput,
+  AdminLoginResponse,
+  AdminMotivoInput,
+  AdminPainelAdminResponse,
+  AdminResendConfirmacaoEmailInput,
+  AdminSuspenderContaInput,
+  AdminUsuarioDetalheResponse,
+  AdminUsuarioResumoResponse,
+  AdminUsuariosFiltros,
+  AdminUsuariosPainelResponse,
+} from "@/types/admin";
+import type {
   LogoPerfilUploadResponse,
   PerfilContaResponse,
   UpdatePerfilContaInput,
 } from "@/types/account";
 import type {
   AuthUsuarioResponse,
+  ChangeEmailUsuarioInput,
   ChangeSenhaUsuarioInput,
+  EmailUsuarioInput,
   LoginUsuarioInput,
   MeUsuarioResponse,
   RegisterUsuarioInput,
+  RegisterUsuarioResponse,
+  ResetSenhaUsuarioInput,
 } from "@/types/auth";
+import type {
+  ContatoPublicoResponse,
+  CreateContatoPublicoInput,
+  CreateSuporteSolicitacaoInput,
+  SuporteSolicitacaoResponse,
+} from "@/types/support";
 import type {
   ClienteResponse,
   CreateClienteInput,
@@ -62,8 +94,53 @@ function getApiBaseUrl(): string {
 
 export async function registerUsuario(
   input: RegisterUsuarioInput,
-): Promise<AuthUsuarioResponse> {
-  return apiFetch<AuthUsuarioResponse>("/api/auth/register", {
+): Promise<RegisterUsuarioResponse> {
+  return apiFetch<RegisterUsuarioResponse>("/api/auth/register", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function confirmEmailUsuario(input: {
+  usuarioId: string;
+  token: string;
+}): Promise<void> {
+  return apiFetch<void>("/api/auth/confirm-email", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function resendConfirmacaoEmail(
+  input: EmailUsuarioInput,
+): Promise<void> {
+  return apiFetch<void>("/api/auth/resend-confirmation", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function forgotSenhaUsuario(input: EmailUsuarioInput): Promise<void> {
+  return apiFetch<void>("/api/auth/forgot-password", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function resetSenhaUsuario(
+  input: ResetSenhaUsuarioInput,
+): Promise<void> {
+  return apiFetch<void>("/api/auth/reset-password", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function confirmChangeEmailUsuario(input: {
+  usuarioId: string;
+  token: string;
+}): Promise<void> {
+  return apiFetch<void>("/api/auth/confirm-change-email", {
     method: "POST",
     body: JSON.stringify(input),
   });
@@ -100,6 +177,349 @@ export async function changeSenhaUsuario(
     },
     { token },
   );
+}
+
+export async function changeEmailUsuario(
+  input: ChangeEmailUsuarioInput,
+  token: string,
+): Promise<void> {
+  return apiFetch<void>(
+    "/api/me/email",
+    {
+      method: "PUT",
+      body: JSON.stringify(input),
+    },
+    { token },
+  );
+}
+
+export async function createSuporteSolicitacao(
+  input: CreateSuporteSolicitacaoInput,
+  token: string,
+): Promise<SuporteSolicitacaoResponse> {
+  return apiFetch<SuporteSolicitacaoResponse>(
+    "/api/support",
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+    { token },
+  );
+}
+
+export async function createContatoPublico(
+  input: CreateContatoPublicoInput,
+): Promise<ContatoPublicoResponse> {
+  return apiFetch<ContatoPublicoResponse>("/api/support/public", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function getAdminEmailsHistorico(
+  adminKey: string,
+): Promise<AdminEmailHistoricoResponse[]> {
+  return apiFetch<AdminEmailHistoricoResponse[]>("/api/admin/emails", {
+    method: "GET",
+    headers: {
+      "X-Emprely-Admin-Key": adminKey,
+    },
+  });
+}
+
+export async function adminResendConfirmacaoEmail(
+  input: AdminResendConfirmacaoEmailInput,
+  adminKey: string,
+): Promise<void> {
+  return apiFetch<void>("/api/admin/emails/resend-confirmation", {
+    method: "POST",
+    headers: {
+      "X-Emprely-Admin-Key": adminKey,
+    },
+    body: JSON.stringify(input),
+  });
+}
+
+export async function adminLogin(
+  input: AdminLoginInput,
+): Promise<AdminLoginResponse> {
+  return apiFetch<AdminLoginResponse>("/api/admin/auth/login", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function getAdminAdmins(token: string): Promise<AdminPainelAdminResponse[]> {
+  return apiFetch<AdminPainelAdminResponse[]>(
+    "/api/admin/admins",
+    {
+      method: "GET",
+    },
+    { token },
+  );
+}
+
+export async function adminCriarAdmin(
+  input: AdminCriarAdminInput,
+  token: string,
+): Promise<AdminPainelAdminResponse> {
+  return apiFetch<AdminPainelAdminResponse>(
+    "/api/admin/admins",
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+    { token },
+  );
+}
+
+export async function adminAlterarPerfilAdmin(
+  adminId: string,
+  input: AdminAlterarPerfilAdminInput,
+  token: string,
+): Promise<void> {
+  return apiFetch<void>(
+    `/api/admin/admins/${adminId}/perfil`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+    { token },
+  );
+}
+
+export async function adminBloquearAdmin(
+  adminId: string,
+  input: AdminMotivoInput,
+  token: string,
+): Promise<void> {
+  return apiFetch<void>(
+    `/api/admin/admins/${adminId}/bloquear`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+    { token },
+  );
+}
+
+export async function adminDesbloquearAdmin(
+  adminId: string,
+  input: AdminMotivoInput,
+  token: string,
+): Promise<void> {
+  return apiFetch<void>(
+    `/api/admin/admins/${adminId}/desbloquear`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+    { token },
+  );
+}
+
+export async function getAdminUsuarios(
+  filtros: AdminUsuariosFiltros,
+  token: string,
+): Promise<AdminUsuariosPainelResponse> {
+  const params = new URLSearchParams();
+  Object.entries(filtros).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && String(value).trim() !== "") {
+      params.set(key, String(value));
+    }
+  });
+
+  return apiFetch<AdminUsuariosPainelResponse>(
+    `/api/admin/usuarios?${params.toString()}`,
+    {
+      method: "GET",
+    },
+    { token },
+  );
+}
+
+export async function getAdminUsuarioDetalhe(
+  usuarioId: string,
+  token: string,
+): Promise<AdminUsuarioDetalheResponse> {
+  return apiFetch<AdminUsuarioDetalheResponse>(
+    `/api/admin/usuarios/${usuarioId}`,
+    {
+      method: "GET",
+    },
+    { token },
+  );
+}
+
+export async function adminCriarUsuario(
+  input: AdminCriarUsuarioInput,
+  token: string,
+): Promise<AdminUsuarioResumoResponse> {
+  return apiFetch<AdminUsuarioResumoResponse>(
+    "/api/admin/usuarios",
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+    { token },
+  );
+}
+
+export async function adminCriarConta(
+  input: AdminCriarContaInput,
+  token: string,
+): Promise<AdminContaCriadaResponse> {
+  return apiFetch<AdminContaCriadaResponse>(
+    "/api/admin/contas",
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+    { token },
+  );
+}
+
+export async function adminBloquearUsuario(
+  usuarioId: string,
+  input: AdminMotivoInput,
+  token: string,
+): Promise<void> {
+  return apiFetch<void>(
+    `/api/admin/usuarios/${usuarioId}/bloquear`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+    { token },
+  );
+}
+
+export async function adminDesbloquearUsuario(
+  usuarioId: string,
+  input: AdminMotivoInput,
+  token: string,
+): Promise<void> {
+  return apiFetch<void>(
+    `/api/admin/usuarios/${usuarioId}/desbloquear`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+    { token },
+  );
+}
+
+export async function adminAlterarPlanoConta(
+  contaId: string,
+  input: AdminAlterarPlanoContaInput,
+  token: string,
+): Promise<void> {
+  return apiFetch<void>(
+    `/api/admin/contas/${contaId}/plano`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+    { token },
+  );
+}
+
+export async function adminCriarDiasGratisConta(
+  contaId: string,
+  input: AdminDiasGratisContaInput,
+  token: string,
+): Promise<void> {
+  return apiFetch<void>(
+    `/api/admin/contas/${contaId}/dias-gratis`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+    { token },
+  );
+}
+
+export async function adminCriarDiasGratisLote(
+  input: AdminDiasGratisLoteInput,
+  token: string,
+): Promise<void> {
+  return apiFetch<void>(
+    "/api/admin/contas/dias-gratis/lote",
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+    { token },
+  );
+}
+
+export async function adminSuspenderConta(
+  contaId: string,
+  input: AdminSuspenderContaInput,
+  token: string,
+): Promise<void> {
+  return apiFetch<void>(
+    `/api/admin/contas/${contaId}/suspender`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+    { token },
+  );
+}
+
+export async function adminReativarConta(
+  contaId: string,
+  input: AdminMotivoInput,
+  token: string,
+): Promise<void> {
+  return apiFetch<void>(
+    `/api/admin/contas/${contaId}/reativar`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+    { token },
+  );
+}
+
+export async function adminEnviarEmailPersonalizado(
+  input: AdminEmailPersonalizadoInput,
+  token: string,
+): Promise<void> {
+  return apiFetch<void>(
+    "/api/admin/usuarios/emails/personalizado",
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+    { token },
+  );
+}
+
+export async function adminDownloadUsuariosCsv(
+  token: string,
+  filtros: AdminUsuariosFiltros = {},
+): Promise<Blob> {
+  const params = new URLSearchParams();
+  Object.entries(filtros).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && String(value).trim() !== "") {
+      params.set(key, String(value));
+    }
+  });
+
+  const query = params.toString();
+  const response = await fetch(`${apiBaseUrl}/api/admin/usuarios/export.csv${query ? `?${query}` : ""}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new ApiErro(response.status, await getMensagemErroApi(response));
+  }
+
+  return response.blob();
 }
 
 export async function getPerfilContaAtual(
@@ -398,11 +818,17 @@ async function apiFetch<TResponse>(
   });
 
   if (!response.ok) {
-    if (response.status === 401 && options.token) {
+    const mensagemErro = await getMensagemErroApi(response);
+
+    if (
+      options.token &&
+      (response.status === 401 ||
+        (response.status === 403 && isErroAcessoConta(mensagemErro)))
+    ) {
       window.dispatchEvent(new CustomEvent(sessaoInvalidaEventName));
     }
 
-    throw new ApiErro(response.status, await getMensagemErroApi(response));
+    throw new ApiErro(response.status, mensagemErro);
   }
 
   if (response.status === 204) {
@@ -413,7 +839,7 @@ async function apiFetch<TResponse>(
 }
 
 async function getMensagemErroApi(response: Response): Promise<string> {
-  const fallback = `Erro ${response.status}`;
+  const fallback = getFallbackMensagemErroApi(response.status);
 
   try {
     const payload = (await response.json()) as {
@@ -430,4 +856,28 @@ async function getMensagemErroApi(response: Response): Promise<string> {
   } catch {
     return fallback;
   }
+}
+
+function getFallbackMensagemErroApi(status: number): string {
+  if (status === 429) {
+    return "Muitas tentativas em pouco tempo. Aguarde alguns instantes e tente novamente.";
+  }
+
+  if (status === 400) {
+    return "Revise os campos informados.";
+  }
+
+  if (status === 401) {
+    return "Sessao expirada ou acesso nao autorizado.";
+  }
+
+  if (status === 403) {
+    return "Voce nao tem permissao para executar esta acao.";
+  }
+
+  return `Erro ${status}`;
+}
+
+function isErroAcessoConta(mensagem: string): boolean {
+  return mensagem === "Conta Bloqueada" || mensagem === "Conta Suspensa";
 }
