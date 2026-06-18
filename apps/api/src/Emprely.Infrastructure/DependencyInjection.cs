@@ -1,4 +1,7 @@
+using Emprely.Application.Comunicacoes;
+using Emprely.Infrastructure.Comunicacoes;
 using Emprely.Infrastructure.Persistence;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,6 +23,14 @@ public static class DependencyInjection
 
         services.AddDbContext<EmprelyDbContext>(options =>
             options.UseNpgsql(connectionString));
+
+        services.AddDataProtection()
+            .SetApplicationName("Emprely")
+            .PersistKeysToDbContext<EmprelyDbContext>();
+
+        services.Configure<AppPublicOptions>(configuration.GetSection(AppPublicOptions.SectionName));
+        services.Configure<EmailTransacionalOptions>(configuration.GetSection(EmailTransacionalOptions.SectionName));
+        services.AddScoped<IEmailTransacionalService, EmailTransacionalService>();
 
         return services;
     }

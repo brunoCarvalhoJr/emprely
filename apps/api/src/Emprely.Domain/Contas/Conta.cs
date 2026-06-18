@@ -74,6 +74,31 @@ public sealed class Conta : EntidadeBase
         UpdatedAt = agora;
     }
 
+    public void DefinirPlano(PlanoConta plano)
+    {
+        var agora = DateTimeOffset.UtcNow;
+        Plano = plano;
+
+        if (plano == PlanoConta.Fundador)
+        {
+            PlanoFundadorAtivadoAt ??= agora;
+        }
+
+        UpdatedAt = agora;
+    }
+
+    public void Suspender()
+    {
+        Status = StatusConta.Suspensa;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    public void Reativar()
+    {
+        Status = StatusConta.Ativa;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
     public bool IsTrialAtivo(DateTimeOffset agora)
     {
         return Plano == PlanoConta.Trial && TrialEndsAt > agora;
@@ -103,7 +128,7 @@ public sealed class Conta : EntidadeBase
 
     public bool CanGenerateProposta(DateTimeOffset agora)
     {
-        return Plano == PlanoConta.Fundador || IsTrialAtivo(agora);
+        return Status == StatusConta.Ativa && (Plano == PlanoConta.Fundador || IsTrialAtivo(agora));
     }
 
     private static string BuildSlugConta(string nome)

@@ -8,3 +8,10 @@ public sealed class AdminOperacoesOptions
 
     public string OperationsKey { get; init; } = string.Empty;
 }
+
+public sealed class AdminPainelOptions
+{
+    public const string SectionName = "AdminPainel";
+
+    public string OwnerEmail { get; init; } = string.Empty;
+}

@@ -8,8 +8,12 @@ using Emprely.Contracts.Auth;
 using Emprely.Contracts.Customers;
 using Emprely.Contracts.Proposals;
 using Emprely.Contracts.Services;
+using Emprely.Contracts.Suporte;
+using Emprely.Domain.Admin;
+using Emprely.Domain.Comunicacoes;
 using Emprely.Domain.Contas;
 using Emprely.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Emprely.IntegrationTests;
@@ -65,6 +69,185 @@ public sealed class MvpFluxoApiTests : IClassFixture<EmprelyApiFactory>
         Assert.NotNull(ultimaRespostaPermitida);
         Assert.Equal(HttpStatusCode.Unauthorized, ultimaRespostaPermitida.StatusCode);
         Assert.Equal(HttpStatusCode.TooManyRequests, tentativaExcedente.StatusCode);
+    }
+
+    [Fact]
+    public async Task SuportePublico_DeveAceitarContatoSemTokenERegistrarEmail()
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/support/public")
+        {
+            Content = JsonContent.Create(
+                new CreateContatoPublicoRequest(
+                    "Bruno Carvalho",
+                    "lead@emprely.dev",
+                    "(11) 99999-9999",
+                    "Emprely Lead",
+                    "plano-fundador",
+                    "Quero conversar sobre o Plano Fundador."),
+                options: JsonOptions),
+        };
+        request.Headers.Host = "suporte-publico.emprely.test";
+
+        var response = await httpClient.SendAsync(request);
+        var responseBody = await response.Content.ReadAsStringAsync();
+
+        Assert.True(
+            response.StatusCode == HttpStatusCode.OK,
+            $"Status esperado: OK. Status recebido: {response.StatusCode}. Body: {responseBody}");
+
+        var payload = JsonSerializer.Deserialize<ContatoPublicoResponse>(responseBody, JsonOptions)
+            ?? throw new InvalidOperationException("Resposta de contato publico vazia inesperada.");
+
+        Assert.Equal("Recebemos sua mensagem.", payload.Mensagem);
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<EmprelyDbContext>();
+        var emailContato = dbContext.EmailsTransacionais
+            .OrderByDescending(email => email.CreatedAt)
+            .FirstOrDefault(email =>
+                email.Tipo == TipoEmailTransacional.SuporteRecebido &&
+                email.Destinatario == "contato@emprely.com.br" &&
+                email.ContaId == null &&
+                email.UsuarioId == null);
+
+        Assert.NotNull(emailContato);
+        Assert.Equal(StatusEmailTransacional.Enviado, emailContato.Status);
+        Assert.Contains("plano-fundador", emailContato.Assunto, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task AdminPainel_DeveLogarSuperAdminCriarUsuarioEBloquearAcesso()
+    {
+        await CriarAdminDiretoAsync("Bruno Carvalho", "Bruno.jr.ti@hotmail.com", "Senha123", PerfilAdminUsuario.SuperAdmin);
+
+        var adminAuth = await PostJsonAsync<AdminLoginResponse>(
+            "/api/admin/auth/login",
+            new AdminLoginRequest("Bruno.jr.ti@hotmail.com", "Senha123"),
+            HttpStatusCode.OK);
+
+        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminAuth.AccessToken);
+
+        var suporteAdmin = await PostJsonAsync<AdminPainelAdminResponse>(
+            "/api/admin/admins",
+            new AdminCriarAdminRequest(
+                "Suporte Emprely",
+                "suporte-admin@emprely.dev",
+                "Senha123",
+                "Suporte",
+                "Teste de criacao de admin suporte"),
+            HttpStatusCode.Created);
+
+        Assert.Equal("Suporte", suporteAdmin.Perfil);
+
+        var admins = await GetJsonAsync<IReadOnlyList<AdminPainelAdminResponse>>("/api/admin/admins");
+        Assert.Contains(admins, admin => admin.Email == "suporte-admin@emprely.dev");
+
+        httpClient.DefaultRequestHeaders.Authorization = null;
+        var suporteAuth = await PostJsonAsync<AdminLoginResponse>(
+            "/api/admin/auth/login",
+            new AdminLoginRequest("suporte-admin@emprely.dev", "Senha123"),
+            HttpStatusCode.OK);
+
+        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", suporteAuth.AccessToken);
+        var suporteListarAdminsResponse = await httpClient.GetAsync("/api/admin/admins");
+        Assert.Equal(HttpStatusCode.Forbidden, suporteListarAdminsResponse.StatusCode);
+
+        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminAuth.AccessToken);
+
+        var usuario = await PostJsonAsync<AdminUsuarioResumoResponse>(
+            "/api/admin/usuarios",
+            new AdminCriarUsuarioRequest(
+                "Usuario Admin Criado",
+                "admin-criado@emprely.dev",
+                "(11) 98888-7777",
+                "Senha123",
+                EmailConfirmadoPeloAdmin: true,
+                EnviarLinkConfirmacao: false,
+                CriarConta: true,
+                "Conta Admin Criada",
+                "Trial",
+                "Teste de criacao administrativa"),
+            HttpStatusCode.OK);
+
+        Assert.NotNull(usuario.ContaId);
+        Assert.Equal("Trial", usuario.Plano);
+
+        var painel = await GetJsonAsync<AdminUsuariosPainelResponse>("/api/admin/usuarios?busca=admin-criado");
+        Assert.Contains(painel.Usuarios, usuarioAtual => usuarioAtual.Email == "admin-criado@emprely.dev");
+
+        var usuarioSemConta = await PostJsonAsync<AdminUsuarioResumoResponse>(
+            "/api/admin/usuarios",
+            new AdminCriarUsuarioRequest(
+                "Usuario Sem Conta",
+                "usuario-sem-conta@emprely.dev",
+                null,
+                "Senha123",
+                EmailConfirmadoPeloAdmin: true,
+                EnviarLinkConfirmacao: false,
+                CriarConta: false,
+                null,
+                null,
+                "Teste de usuario sem conta"),
+            HttpStatusCode.OK);
+
+        Assert.Null(usuarioSemConta.ContaId);
+
+        var painelSemConta = await GetJsonAsync<AdminUsuariosPainelResponse>("/api/admin/usuarios?semConta=true");
+        Assert.Contains(painelSemConta.Usuarios, usuarioAtual => usuarioAtual.Email == "usuario-sem-conta@emprely.dev");
+
+        var contaCriada = await PostJsonAsync<AdminContaCriadaResponse>(
+            "/api/admin/contas",
+            new AdminCriarContaRequest(
+                "Conta Usuario Existente",
+                usuarioSemConta.Id,
+                "Trial",
+                "Teste de criacao de conta para usuario existente"),
+            HttpStatusCode.OK);
+
+        Assert.Equal(usuarioSemConta.Id, contaCriada.UsuarioOwnerId);
+        Assert.Equal("Trial", contaCriada.Plano);
+
+        var inicioDiasGratis = DateTimeOffset.UtcNow.AddMinutes(-5);
+        var fimDiasGratis = DateTimeOffset.UtcNow.AddDays(3);
+        var diasGratisResponse = await httpClient.PostAsJsonAsync(
+            $"/api/admin/contas/{contaCriada.ContaId}/dias-gratis",
+            new AdminDiasGratisContaRequest(inicioDiasGratis, fimDiasGratis, "Teste de filtro dias gratis"),
+            JsonOptions);
+        Assert.Equal(HttpStatusCode.NoContent, diasGratisResponse.StatusCode);
+
+        var painelDiasGratis = await GetJsonAsync<AdminUsuariosPainelResponse>("/api/admin/usuarios?diasGratisAtivo=true");
+        Assert.Contains(painelDiasGratis.Usuarios, usuarioAtual => usuarioAtual.Id == usuarioSemConta.Id && usuarioAtual.DiasGratisAtivo);
+
+        var bloquearResponse = await httpClient.PostAsJsonAsync(
+            $"/api/admin/usuarios/{usuario.Id}/bloquear",
+            new AdminMotivoRequest("Bloqueio administrativo de teste"),
+            JsonOptions);
+        Assert.Equal(HttpStatusCode.NoContent, bloquearResponse.StatusCode);
+
+        httpClient.DefaultRequestHeaders.Authorization = null;
+        var loginBloqueadoResponse = await httpClient.PostAsJsonAsync(
+            "/api/auth/login",
+            new LoginUsuarioRequest("admin-criado@emprely.dev", "Senha123"),
+            JsonOptions);
+
+        Assert.Equal(HttpStatusCode.Forbidden, loginBloqueadoResponse.StatusCode);
+        Assert.Contains("Conta Bloqueada", await loginBloqueadoResponse.Content.ReadAsStringAsync());
+
+        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminAuth.AccessToken);
+        var suspenderResponse = await httpClient.PostAsJsonAsync(
+            $"/api/admin/contas/{contaCriada.ContaId}/suspender",
+            new AdminSuspenderContaRequest("Suspensao administrativa de teste", EnviarEmail: false),
+            JsonOptions);
+        Assert.Equal(HttpStatusCode.NoContent, suspenderResponse.StatusCode);
+
+        httpClient.DefaultRequestHeaders.Authorization = null;
+        var loginSuspensoResponse = await httpClient.PostAsJsonAsync(
+            "/api/auth/login",
+            new LoginUsuarioRequest("usuario-sem-conta@emprely.dev", "Senha123"),
+            JsonOptions);
+
+        Assert.Equal(HttpStatusCode.Forbidden, loginSuspensoResponse.StatusCode);
+        Assert.Contains("Conta Suspensa", await loginSuspensoResponse.Content.ReadAsStringAsync());
     }
 
     [Fact]
@@ -499,6 +682,42 @@ public sealed class MvpFluxoApiTests : IClassFixture<EmprelyApiFactory>
     }
 
     [Fact]
+    public async Task Auth_DeveExigirConfirmacaoEmailAntesDoLoginERegistrarEmailFake()
+    {
+        const string email = "mvp-confirmacao@emprely.dev";
+
+        var cadastro = await PostJsonAsync<RegisterUsuarioResponse>(
+            "/api/auth/register",
+            new RegisterUsuarioRequest(
+                "Usuario Confirmacao",
+                email,
+                "Senha123",
+                "(11) 99999-9999",
+                "Emprely Confirmacao"),
+            HttpStatusCode.OK);
+
+        Assert.True(cadastro.EmailConfirmationRequired);
+        Assert.Equal(email, cadastro.Email);
+
+        var loginSemConfirmar = await httpClient.PostAsJsonAsync(
+            "/api/auth/login",
+            new LoginUsuarioRequest(email, "Senha123"),
+            JsonOptions);
+
+        Assert.Equal(HttpStatusCode.Forbidden, loginSemConfirmar.StatusCode);
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<EmprelyDbContext>();
+        var emailConfirmacao = dbContext.EmailsTransacionais.FirstOrDefault(
+            emailTransacional =>
+                emailTransacional.UsuarioId == cadastro.UsuarioId &&
+                emailTransacional.Tipo == TipoEmailTransacional.ConfirmacaoEmail);
+
+        Assert.NotNull(emailConfirmacao);
+        Assert.Equal(StatusEmailTransacional.Enviado, emailConfirmacao.Status);
+    }
+
+    [Fact]
     public async Task Auth_DeveTrocarSenhaUsuarioAtual()
     {
         const string email = "mvp-troca-senha@emprely.dev";
@@ -624,7 +843,7 @@ public sealed class MvpFluxoApiTests : IClassFixture<EmprelyApiFactory>
 
     private async Task<AuthUsuarioResponse> RegisterUsuarioAsync(string email)
     {
-        return await PostJsonAsync<AuthUsuarioResponse>(
+        var cadastro = await PostJsonAsync<RegisterUsuarioResponse>(
             "/api/auth/register",
             new RegisterUsuarioRequest(
                 "Usuario MVP",
@@ -633,6 +852,39 @@ public sealed class MvpFluxoApiTests : IClassFixture<EmprelyApiFactory>
                 "(11) 99999-9999",
                 "Emprely Testes"),
             HttpStatusCode.OK);
+
+        await ConfirmarEmailUsuarioDiretoAsync(cadastro.UsuarioId);
+
+        return await PostJsonAsync<AuthUsuarioResponse>(
+            "/api/auth/login",
+            new LoginUsuarioRequest(email, "Senha123"),
+            HttpStatusCode.OK);
+    }
+
+    private async Task CriarAdminDiretoAsync(
+        string nome,
+        string email,
+        string senha,
+        PerfilAdminUsuario perfil)
+    {
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<EmprelyDbContext>();
+        var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher<AdminUsuario>>();
+        var admin = AdminUsuario.Create(nome, email.Trim().ToLowerInvariant(), perfil);
+        admin.DefinirSenhaHash(passwordHasher.HashPassword(admin, senha));
+        dbContext.AdminUsuarios.Add(admin);
+        await dbContext.SaveChangesAsync();
+    }
+
+    private async Task ConfirmarEmailUsuarioDiretoAsync(Guid usuarioId)
+    {
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<EmprelyDbContext>();
+        var usuario = await dbContext.Users.FindAsync(usuarioId)
+            ?? throw new InvalidOperationException("Usuario de teste nao encontrado.");
+
+        usuario.EmailConfirmed = true;
+        await dbContext.SaveChangesAsync();
     }
 
     private async Task<TResponse> PostJsonAsync<TResponse>(

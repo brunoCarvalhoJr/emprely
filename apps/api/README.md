@@ -27,8 +27,14 @@ dotnet run --project src/Emprely.Api/Emprely.Api.csproj
 - `GET /health/ready`
 - `POST /api/auth/register`
 - `POST /api/auth/login`
+- `POST /api/auth/confirm-email`
+- `POST /api/auth/resend-confirmation`
+- `POST /api/auth/forgot-password`
+- `POST /api/auth/reset-password`
+- `POST /api/auth/confirm-change-email`
 - `GET /api/me`
 - `PUT /api/me/password`
+- `PUT /api/me/email`
 - `GET /api/account`
 - `POST /api/account/activate-founder` bloqueado para autoativacao
 - `POST /api/admin/accounts/{contaId}/activate-founder`
@@ -47,8 +53,9 @@ dotnet run --project src/Emprely.Api/Emprely.Api.csproj
 - `GET /api/proposals`
 - `GET /api/proposals/{id}`
 - `POST /api/proposals`
-- `PUT /api/proposals/{id}`
+- `PUT /api/proposals/{id}`: permitido para `Rascunho` e `Gerada`; retorna `409 Conflict` para `Enviada`, `Aceita` e `Recusada`.
 - `POST /api/proposals/{id}/generate`
+- `POST /api/proposals/{id}/duplicate`
 - `POST /api/proposals/{id}/send`
 - `POST /api/proposals/{id}/accept`
 - `POST /api/proposals/{id}/reject`
@@ -60,6 +67,10 @@ dotnet run --project src/Emprely.Api/Emprely.Api.csproj
 - Contas novas nascem em trial de 7 dias.
 - O Plano Fundador pode ser ativado manualmente por operacao admin em `POST /api/admin/accounts/{contaId}/activate-founder`.
 - Trial expirado bloqueia gerar e enviar proposta.
+- Trial expirado permite criar clientes, servicos, propostas rascunho e duplicar propostas.
+- Proposta `Gerada` pode ser editada e volta para `Rascunho` ao salvar.
+- Propostas `Enviada`, `Aceita` e `Recusada` nao podem ser editadas diretamente; devem ser duplicadas para nova versao.
+- Acoes bloqueadas por regra de status retornam `409 Conflict` com `message`.
 - Usuario autenticado pode trocar a propria senha por `PUT /api/me/password`.
 - Billing real fica para uma etapa futura.
 
@@ -85,13 +96,70 @@ Jwt__Audience=Emprely.Web
 Jwt__SigningKey=<chave-com-pelo-menos-32-caracteres>
 Jwt__ExpirationMinutes=120
 Cors__OrigensPermitidas__0=https://app.emprely.com.br
+App__PublicWebUrl=https://app.emprely.com.br
 AdminOperacoes__OperationsKey=<chave-admin-com-pelo-menos-32-caracteres>
 RateLimit__AuthPermitLimit=30
 RateLimit__AdminPermitLimit=10
+RateLimit__PublicSupportPermitLimit=10
 RateLimit__WindowSeconds=60
+EmailTransacional__Provider=SES
+EmailTransacional__FromEmail=contato@emprely.com.br
+EmailTransacional__FromName=Emprely
+EmailTransacional__SesRegion=us-east-1
+EmailTransacional__SuporteDestinoEmail=contato@emprely.com.br
+LogoPerfilStorage__Provider=S3
+LogoPerfilStorage__S3BucketName=<bucket-assets-emprely>
+LogoPerfilStorage__S3KeyPrefix=uploads/account-logos
+LogoPerfilStorage__S3PublicBaseUrl=https://dz3i7ivpc873w.cloudfront.net
+LogoPerfilStorage__S3Region=us-east-1
 ```
 
 Use `appsettings.Staging.example.json` apenas como referencia; nao grave secrets reais no repositorio.
+
+O email oficial inicial da API e `contato@emprely.com.br`. Use esse endereco como remetente transacional e destino de suporte/contato ate haver decisao de criar alias ou caixa separada.
+
+`EmailTransacional__Provider=Fake` nao envia email real; use apenas para smoke tecnico local. Para beta com usuarios reais, usar `EmailTransacional__Provider=SES`.
+
+O contato publico usa `POST /api/support/public`, aceita visitante sem JWT, aplica rate limit e envia para `EmailTransacional__SuporteDestinoEmail`.
+
+Estado atual em 2026-06-17:
+
+- Amazon SES em `us-east-1` configurado como provedor transacional real.
+- Dominio `emprely.com.br` verificado no SES e acesso a producao concedido.
+- Envio real por `contato@emprely.com.br` validado.
+- Zoho Mail permanece como caixa de entrada/resposta manual.
+- Templates transacionais centralizados em `EmailTransacionalTemplateBuilder`, com logo real, botao de acao, fallback de link e copy pt-BR revisada.
+- Build da API validado apos revisao dos templates.
+
+## Data Protection keys
+
+A API persiste Data Protection keys no Postgres usando `EmprelyDbContext` e a tabela `data_protection_keys`.
+Isso evita que links de confirmacao, recuperacao de senha e alteracao de email quebrem apos restart/deploy da API.
+
+Antes do beta real, aplique as migrations no Neon para garantir que essa tabela existe.
+
+## Lightsail, Caddy e upload de logomarca
+
+O caminho oficial do beta inicial e Lightsail Linux US$7/mes com Docker Compose + Caddy. O suporte Lambda fica mantido como alternativa futura e so e ativado quando `AWS_LAMBDA_FUNCTION_NAME` existe no ambiente.
+
+A API usa forwarded headers para funcionar atras do proxy reverso Caddy, que expõe `https://api.emprely.com.br` e encaminha para Kestrel em `api:8080`.
+
+O upload de logo usa `LogoPerfilStorage__Provider`:
+
+- `Local`: grava em `wwwroot/uploads/account-logos` e serve por static files; use apenas em desenvolvimento/testes.
+- `S3`: envia o WebP para S3 e retorna URL baseada em `LogoPerfilStorage__S3PublicBaseUrl`.
+- `Disabled`: desativa temporariamente o endpoint de upload com erro controlado.
+
+No beta em Lightsail, configure `Provider=S3`. `Disabled` serve apenas para subir a API temporariamente sem upload de logomarca.
+
+Estado atual em 2026-06-16:
+
+- API publicada em `https://api.emprely.com.br`.
+- Health validado em `/health/live` e `/health/ready`.
+- Runtime remoto em `/opt/emprely/orcamentos`.
+- Assets/logos via S3 privado + CloudFront em `https://dz3i7ivpc873w.cloudfront.net`.
+
+Runbook e arquivos do deploy ficam em `infra/lightsail`.
 
 ## Hardening beta
 

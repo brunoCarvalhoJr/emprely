@@ -1,7 +1,11 @@
+using Emprely.Domain.Admin;
 using Emprely.Domain.Clientes;
+using Emprely.Domain.Comunicacoes;
 using Emprely.Domain.Contas;
 using Emprely.Domain.Propostas;
 using Emprely.Domain.Servicos;
+using Emprely.Domain.Suporte;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Emprely.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -10,7 +14,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Emprely.Infrastructure.Persistence;
 
 public sealed class EmprelyDbContext
-    : IdentityDbContext<UsuarioAplicacao, IdentityRole<Guid>, Guid>
+    : IdentityDbContext<UsuarioAplicacao, IdentityRole<Guid>, Guid>, IDataProtectionKeyContext
 {
     public EmprelyDbContext(DbContextOptions<EmprelyDbContext> options)
         : base(options)
@@ -19,7 +23,13 @@ public sealed class EmprelyDbContext
 
     public DbSet<Conta> Contas => Set<Conta>();
 
+    public DbSet<AdminUsuario> AdminUsuarios => Set<AdminUsuario>();
+
+    public DbSet<AdminAuditoria> AdminAuditorias => Set<AdminAuditoria>();
+
     public DbSet<MembroConta> MembrosConta => Set<MembroConta>();
+
+    public DbSet<DiasGratisConta> DiasGratisConta => Set<DiasGratisConta>();
 
     public DbSet<PerfilConta> PerfisConta => Set<PerfilConta>();
 
@@ -31,18 +41,33 @@ public sealed class EmprelyDbContext
 
     public DbSet<PropostaItem> PropostaItens => Set<PropostaItem>();
 
+    public DbSet<EmailTransacional> EmailsTransacionais => Set<EmailTransacional>();
+
+    public DbSet<EmailAlteracaoPendente> EmailsAlteracaoPendente => Set<EmailAlteracaoPendente>();
+
+    public DbSet<SuporteSolicitacao> SuporteSolicitacoes => Set<SuporteSolicitacao>();
+
+    public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
 
         ConfigureIdentity(builder);
+        ConfigureAdminUsuario(builder);
+        ConfigureAdminAuditoria(builder);
         ConfigureConta(builder);
+        ConfigureDiasGratisConta(builder);
         ConfigurePerfilConta(builder);
         ConfigureMembroConta(builder);
         ConfigureCliente(builder);
         ConfigureServico(builder);
         ConfigureProposta(builder);
         ConfigurePropostaItem(builder);
+        ConfigureEmailTransacional(builder);
+        ConfigureEmailAlteracaoPendente(builder);
+        ConfigureSuporteSolicitacao(builder);
+        ConfigureDataProtectionKeys(builder);
     }
 
     private static void ConfigureIdentity(ModelBuilder builder)
@@ -51,6 +76,8 @@ public sealed class EmprelyDbContext
         {
             entity.ToTable("usuarios");
             entity.Property(usuario => usuario.Nome).HasMaxLength(160).IsRequired();
+            entity.Property(usuario => usuario.CreatedAt).IsRequired();
+            entity.Property(usuario => usuario.BloqueadoAdministrativamenteAt);
         });
 
         builder.Entity<IdentityRole<Guid>>().ToTable("perfis_acesso");
@@ -59,6 +86,43 @@ public sealed class EmprelyDbContext
         builder.Entity<IdentityUserLogin<Guid>>().ToTable("usuarios_logins");
         builder.Entity<IdentityRoleClaim<Guid>>().ToTable("perfis_acesso_claims");
         builder.Entity<IdentityUserToken<Guid>>().ToTable("usuarios_tokens");
+    }
+
+    private static void ConfigureAdminUsuario(ModelBuilder builder)
+    {
+        builder.Entity<AdminUsuario>(entity =>
+        {
+            entity.ToTable("admin_usuarios");
+            entity.HasKey(admin => admin.Id);
+            entity.Property(admin => admin.Nome).HasMaxLength(160).IsRequired();
+            entity.Property(admin => admin.Email).HasMaxLength(256).IsRequired();
+            entity.Property(admin => admin.SenhaHash).HasMaxLength(1000).IsRequired();
+            entity.Property(admin => admin.Perfil).HasConversion<string>().HasMaxLength(40).IsRequired();
+            entity.Property(admin => admin.Status).HasConversion<string>().HasMaxLength(40).IsRequired();
+            entity.Property(admin => admin.UltimoLoginAt);
+            entity.HasIndex(admin => admin.Email).IsUnique();
+        });
+    }
+
+    private static void ConfigureAdminAuditoria(ModelBuilder builder)
+    {
+        builder.Entity<AdminAuditoria>(entity =>
+        {
+            entity.ToTable("admin_auditorias");
+            entity.HasKey(auditoria => auditoria.Id);
+            entity.Property(auditoria => auditoria.AdminEmail).HasMaxLength(256).IsRequired();
+            entity.Property(auditoria => auditoria.AdminPerfil).HasMaxLength(40).IsRequired();
+            entity.Property(auditoria => auditoria.Acao).HasMaxLength(80).IsRequired();
+            entity.Property(auditoria => auditoria.AlvoTipo).HasMaxLength(80).IsRequired();
+            entity.Property(auditoria => auditoria.Motivo).HasMaxLength(1000);
+            entity.Property(auditoria => auditoria.Detalhes).HasMaxLength(4000);
+            entity.Property(auditoria => auditoria.Ip).HasMaxLength(80);
+            entity.Property(auditoria => auditoria.UserAgent).HasMaxLength(500);
+            entity.Property(auditoria => auditoria.Resultado).HasMaxLength(80).IsRequired();
+            entity.HasIndex(auditoria => auditoria.AdminUsuarioId);
+            entity.HasIndex(auditoria => new { auditoria.AlvoTipo, auditoria.AlvoId });
+            entity.HasIndex(auditoria => auditoria.CreatedAt);
+        });
     }
 
     private static void ConfigureConta(ModelBuilder builder)
@@ -74,6 +138,24 @@ public sealed class EmprelyDbContext
             entity.Property(conta => conta.TrialEndsAt).IsRequired();
             entity.Property(conta => conta.PlanoFundadorAtivadoAt);
             entity.HasIndex(conta => conta.Slug).IsUnique();
+        });
+    }
+
+    private static void ConfigureDiasGratisConta(ModelBuilder builder)
+    {
+        builder.Entity<DiasGratisConta>(entity =>
+        {
+            entity.ToTable("dias_gratis_conta");
+            entity.HasKey(diasGratis => diasGratis.Id);
+            entity.Property(diasGratis => diasGratis.InicioAt).IsRequired();
+            entity.Property(diasGratis => diasGratis.FimAt).IsRequired();
+            entity.Property(diasGratis => diasGratis.Motivo).HasMaxLength(1000).IsRequired();
+            entity.HasIndex(diasGratis => diasGratis.ContaId);
+            entity.HasIndex(diasGratis => new { diasGratis.ContaId, diasGratis.InicioAt, diasGratis.FimAt });
+            entity.HasOne(diasGratis => diasGratis.Conta)
+                .WithMany()
+                .HasForeignKey(diasGratis => diasGratis.ContaId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 
@@ -228,6 +310,65 @@ public sealed class EmprelyDbContext
                 .WithMany(servico => servico.ItensProposta)
                 .HasForeignKey(item => item.ServicoId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+    }
+
+    private static void ConfigureEmailTransacional(ModelBuilder builder)
+    {
+        builder.Entity<EmailTransacional>(entity =>
+        {
+            entity.ToTable("emails_transacionais");
+            entity.HasKey(email => email.Id);
+            entity.Property(email => email.Tipo).HasConversion<string>().HasMaxLength(40).IsRequired();
+            entity.Property(email => email.Destinatario).HasMaxLength(256).IsRequired();
+            entity.Property(email => email.Assunto).HasMaxLength(200).IsRequired();
+            entity.Property(email => email.Status).HasConversion<string>().HasMaxLength(24).IsRequired();
+            entity.Property(email => email.ProviderMessageId).HasMaxLength(200);
+            entity.Property(email => email.TokenHash).HasMaxLength(128);
+            entity.Property(email => email.Erro).HasMaxLength(1000);
+            entity.HasIndex(email => email.ContaId);
+            entity.HasIndex(email => email.UsuarioId);
+            entity.HasIndex(email => new { email.Destinatario, email.Tipo, email.CreatedAt });
+        });
+    }
+
+    private static void ConfigureEmailAlteracaoPendente(ModelBuilder builder)
+    {
+        builder.Entity<EmailAlteracaoPendente>(entity =>
+        {
+            entity.ToTable("emails_alteracao_pendente");
+            entity.HasKey(email => email.Id);
+            entity.Property(email => email.EmailAtual).HasMaxLength(256).IsRequired();
+            entity.Property(email => email.NovoEmail).HasMaxLength(256).IsRequired();
+            entity.HasIndex(email => email.UsuarioId);
+            entity.HasIndex(email => new { email.UsuarioId, email.NovoEmail, email.Confirmado });
+        });
+    }
+
+    private static void ConfigureSuporteSolicitacao(ModelBuilder builder)
+    {
+        builder.Entity<SuporteSolicitacao>(entity =>
+        {
+            entity.ToTable("suporte_solicitacoes");
+            entity.HasKey(suporte => suporte.Id);
+            entity.Property(suporte => suporte.UsuarioNome).HasMaxLength(160).IsRequired();
+            entity.Property(suporte => suporte.UsuarioEmail).HasMaxLength(256).IsRequired();
+            entity.Property(suporte => suporte.Assunto).HasMaxLength(120).IsRequired();
+            entity.Property(suporte => suporte.Mensagem).HasMaxLength(4000).IsRequired();
+            entity.Property(suporte => suporte.Status).HasConversion<string>().HasMaxLength(24).IsRequired();
+            entity.HasIndex(suporte => suporte.ContaId);
+            entity.HasIndex(suporte => suporte.UsuarioId);
+        });
+    }
+
+    private static void ConfigureDataProtectionKeys(ModelBuilder builder)
+    {
+        builder.Entity<DataProtectionKey>(entity =>
+        {
+            entity.ToTable("data_protection_keys");
+            entity.HasKey(key => key.Id);
+            entity.Property(key => key.FriendlyName).HasMaxLength(200);
+            entity.Property(key => key.Xml).IsRequired();
         });
     }
 }

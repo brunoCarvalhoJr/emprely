@@ -295,7 +295,12 @@ public sealed class ProposalsController : ControllerBase
             return NotFound();
         }
 
-        if (conta.CanGenerateProposta(DateTimeOffset.UtcNow))
+        var agora = DateTimeOffset.UtcNow;
+        var diasGratisAtivo = await dbContext.DiasGratisConta.AnyAsync(
+            dias => dias.ContaId == conta.Id && dias.InicioAt <= agora && dias.FimAt > agora,
+            cancellationToken);
+
+        if (conta.CanGenerateProposta(agora) || (conta.Status == StatusConta.Ativa && diasGratisAtivo))
         {
             return null;
         }

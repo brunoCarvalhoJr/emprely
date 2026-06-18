@@ -37,8 +37,48 @@ public sealed class JwtTokenService : IJwtTokenService
             new(ClaimTypes.NameIdentifier, usuarioId.ToString()),
             new(ClaimTypes.Name, nome),
             new(ClaimTypes.Email, email),
+            new(JwtClaimsEmprely.TokenTipo, JwtClaimsEmprely.ClienteTokenTipo),
             new(JwtClaimsEmprely.ContaId, contaId.ToString()),
             new(JwtClaimsEmprely.Papel, papel),
+        };
+
+        var token = new JwtSecurityToken(
+            issuer: options.Issuer,
+            audience: options.Audience,
+            claims: claims,
+            expires: expiresAtUtc.UtcDateTime,
+            signingCredentials: credentials);
+
+        return new JwtTokenResult(
+            new JwtSecurityTokenHandler().WriteToken(token),
+            expiresAtUtc);
+    }
+
+    public JwtTokenResult GenerateTokenAdmin(
+        Guid adminUsuarioId,
+        string nome,
+        string email,
+        string perfil,
+        bool isOwner)
+    {
+        if (options.SigningKey.Length < 32)
+        {
+            throw new InvalidOperationException("Jwt:SigningKey deve ter pelo menos 32 caracteres.");
+        }
+
+        var expiresAtUtc = DateTimeOffset.UtcNow.AddMinutes(options.ExpirationMinutes);
+        var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(options.SigningKey));
+        var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
+
+        var claims = new List<Claim>
+        {
+            new(JwtRegisteredClaimNames.Sub, adminUsuarioId.ToString()),
+            new(ClaimTypes.NameIdentifier, adminUsuarioId.ToString()),
+            new(ClaimTypes.Name, nome),
+            new(ClaimTypes.Email, email),
+            new(JwtClaimsEmprely.TokenTipo, JwtClaimsEmprely.AdminTokenTipo),
+            new(JwtClaimsEmprely.PerfilAdmin, perfil),
+            new(JwtClaimsEmprely.IsAdminOwner, isOwner ? "true" : "false"),
         };
 
         var token = new JwtSecurityToken(

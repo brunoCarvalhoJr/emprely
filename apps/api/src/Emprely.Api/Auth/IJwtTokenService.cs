@@ -8,4 +8,11 @@ public interface IJwtTokenService
         string email,
         Guid contaId,
         string papel);
+
+    JwtTokenResult GenerateTokenAdmin(
+        Guid adminUsuarioId,
+        string nome,
+        string email,
+        string perfil,
+        bool isOwner);
 }
