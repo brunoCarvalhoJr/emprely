@@ -2,8 +2,11 @@
   "name": "@emprely/landing",
   "version": "0.1.0",
   "private": true,
-  "description": "Referencia da landing existente do Emprely Orçamentos.",
+  "description": "Ponte operacional para a landing existente do Emprely Orcamentos.",
   "scripts": {
-    "dev": "echo \"Landing atual fica em D:\\\\Emprely\\\\Projetos\\\\LandingPage\\\\EmprelyLandingPage-WebApp.\""
+    "dev": "npm.cmd --prefix D:\\Emprely\\Projetos\\LandingPage\\EmprelyLandingPage-WebApp run dev",
+    "check": "npm.cmd --prefix D:\\Emprely\\Projetos\\LandingPage\\EmprelyLandingPage-WebApp run check",
+    "build": "npm.cmd --prefix D:\\Emprely\\Projetos\\LandingPage\\EmprelyLandingPage-WebApp run build:static",
+    "deploy:prod": "npm.cmd --prefix D:\\Emprely\\Projetos\\LandingPage\\EmprelyLandingPage-WebApp run deploy:prod"
   }
 }
