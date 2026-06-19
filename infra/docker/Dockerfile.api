@@ -20,6 +20,8 @@ RUN dotnet publish apps/api/src/Emprely.Api/Emprely.Api.csproj \
 FROM mcr.microsoft.com/dotnet/aspnet:9.0-alpine AS runtime
 WORKDIR /app
 
+RUN apk add --no-cache wget
+
 ENV ASPNETCORE_URLS=http://0.0.0.0:8080
 EXPOSE 8080
 

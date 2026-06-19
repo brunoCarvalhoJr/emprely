@@ -13,6 +13,7 @@ export type PerfilContaResponse = {
   corSistemaSecundaria: string;
   logoUrl: string | null;
   templateVisualPadrao: string;
+  formatoArquivoPreferido: string;
   updatedAt: string | null;
 };
 
@@ -36,4 +37,5 @@ export type UpdatePerfilContaInput = {
   corSistemaSecundaria: string;
   logoUrl: string | null;
   templateVisualPadrao: string;
+  formatoArquivoPreferido: string;
 };

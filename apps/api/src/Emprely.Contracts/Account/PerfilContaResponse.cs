@@ -15,4 +15,5 @@ public sealed record PerfilContaResponse(
     DateTimeOffset? UpdatedAt,
     string TemplateVisualPadrao = "ComercialMinimalista",
     string CorSistemaPrimaria = "#6E38FF",
-    string CorSistemaSecundaria = "#13C7BD");
+    string CorSistemaSecundaria = "#13C7BD",
+    string FormatoArquivoPreferido = "Pdf");

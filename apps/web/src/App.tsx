@@ -19,7 +19,6 @@ import {
   Edit3,
   Eye,
   EyeOff,
-  ExternalLink,
   FileText,
   FolderOpen,
   Globe2,
@@ -95,7 +94,6 @@ import type {
 import {
   createCliente,
   createContatoPublico,
-  adminResendConfirmacaoEmail,
   changeEmailUsuario,
   confirmChangeEmailUsuario,
   confirmEmailUsuario,
@@ -104,7 +102,6 @@ import {
   deleteCliente,
   deleteServico,
   forgotSenhaUsuario,
-  getAdminEmailsHistorico,
   getClientesConta,
   getPerfilContaAtual,
   getServicosConta,
@@ -140,10 +137,6 @@ import type {
   ResetSenhaUsuarioInput,
   UsuarioAtualResponse,
 } from "@/types/auth";
-import type {
-  AdminEmailHistoricoResponse,
-  AdminResendConfirmacaoEmailInput,
-} from "@/types/admin";
 import type {
   ContatoPublicoResponse,
   CreateContatoPublicoInput,
@@ -184,6 +177,9 @@ const propostaTemplateVisualValores = [
 ] as const satisfies readonly PropostaTemplateVisual[];
 
 type PropostaTemplateVisualAtivo = (typeof propostaTemplateVisualValores)[number];
+const formatoArquivoPreferidoValores = ["Pdf", "Imagem"] as const;
+type FormatoArquivoPreferido = (typeof formatoArquivoPreferidoValores)[number];
+const formatoArquivoPreferidoDefault: FormatoArquivoPreferido = "Pdf";
 const telefoneDigitosFixoNacionais = 10;
 const telefoneDigitosCelularNacionais = 11;
 const telefoneDigitosMaximosNacionais = telefoneDigitosCelularNacionais;
@@ -329,10 +325,6 @@ const contatoPublicoSchema = z.object({
   mensagem: z.string().trim().min(10, "Escreva uma mensagem com mais detalhes.").max(2000),
 });
 
-const adminResendConfirmacaoEmailSchema = z.object({
-  email: z.string().trim().email("Digite um e-mail válido."),
-});
-
 const perfilContaSchema = z.object({
   nomeComercial: z.string().min(2, "Informe o nome comercial.").max(160),
   emailContato: z
@@ -378,6 +370,7 @@ const perfilContaSchema = z.object({
       "Envie a imagem pelo upload ou use uma URL válida.",
     ),
   templateVisualPadrao: z.enum(propostaTemplateVisualValores),
+  formatoArquivoPreferido: z.enum(formatoArquivoPreferidoValores),
 });
 
 const clienteSchema = z.object({
@@ -481,8 +474,7 @@ type AppView =
   | "propostas"
   | "conta"
   | "personalizacao"
-  | "suporte"
-  | "adminEmails";
+  | "suporte";
 type CrudModo = "lista" | "novo" | "editar" | "visualizar" | "assistente";
 type PropostaAssistenteEtapa = "inicio" | "existente" | "novo";
 type PropostaWizardEtapaId =
@@ -502,7 +494,6 @@ type ResetSenhaUsuarioFormInput = z.infer<typeof resetSenhaSchema>;
 type ChangeEmailUsuarioFormInput = z.infer<typeof changeEmailSchema>;
 type SuporteFormInput = z.infer<typeof suporteSchema>;
 type ContatoPublicoFormInput = z.infer<typeof contatoPublicoSchema>;
-type AdminResendConfirmacaoEmailFormInput = z.infer<typeof adminResendConfirmacaoEmailSchema>;
 type PropostaPreviewInput = Partial<Omit<PropostaFormInput, "itens">> & {
   itens?: Array<Partial<PropostaFormInput["itens"][number]>>;
 };
@@ -512,7 +503,8 @@ type DashboardMetrica = {
   label: string;
   value: string;
   icon: typeof BarChart3;
-  tone: "purple" | "teal" | "blue" | "red";
+  tone: "purple" | "teal" | "blue" | "red" | "green" | "amber" | "slate";
+  onClick: () => void;
 };
 type PassoPrimeirosPassosDashboard = {
   id: string;
@@ -597,7 +589,6 @@ const navegacaoPrincipal: NavegacaoPrincipalItem[] = [
     quickLabel: "Nova proposta",
   },
   { label: "Suporte", view: "suporte", icon: HeartHandshake },
-  { label: "Admin emails", view: "adminEmails", icon: ShieldCheck },
 ];
 
 const filtrosStatusProposta: Array<{
@@ -628,6 +619,7 @@ const perfilContaDefaultValues: PerfilContaFormInput = {
   corSistemaSecundaria: "#13C7BD",
   logoUrl: "",
   templateVisualPadrao: propostaTemplateVisualDefault,
+  formatoArquivoPreferido: formatoArquivoPreferidoDefault,
 };
 
 const clienteDefaultValues: ClienteFormInput = {
@@ -673,6 +665,13 @@ const propostaDefaultValues: PropostaFormInput = {
   beneficiosTexto: "",
 };
 
+function isViewportDesktopInicial() {
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia("(min-width: 1024px)").matches
+  );
+}
+
 type ConfirmacaoSistemaVariante = "danger" | "warning" | "info" | "success";
 
 type ConfirmacaoSistemaConfig = {
@@ -696,7 +695,6 @@ type ToastSistemaOrigem =
   | "perfil"
   | "seguranca"
   | "suporte"
-  | "admin"
   | "cliente"
   | "servico"
   | "proposta"
@@ -733,8 +731,6 @@ export default function App() {
   const [perfilMensagem, setPerfilMensagem] = useState<string | null>(null);
   const [segurancaMensagem, setSegurancaMensagem] = useState<string | null>(null);
   const [suporteMensagem, setSuporteMensagem] = useState<string | null>(null);
-  const [adminEmailMensagem, setAdminEmailMensagem] = useState<string | null>(null);
-  const [adminEmailKey, setAdminEmailKey] = useState("");
   const [clienteMensagem, setClienteMensagem] = useState<string | null>(null);
   const [clienteModo, setClienteModo] = useState<CrudModo>("lista");
   const [clienteSelecionadoId, setClienteSelecionadoId] = useState<string | null>(
@@ -802,6 +798,14 @@ export default function App() {
     useState(false);
   const [propostaCompartilharModalAberto, setPropostaCompartilharModalAberto] =
     useState(false);
+  const [
+    propostaDescontoPagamentoAberto,
+    setPropostaDescontoPagamentoAberto,
+  ] = useState(isViewportDesktopInicial);
+  const [
+    propostaEscopoCronogramaAberto,
+    setPropostaEscopoCronogramaAberto,
+  ] = useState(isViewportDesktopInicial);
   const [propostaCompartilhamentoId, setPropostaCompartilhamentoId] = useState<
     string | null
   >(null);
@@ -935,10 +939,6 @@ export default function App() {
   }, [exibirMensagemSistema, suporteMensagem]);
 
   useEffect(() => {
-    exibirMensagemSistema(adminEmailMensagem, "admin");
-  }, [adminEmailMensagem, exibirMensagemSistema]);
-
-  useEffect(() => {
     exibirMensagemSistema(clienteMensagem, "cliente");
   }, [clienteMensagem, exibirMensagemSistema]);
 
@@ -986,13 +986,6 @@ export default function App() {
     queryKey: ["propostas", accessToken],
     queryFn: () => getPropostasConta(accessToken!),
     enabled: Boolean(accessToken),
-    retry: false,
-  });
-
-  const adminEmailsQuery = useQuery({
-    queryKey: ["admin-emails", adminEmailKey],
-    queryFn: () => getAdminEmailsHistorico(adminEmailKey),
-    enabled: Boolean(adminEmailKey) && appView === "adminEmails",
     retry: false,
   });
 
@@ -1056,13 +1049,6 @@ export default function App() {
       empresa: "",
       interesse: "duvida",
       mensagem: "",
-    },
-  });
-
-  const adminResendConfirmacaoEmailForm = useForm<AdminResendConfirmacaoEmailFormInput>({
-    resolver: zodResolver(adminResendConfirmacaoEmailSchema),
-    defaultValues: {
-      email: "",
     },
   });
 
@@ -1290,6 +1276,9 @@ export default function App() {
     ? getStatusComercialContaEfetivo(conta)
     : "TrialExpirado";
   const perfilConta = perfilContaQuery.data;
+  const perfilTemplateVisualPadrao = normalizarTemplateVisual(
+    perfilConta?.templateVisualPadrao,
+  );
   const nomeMarcaTopo =
     perfilConta?.nomeComercial?.trim() || conta?.nome || "Emprely";
   const subtituloMarcaTopo =
@@ -1414,9 +1403,7 @@ export default function App() {
     propostaModo === "novo" || propostaModo === "editar";
   const mensagemBloqueioPlano = getMensagemBloqueioPlano(conta);
   const propostaProntaParaGerar = Boolean(
-    propostaSelecionadaRascunho &&
-      !propostaTemAlteracoes &&
-      contaPodeExportarProposta,
+    propostaEditorAtivo && contaPodeExportarProposta,
   );
   const propostaWizardClienteConcluido = Boolean(
     propostaPreview.clienteId && valorSeguro(propostaPreview.validadeDias) >= 1,
@@ -1610,6 +1597,36 @@ export default function App() {
   }, [perfilContaQuery.data, resetPerfilForm, usuario]);
 
   useEffect(() => {
+    if (
+      !perfilConta ||
+      propostaSelecionadaId ||
+      (propostaModo !== "novo" && propostaModo !== "assistente") ||
+      propostaForm.formState.isDirty
+    ) {
+      return;
+    }
+
+    const templateAtual = normalizarTemplateVisual(
+      propostaForm.getValues("templateVisual"),
+    );
+
+    if (templateAtual === perfilTemplateVisualPadrao) {
+      return;
+    }
+
+    propostaForm.setValue("templateVisual", perfilTemplateVisualPadrao, {
+      shouldDirty: false,
+      shouldValidate: true,
+    });
+  }, [
+    perfilConta,
+    perfilTemplateVisualPadrao,
+    propostaForm,
+    propostaModo,
+    propostaSelecionadaId,
+  ]);
+
+  useEffect(() => {
     if (clienteSelecionado) {
       resetClienteForm(mapClienteForm(clienteSelecionado), {
         keepDirty: false,
@@ -1733,16 +1750,6 @@ export default function App() {
         interesse: "duvida",
         mensagem: "",
       });
-    },
-  });
-
-  const adminResendConfirmacaoMutation = useMutation({
-    mutationFn: (input: AdminResendConfirmacaoEmailInput) =>
-      adminResendConfirmacaoEmail(input, adminEmailKey),
-    onSuccess: async () => {
-      setAdminEmailMensagem("Reenvio solicitado.");
-      adminResendConfirmacaoEmailForm.reset({ email: "" });
-      await adminEmailsQuery.refetch();
     },
   });
 
@@ -2211,16 +2218,13 @@ export default function App() {
     setPropostaWizardEtapaAtiva(clienteId ? "proposta" : "cliente");
     const cliente = findClienteProposta(clienteId);
     const titulo = buildTituloAutomaticoProposta(cliente, null);
-    const templateVisualPadrao = normalizarTemplateVisual(
-      perfilConta?.templateVisualPadrao,
-    );
 
     resetPropostaForm(
       {
         ...propostaDefaultValues,
         clienteId,
         titulo,
-        templateVisual: templateVisualPadrao,
+        templateVisual: perfilTemplateVisualPadrao,
       },
       { keepDirty: false },
     );
@@ -2245,7 +2249,7 @@ export default function App() {
     resetPropostaForm(
       {
         ...propostaDefaultValues,
-        templateVisual: normalizarTemplateVisual(perfilConta?.templateVisualPadrao),
+        templateVisual: perfilTemplateVisualPadrao,
       },
       { keepDirty: false },
     );
@@ -2414,29 +2418,24 @@ export default function App() {
       return;
     }
 
-    if (!propostaSelecionada) {
-      navegarParaEtapaProposta("revisao");
-      setPropostaMensagem(
-        "Salve o rascunho antes de gerar a proposta final.",
-      );
-      return;
-    }
-
-    if (propostaTemAlteracoes) {
-      navegarParaEtapaProposta("revisao");
-      setPropostaMensagem(
-        "Salve as alterações antes de gerar a proposta final.",
-      );
-      return;
-    }
-
     if (!contaPodeExportarProposta) {
       navegarParaEtapaProposta("revisao");
       setPropostaMensagem(mensagemBloqueioPlano);
       return;
     }
 
-    gerarPropostaMutation.mutate(propostaSelecionada.id);
+    navegarParaEtapaProposta("revisao");
+
+    try {
+      const propostaBase =
+        !propostaSelecionada || propostaTemAlteracoes
+          ? await salvarPropostaMutation.mutateAsync(propostaForm.getValues())
+          : propostaSelecionada;
+
+      await gerarPropostaMutation.mutateAsync(propostaBase.id);
+    } catch {
+      // As mutations ja exibem os erros nos componentes de mensagem.
+    }
   }
 
   function executarAcaoRapidaMenu(
@@ -2739,6 +2738,66 @@ export default function App() {
       const blob = await gerarPdfPropostaBlob(nodeExportacao);
       baixarBlobArquivo(blob, `${buildNomeArquivoProposta(proposta)}.pdf`);
       setPropostaExportacaoMensagem("PDF gerado. Anexe este arquivo no WhatsApp Web.");
+    });
+  }
+
+  async function enviarMensagemInicialComAnexoProposta(
+    proposta: PropostaResponse,
+    node: HTMLDivElement | null,
+  ) {
+    if (
+      !isStatusPropostaComDocumentoFinal(proposta.status) ||
+      !contaPodeExportarProposta
+    ) {
+      return;
+    }
+
+    await executarExportacaoProposta(async () => {
+      const nodeExportacao = await aguardarNodeExportacaoProposta(
+        () =>
+          node ??
+          propostaCompartilhamentoDocumentoRef.current ??
+          propostaVisualizacaoExportDocumentoRef.current ??
+          propostaVisualizacaoDocumentoRef.current,
+      );
+      const blob = await gerarPdfPropostaBlob(nodeExportacao);
+      const nomeArquivo = `${buildNomeArquivoProposta(proposta)}.pdf`;
+      const mensagem = buildMensagemWhatsappProposta(
+        proposta,
+        clienteCompartilhamentoAtivo,
+        perfilConta,
+        conta?.nome ?? "Emprely",
+        "arquivo",
+      );
+      const arquivoPdf = new File([blob], nomeArquivo, {
+        type: "application/pdf",
+      });
+      const podeCompartilharArquivo =
+        !isViewportDesktopInicial() &&
+        typeof navigator !== "undefined" &&
+        typeof navigator.share === "function" &&
+        (!navigator.canShare ||
+          navigator.canShare({
+            files: [arquivoPdf],
+          }));
+
+      if (podeCompartilharArquivo) {
+        await navigator.share({
+          title: proposta.titulo,
+          text: mensagem,
+          files: [arquivoPdf],
+        });
+        setPropostaExportacaoMensagem("PDF e mensagem enviados para compartilhamento.");
+        fecharModalCompartilharProposta();
+        return;
+      }
+
+      baixarBlobArquivo(blob, nomeArquivo);
+      window.open(whatsappPropostaArquivoUrl, "_blank", "noopener,noreferrer");
+      setPropostaExportacaoMensagem(
+        "PDF baixado e WhatsApp aberto com a mensagem inicial.",
+      );
+      fecharModalCompartilharProposta();
     });
   }
 
@@ -3166,6 +3225,9 @@ export default function App() {
         ),
         logoUrl: logoPreviewAtualUrl,
         templateVisualPadrao: templateVisualPersonalizacaoPreview,
+        formatoArquivoPreferido: normalizarFormatoArquivoPreferido(
+          perfilPersonalizacaoPreview.formatoArquivoPreferido,
+        ),
         updatedAt: perfilConta?.updatedAt ?? null,
       }
     : perfilConta;
@@ -3974,6 +4036,7 @@ export default function App() {
                                           clienteSelecionado.instagram,
                                         )}
                                         label="Instagram"
+                                        rede="instagram"
                                       />
                                     </div>
                                     <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
@@ -3990,6 +4053,7 @@ export default function App() {
                                           clienteSelecionado.facebook,
                                         )}
                                         label="Facebook"
+                                        rede="facebook"
                                       />
                                     </div>
                                     <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
@@ -4006,6 +4070,7 @@ export default function App() {
                                           clienteSelecionado.tiktok,
                                         )}
                                         label="TikTok"
+                                        rede="tiktok"
                                       />
                                     </div>
                                   </div>
@@ -4085,6 +4150,8 @@ export default function App() {
                         <ClienteFormularioCampos
                           form={clienteForm}
                           complementaresAberto={clienteComplementaresAberto}
+                          logoMarcaAssinaturaUrl={logoMarcaTopo}
+                          nomeMarcaAssinatura={nomeMarcaTopo}
                           onToggleComplementares={() =>
                             setClienteComplementaresAberto((aberto) => !aberto)
                           }
@@ -4706,6 +4773,8 @@ export default function App() {
                                 complementaresAberto={
                                   clienteRapidoComplementaresAberto
                                 }
+                                logoMarcaAssinaturaUrl={logoMarcaTopo}
+                                nomeMarcaAssinatura={nomeMarcaTopo}
                                 onToggleComplementares={() =>
                                   setClienteRapidoComplementaresAberto(
                                     (aberto) => !aberto,
@@ -5223,7 +5292,6 @@ export default function App() {
                                       type="button"
                                       onClick={() => {
                                         setTemplatePreviewAberto(template.value);
-                                        setPropostaTemplateModalAberto(true);
                                       }}
                                       className="proposal-template-step-preview"
                                     >
@@ -5277,7 +5345,15 @@ export default function App() {
                           <p className="proposal-template-step-copy">
                             Esta etapa e opcional. Use apenas se quiser enriquecer a proposta.
                           </p>
-                          <details className="proposal-optional-section mt-4">
+                          <details
+                            className="proposal-optional-section mt-4"
+                            open={propostaDescontoPagamentoAberto}
+                            onToggle={(event) =>
+                              setPropostaDescontoPagamentoAberto(
+                                event.currentTarget.open,
+                              )
+                            }
+                          >
                             <summary>
                               <span>
                                 Desconto e pagamento
@@ -5315,7 +5391,15 @@ export default function App() {
                             />
                             </div>
                           </details>
-                          <details className="proposal-optional-section mt-4">
+                          <details
+                            className="proposal-optional-section mt-4"
+                            open={propostaEscopoCronogramaAberto}
+                            onToggle={(event) =>
+                              setPropostaEscopoCronogramaAberto(
+                                event.currentTarget.open,
+                              )
+                            }
+                          >
                             <summary>
                               <span>
                                 Escopo, cronograma e beneficios
@@ -5592,10 +5676,10 @@ export default function App() {
                                 ))}
                               </div>
 
-                              {propostaTemAlteracoes || !propostaSelecionada ? (
+                              {propostaSelecionada && propostaTemAlteracoes ? (
                                 <p className="proposal-review-warning">
-                                  Salve o rascunho para liberar a geração da
-                                  proposta final.
+                                  As alterações serão salvas automaticamente antes
+                                  de gerar a proposta final.
                                 </p>
                               ) : null}
                               <div className="proposal-review-actions">
@@ -5636,23 +5720,24 @@ export default function App() {
                                   <button
                                     type="button"
                                     disabled={
+                                      salvarPropostaMutation.isPending ||
                                       gerarPropostaMutation.isPending ||
                                       !propostaProntaParaGerar
                                     }
                                     onClick={gerarPropostaDoFluxo}
                                     className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-accent bg-white px-4 text-sm font-semibold text-accent transition hover:bg-cyan-50 disabled:cursor-not-allowed disabled:border-border disabled:text-muted disabled:opacity-70"
                                     title={
-                                      propostaTemAlteracoes || !propostaSelecionada
-                                        ? "Salve o rascunho antes de gerar."
-                                        : !contaPodeExportarProposta
-                                          ? mensagemBloqueioPlano
-                                          : "Gerar proposta final"
+                                      !contaPodeExportarProposta
+                                        ? mensagemBloqueioPlano
+                                        : "Salvar e gerar proposta final"
                                     }
                                   >
                                     <CheckCircle2 size={17} aria-hidden="true" />
-                                    {gerarPropostaMutation.isPending
-                                      ? "Gerando..."
-                                      : "Gerar proposta"}
+                                    {salvarPropostaMutation.isPending
+                                      ? "Salvando..."
+                                      : gerarPropostaMutation.isPending
+                                        ? "Gerando..."
+                                        : "Gerar proposta"}
                                   </button>
                                 </div>
                               </div>
@@ -5783,25 +5868,26 @@ export default function App() {
                             <button
                               type="button"
                               disabled={
+                                salvarPropostaMutation.isPending ||
                                 gerarPropostaMutation.isPending ||
                                 !propostaProntaParaGerar
                               }
                               onClick={gerarPropostaDoFluxo}
                               className="proposal-rail-action is-accent"
                               title={
-                                  propostaTemAlteracoes
-                                    ? "Salve as alterações antes de gerar."
-                                  : !contaPodeExportarProposta
+                                  !contaPodeExportarProposta
                                     ? mensagemBloqueioPlano
-                                    : "Gerar proposta"
+                                    : "Salvar e gerar proposta"
                               }
                               aria-label="Gerar proposta"
                             >
                               <CheckCircle2 size={18} aria-hidden="true" />
                               <span className="proposal-action-label">
-                                {gerarPropostaMutation.isPending
-                                  ? "Gerando"
-                                  : "Gerar"}
+                                {salvarPropostaMutation.isPending
+                                  ? "Salvando"
+                                  : gerarPropostaMutation.isPending
+                                    ? "Gerando"
+                                    : "Gerar"}
                               </span>
                             </button>
                           ) : null}
@@ -6589,6 +6675,7 @@ export default function App() {
                         {...perfilForm.register("corSistemaSecundaria")}
                       />
                       <input type="hidden" {...perfilForm.register("templateVisualPadrao")} />
+                      <input type="hidden" {...perfilForm.register("formatoArquivoPreferido")} />
 
                       <div className="personalization-main-card rounded-md border border-border bg-surface p-5">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -6668,6 +6755,76 @@ export default function App() {
                               </div>
                             </div>
                           </div>
+                          <div className="mt-4">
+                            <span className="text-sm font-medium text-foreground">
+                              Formato preferido para envio
+                            </span>
+                            <p className="mt-1 text-sm text-muted">
+                              Usado no card de mensagem inicial com anexo.
+                            </p>
+                            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                              <button
+                                type="button"
+                                aria-pressed={
+                                  perfilPersonalizacaoPreview.formatoArquivoPreferido ===
+                                  "Pdf"
+                                }
+                                onClick={() => {
+                                  perfilForm.setValue(
+                                    "formatoArquivoPreferido",
+                                    "Pdf",
+                                    {
+                                      shouldDirty: true,
+                                      shouldValidate: true,
+                                    },
+                                  );
+                                  setPerfilMensagem(null);
+                                }}
+                                className={`personalization-choice ${
+                                  perfilPersonalizacaoPreview.formatoArquivoPreferido ===
+                                  "Pdf"
+                                    ? "is-active"
+                                    : ""
+                                }`}
+                              >
+                                <FileText size={18} aria-hidden="true" />
+                                <span>
+                                  <strong>PDF</strong>
+                                  <small>Arquivo pronto para enviar e arquivar.</small>
+                                </span>
+                              </button>
+                              <button
+                                type="button"
+                                aria-pressed={
+                                  perfilPersonalizacaoPreview.formatoArquivoPreferido ===
+                                  "Imagem"
+                                }
+                                onClick={() => {
+                                  perfilForm.setValue(
+                                    "formatoArquivoPreferido",
+                                    "Imagem",
+                                    {
+                                      shouldDirty: true,
+                                      shouldValidate: true,
+                                    },
+                                  );
+                                  setPerfilMensagem(null);
+                                }}
+                                className={`personalization-choice ${
+                                  perfilPersonalizacaoPreview.formatoArquivoPreferido ===
+                                  "Imagem"
+                                    ? "is-active"
+                                    : ""
+                                }`}
+                              >
+                                <ReceiptText size={18} aria-hidden="true" />
+                                <span>
+                                  <strong>Imagem</strong>
+                                  <small>Visual unico para compartilhar rapidamente.</small>
+                                </span>
+                              </button>
+                            </div>
+                          </div>
                           <div className="mt-4 grid gap-4 md:grid-cols-2">
                           <CampoTexto
                             label="Cor primária dos templates"
@@ -6704,18 +6861,6 @@ export default function App() {
                               </p>
                             </div>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setPersonalizacaoPreviewTemplateAberto(
-                                templateVisualPersonalizacaoPreview,
-                              )
-                            }
-                            className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-md border border-border px-3 text-sm font-semibold text-foreground transition hover:border-primary hover:text-primary"
-                          >
-                            <Eye size={16} aria-hidden="true" />
-                            Ver preview real
-                          </button>
                         </div>
 
                         <div className="personalization-template-toolbar flex flex-col gap-3 border-t border-border sm:flex-row sm:items-center sm:justify-between">
@@ -6764,9 +6909,10 @@ export default function App() {
                                 templateVisualPersonalizacaoPreview === template.value;
 
                               return (
-                                <button
+                                <article
                                   key={template.value}
-                                  type="button"
+                                  role="button"
+                                  tabIndex={0}
                                   aria-pressed={templateAtivo}
                                   onClick={() => {
                                     perfilForm.setValue(
@@ -6778,6 +6924,20 @@ export default function App() {
                                       },
                                     );
                                     setPerfilMensagem(null);
+                                  }}
+                                  onKeyDown={(event) => {
+                                    if (event.key === "Enter" || event.key === " ") {
+                                      event.preventDefault();
+                                      perfilForm.setValue(
+                                        "templateVisualPadrao",
+                                        template.value,
+                                        {
+                                          shouldDirty: true,
+                                          shouldValidate: true,
+                                        },
+                                      );
+                                      setPerfilMensagem(null);
+                                    }
                                   }}
                                   className={`template-selection-card ${
                                     templateAtivo ? "is-active" : ""
@@ -6800,7 +6960,18 @@ export default function App() {
                                   <span className="template-selection-preview" aria-hidden="true">
                                     <TemplateMiniatura templateVisual={template.value} />
                                   </span>
-                                </button>
+                                  <button
+                                    type="button"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      setPersonalizacaoPreviewTemplateAberto(template.value);
+                                    }}
+                                    className="template-selection-preview-button"
+                                  >
+                                    <Eye size={14} aria-hidden="true" />
+                                    Preview
+                                  </button>
+                                </article>
                               );
                             })}
                           </div>
@@ -6866,64 +7037,6 @@ export default function App() {
                     </form>
                   </section>
                 ) : null}
-
-                {appView === "adminEmails" ? (
-                  <section className="grid gap-4">
-                    <div className="page-heading">
-                      <div>
-                        <h1 className="font-heading text-3xl font-semibold">Admin emails</h1>
-                      </div>
-                    </div>
-                    <div className="rounded-md border border-border bg-surface p-5 shadow-sm grid gap-4">
-                      <CampoTexto
-                        label="Chave super admin"
-                        type="password"
-                        value={adminEmailKey}
-                        onChange={(event) => setAdminEmailKey(event.target.value)}
-                        helperText="A mesma chave administrativa usada nas operações internas."
-                      />
-                      <form
-                        className="grid gap-3 rounded-md border border-border bg-white p-4"
-                        onSubmit={adminResendConfirmacaoEmailForm.handleSubmit((input) =>
-                          adminResendConfirmacaoMutation.mutate(input),
-                        )}
-                      >
-                        <h2 className="font-heading text-lg font-semibold">Reenviar confirmação</h2>
-                        <CampoTexto
-                          label="Email do usuário"
-                          type="email"
-                          error={adminResendConfirmacaoEmailForm.formState.errors.email?.message}
-                          {...adminResendConfirmacaoEmailForm.register("email")}
-                        />
-                        <MensagemErro error={adminResendConfirmacaoMutation.error} />
-                        <button
-                          type="submit"
-                          disabled={!adminEmailKey || adminResendConfirmacaoMutation.isPending}
-                          className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          <RefreshCw size={18} aria-hidden="true" />
-                          {adminResendConfirmacaoMutation.isPending ? "Reenviando..." : "Reenviar email"}
-                        </button>
-                      </form>
-                      <div className="grid gap-3">
-                        <div className="flex items-center justify-between gap-3">
-                          <h2 className="font-heading text-lg font-semibold">Histórico recente</h2>
-                          <button
-                            type="button"
-                            disabled={!adminEmailKey || adminEmailsQuery.isFetching}
-                            onClick={() => void adminEmailsQuery.refetch()}
-                            className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-border px-3 text-sm font-semibold"
-                          >
-                            Atualizar
-                          </button>
-                        </div>
-                        <MensagemErro error={adminEmailsQuery.error} />
-                        <AdminEmailsTabela emails={adminEmailsQuery.data ?? []} loading={adminEmailsQuery.isLoading} />
-                      </div>
-                    </div>
-                  </section>
-                ) : null}
-
                 {appView === "dashboard" ? (
                   <DashboardContent
                     conta={conta}
@@ -6948,6 +7061,19 @@ export default function App() {
                     }}
                     onEditarPerfil={() => navegarParaView("conta")}
                     onAbrirPropostas={() => navegarParaView("propostas")}
+                    onAbrirClientes={() => {
+                      setClientePagina(1);
+                      navegarParaView("clientes");
+                    }}
+                    onAbrirServicos={() => {
+                      setServicoPagina(1);
+                      navegarParaView("servicos");
+                    }}
+                    onAbrirPropostasPorStatus={(status) => {
+                      setFiltroStatusProposta(status);
+                      setPropostaPagina(1);
+                      navegarParaView("propostas");
+                    }}
                     onNovaProposta={() => abrirNovaProposta()}
                     onCadastrarCliente={abrirNovoCliente}
                     onSalvarServico={abrirNovoServico}
@@ -7415,17 +7541,14 @@ export default function App() {
           >
             <div className="flex items-start justify-between gap-3">
               <div className="share-modal-heading">
-                <span className="share-modal-whatsapp-icon">
-                  <WhatsAppIcon size={20} aria-hidden="true" />
-                </span>
                 <div>
-                <p className="share-modal-kicker">WhatsApp</p>
-                <h2
-                  id="proposal-share-title"
-                  className="font-heading text-xl font-semibold"
-                >
-                  Como deseja enviar?
-                </h2>
+                  <p className="share-modal-kicker">Envio da proposta</p>
+                  <h2
+                    id="proposal-share-title"
+                    className="font-heading text-xl font-semibold"
+                  >
+                    Como deseja enviar?
+                  </h2>
                 </div>
               </div>
               <button
@@ -7439,6 +7562,27 @@ export default function App() {
               </button>
             </div>
             <div className="share-choice-grid mt-5">
+              <button
+                type="button"
+                onClick={() =>
+                  void enviarMensagemInicialComAnexoProposta(
+                    propostaCompartilhamentoAtiva,
+                    propostaCompartilhamentoDocumentoRef.current,
+                  )
+                }
+                className="share-choice-card"
+              >
+                <span className="share-choice-icon is-attachment">
+                  <Send size={21} aria-hidden="true" />
+                  <Paperclip
+                    className="share-choice-icon-badge"
+                    size={14}
+                    aria-hidden="true"
+                  />
+                </span>
+                <strong>Mensagem inicial + anexo</strong>
+                <span>Texto inicial com PDF da proposta anexado quando disponivel.</span>
+              </button>
               <a
                 href={whatsappPropostaCompletaUrl}
                 target="_blank"
@@ -7457,32 +7601,6 @@ export default function App() {
                 <strong>Proposta completa em texto</strong>
                 <span>Itens, valores, condições, listas e observações.</span>
               </a>
-              <a
-                href={whatsappPropostaArquivoUrl}
-                target="_blank"
-                rel="noreferrer"
-                onClick={() => {
-                  setPropostaExportacaoMensagem(
-                    "WhatsApp aberto com mensagem curta. Anexe o PDF ou a imagem em seguida.",
-                  );
-                  fecharModalCompartilharProposta();
-                }}
-                className="share-choice-card"
-              >
-                <span className="share-choice-icon is-attachment">
-                  <Send size={21} aria-hidden="true" />
-                  <Paperclip
-                    className="share-choice-icon-badge"
-                    size={14}
-                    aria-hidden="true"
-                  />
-                </span>
-                <strong>Mensagem curta + anexo</strong>
-                <span>Sem valor no texto. Envie PDF ou imagem em seguida.</span>
-              </a>
-            </div>
-            <div className="share-attachment-actions">
-              <span>Anexos</span>
               <button
                 type="button"
                 onClick={() =>
@@ -7491,9 +7609,13 @@ export default function App() {
                     propostaCompartilhamentoDocumentoRef.current,
                   )
                 }
+                className="share-choice-card"
               >
-                <Download size={16} aria-hidden="true" />
-                PDF
+                <span className="share-choice-icon is-download">
+                  <Download size={21} aria-hidden="true" />
+                </span>
+                <strong>Download PDF</strong>
+                <span>Baixe o arquivo final para enviar ou arquivar.</span>
               </button>
               <button
                 type="button"
@@ -7503,9 +7625,13 @@ export default function App() {
                     propostaCompartilhamentoDocumentoRef.current,
                   )
                 }
+                className="share-choice-card"
               >
-                <ReceiptText size={16} aria-hidden="true" />
-                Imagem
+                <span className="share-choice-icon is-image">
+                  <ReceiptText size={21} aria-hidden="true" />
+                </span>
+                <strong>Download imagem</strong>
+                <span>Gere uma imagem da proposta para compartilhar.</span>
               </button>
             </div>
           </section>
@@ -7576,6 +7702,8 @@ export default function App() {
               <ClienteFormularioCampos
                 form={clienteRapidoForm}
                 complementaresAberto={clienteRapidoComplementaresAberto}
+                logoMarcaAssinaturaUrl={logoMarcaTopo}
+                nomeMarcaAssinatura={nomeMarcaTopo}
                 onToggleComplementares={() =>
                   setClienteRapidoComplementaresAberto((aberto) => !aberto)
                 }
@@ -8037,59 +8165,6 @@ function getToastSistemaVariante(
   return "success";
 }
 
-function AdminEmailsTabela({
-  emails,
-  loading,
-}: {
-  emails: AdminEmailHistoricoResponse[];
-  loading: boolean;
-}) {
-  if (loading) {
-    return <ListaCarregando label="Carregando histórico de emails" />;
-  }
-
-  if (emails.length === 0) {
-    return (
-      <EstadoVazio
-        titulo="Nenhum email encontrado"
-        detalhe="Informe a chave super admin e atualize para consultar o histórico recente."
-      />
-    );
-  }
-
-  return (
-    <div className="overflow-x-auto rounded-md border border-border">
-      <table className="min-w-full divide-y divide-border text-sm">
-        <thead className="bg-muted/30 text-left text-xs font-semibold uppercase text-muted">
-          <tr>
-            <th className="px-3 py-2">Tipo</th>
-            <th className="px-3 py-2">Destinatário</th>
-            <th className="px-3 py-2">Status</th>
-            <th className="px-3 py-2">Criado em</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-border bg-white">
-          {emails.map((email) => (
-            <tr key={email.id}>
-              <td className="px-3 py-2 font-medium text-foreground">{email.tipo}</td>
-              <td className="px-3 py-2 text-muted">{email.destinatario}</td>
-              <td className="px-3 py-2 text-muted">{email.status}</td>
-              <td className="px-3 py-2 text-muted">{formatDataHoraCurta(email.createdAt)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function formatDataHoraCurta(value: string) {
-  return new Intl.DateTimeFormat("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "short",
-  }).format(new Date(value));
-}
-
 function isCampoOpcional(label: string) {
   return /\bopcional\b/i.test(label);
 }
@@ -8384,12 +8459,16 @@ CampoTextarea.displayName = "CampoTextarea";
 type ClienteFormularioCamposProps = {
   form: UseFormReturn<ClienteFormInput>;
   complementaresAberto: boolean;
+  logoMarcaAssinaturaUrl: string | null;
+  nomeMarcaAssinatura: string;
   onToggleComplementares: () => void;
 };
 
 function ClienteFormularioCampos({
   form,
   complementaresAberto,
+  logoMarcaAssinaturaUrl,
+  nomeMarcaAssinatura,
   onToggleComplementares,
 }: ClienteFormularioCamposProps) {
   const nome = useWatch({
@@ -8412,10 +8491,19 @@ function ClienteFormularioCampos({
     control: form.control,
     name: "tiktok",
   });
+  const email = useWatch({
+    control: form.control,
+    name: "email",
+  });
   const whatsappUrl = buildWhatsappContatoClienteUrl({ nome, telefone });
   const instagramUrl = buildClienteSocialUrl("instagram", instagram);
   const facebookUrl = buildClienteSocialUrl("facebook", facebook);
   const tiktokUrl = buildClienteSocialUrl("tiktok", tiktok);
+  const emailUrl = buildClienteEmailUrl({
+    email,
+    logoMarcaUrl: logoMarcaAssinaturaUrl,
+    nomeMarca: nomeMarcaAssinatura,
+  });
 
   return (
     <>
@@ -8466,7 +8554,11 @@ function ClienteFormularioCampos({
                   error={form.formState.errors.instagram?.message}
                   {...form.register("instagram")}
                 />
-                <LinkSocialClienteButton href={instagramUrl} label="Instagram" />
+                <LinkSocialClienteButton
+                  href={instagramUrl}
+                  label="Instagram"
+                  rede="instagram"
+                />
               </div>
               <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
                 <CampoTexto
@@ -8475,7 +8567,11 @@ function ClienteFormularioCampos({
                   error={form.formState.errors.facebook?.message}
                   {...form.register("facebook")}
                 />
-                <LinkSocialClienteButton href={facebookUrl} label="Facebook" />
+                <LinkSocialClienteButton
+                  href={facebookUrl}
+                  label="Facebook"
+                  rede="facebook"
+                />
               </div>
               <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
                 <CampoTexto
@@ -8484,16 +8580,23 @@ function ClienteFormularioCampos({
                   error={form.formState.errors.tiktok?.message}
                   {...form.register("tiktok")}
                 />
-                <LinkSocialClienteButton href={tiktokUrl} label="TikTok" />
+                <LinkSocialClienteButton
+                  href={tiktokUrl}
+                  label="TikTok"
+                  rede="tiktok"
+                />
               </div>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
-              <CampoTexto
-                label="E-mail (opcional)"
-                type="email"
-                error={form.formState.errors.email?.message}
-                {...form.register("email")}
-              />
+              <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                <CampoTexto
+                  label="E-mail (opcional)"
+                  type="email"
+                  error={form.formState.errors.email?.message}
+                  {...form.register("email")}
+                />
+                <EmailClienteButton href={emailUrl} />
+              </div>
               <CampoTexto
                 label="CPF/CNPJ (opcional)"
                 placeholder="000.000.000-00"
@@ -9196,13 +9299,14 @@ function ContatoWhatsappClienteButton({
 function LinkSocialClienteButton({
   href,
   label,
+  rede,
 }: {
   href: string;
   label: string;
+  rede: RedeSocialCliente;
 }) {
   const tooltip = href ? `Abrir ${label}` : `${label} não informado`;
-  const className =
-    "tooltip-icon-button inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-border bg-white text-muted transition hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-60";
+  const className = `tooltip-icon-button inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md border bg-white transition disabled:cursor-not-allowed disabled:border-border disabled:bg-slate-50 disabled:text-muted disabled:opacity-60 ${getSocialClienteButtonClass(rede)}`;
 
   if (!href) {
     return (
@@ -9214,7 +9318,7 @@ function LinkSocialClienteButton({
         data-tooltip={tooltip}
         className={className}
       >
-        <ExternalLink size={16} aria-hidden="true" />
+        <SocialClienteIcon rede={rede} size={17} />
       </button>
     );
   }
@@ -9229,8 +9333,115 @@ function LinkSocialClienteButton({
       data-tooltip={tooltip}
       className={className}
     >
-      <ExternalLink size={16} aria-hidden="true" />
+      <SocialClienteIcon rede={rede} size={17} />
     </a>
+  );
+}
+
+function EmailClienteButton({ href }: { href: string }) {
+  const tooltip = href
+    ? "Enviar e-mail para este cliente"
+    : "Cliente sem e-mail valido";
+  const className =
+    "tooltip-icon-button inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-sky-200 bg-sky-50 text-sky-700 transition hover:border-sky-400 hover:bg-sky-100 disabled:cursor-not-allowed disabled:border-border disabled:bg-slate-50 disabled:text-muted disabled:opacity-60";
+
+  if (!href) {
+    return (
+      <button
+        type="button"
+        disabled
+        aria-label={tooltip}
+        title={tooltip}
+        data-tooltip={tooltip}
+        className={className}
+      >
+        <Mail size={17} aria-hidden="true" />
+      </button>
+    );
+  }
+
+  return (
+    <a
+      href={href}
+      aria-label={tooltip}
+      title={tooltip}
+      data-tooltip={tooltip}
+      className={className}
+    >
+      <Mail size={17} aria-hidden="true" />
+    </a>
+  );
+}
+
+function SocialClienteIcon({
+  rede,
+  size,
+}: {
+  rede: RedeSocialCliente;
+  size: number;
+}) {
+  if (rede === "instagram") {
+    return <InstagramGlyph size={size} />;
+  }
+
+  if (rede === "facebook") {
+    return <FacebookGlyph size={size} />;
+  }
+
+  return <TikTokGlyph size={size} />;
+}
+
+function getSocialClienteButtonClass(rede: RedeSocialCliente): string {
+  if (rede === "instagram") {
+    return "border-fuchsia-200 text-fuchsia-700 hover:border-fuchsia-400 hover:bg-fuchsia-50";
+  }
+
+  if (rede === "facebook") {
+    return "border-blue-200 text-blue-700 hover:border-blue-400 hover:bg-blue-50";
+  }
+
+  return "border-slate-300 text-slate-900 hover:border-slate-500 hover:bg-slate-100";
+}
+
+function FacebookGlyph({
+  size = 18,
+  ...props
+}: SVGProps<SVGSVGElement> & { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      {...props}
+    >
+      <path
+        d="M14.2 8.25h2.25V4.72c-.39-.05-1.73-.17-3.3-.17-3.26 0-5.49 1.99-5.49 5.64v3.18H4.1v3.95h3.56v6.13h4.25v-6.13h3.33l.53-3.95h-3.86V10.6c0-1.14.32-2.35 2.29-2.35Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+function TikTokGlyph({
+  size = 18,
+  ...props
+}: SVGProps<SVGSVGElement> & { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      {...props}
+    >
+      <path
+        d="M14.1 3.5h3.05c.18 1.33.82 2.48 1.78 3.37.84.78 1.91 1.3 3.07 1.47v3.1a7.82 7.82 0 0 1-3.05-.65 7.42 7.42 0 0 1-1.78-1.08v6.27c0 3.18-2.58 5.77-5.77 5.77a5.77 5.77 0 0 1-.88-11.47v3.23a2.56 2.56 0 1 0 3.58 2.35V3.5Z"
+        fill="currentColor"
+      />
+    </svg>
   );
 }
 
@@ -11109,6 +11320,9 @@ function DashboardContent({
   onRetry,
   onEditarPerfil,
   onAbrirPropostas,
+  onAbrirClientes,
+  onAbrirServicos,
+  onAbrirPropostasPorStatus,
   onNovaProposta,
   onCadastrarCliente,
   onSalvarServico,
@@ -11123,11 +11337,21 @@ function DashboardContent({
   onRetry: () => void;
   onEditarPerfil: () => void;
   onAbrirPropostas: () => void;
+  onAbrirClientes: () => void;
+  onAbrirServicos: () => void;
+  onAbrirPropostasPorStatus: (status: PropostaStatus) => void;
   onNovaProposta: () => void;
   onCadastrarCliente: () => void;
   onSalvarServico: () => void;
 }) {
-  const metricas = buildMetricasDashboard(propostas, servicosTotal);
+  const metricas = buildMetricasDashboard({
+    propostas,
+    clientesTotal,
+    servicosTotal,
+    onAbrirClientes,
+    onAbrirServicos,
+    onAbrirPropostasPorStatus,
+  });
   const primeirosPassos = buildPrimeirosPassosDashboard({
     perfilContaAtualizado,
     clientesTotal,
@@ -11205,9 +11429,11 @@ function DashboardContent({
           const Icon = metrica.icon;
 
           return (
-            <article
+            <button
               key={metrica.label}
-              className="metric-card rounded-md border border-border bg-surface p-4"
+              type="button"
+              onClick={metrica.onClick}
+              className="metric-card metric-card-action rounded-md border border-border bg-surface p-4"
             >
               <div className="flex items-center justify-between gap-3">
                 <p className="text-sm font-medium text-muted">{metrica.label}</p>
@@ -11218,7 +11444,7 @@ function DashboardContent({
               <strong className="mt-2 block text-3xl font-semibold">
                 {metrica.value}
               </strong>
-            </article>
+            </button>
           );
         })}
       </div>
@@ -11554,38 +11780,76 @@ function buildPrimeirosPassosDashboard({
   ];
 }
 
-function buildMetricasDashboard(
-  propostas: PropostaResponse[],
-  servicosTotal: number,
-): DashboardMetrica[] {
+function buildMetricasDashboard({
+  propostas,
+  clientesTotal,
+  servicosTotal,
+  onAbrirClientes,
+  onAbrirServicos,
+  onAbrirPropostasPorStatus,
+}: {
+  propostas: PropostaResponse[];
+  clientesTotal: number;
+  servicosTotal: number;
+  onAbrirClientes: () => void;
+  onAbrirServicos: () => void;
+  onAbrirPropostasPorStatus: (status: PropostaStatus) => void;
+}): DashboardMetrica[] {
+  const rascunhosTotal = contarPropostasPorStatus(propostas, "Rascunho");
+  const geradasTotal = contarPropostasPorStatus(propostas, "Gerada");
   const enviadasTotal = contarPropostasPorStatus(propostas, "Enviada");
   const aceitasTotal = contarPropostasPorStatus(propostas, "Aceita");
-  const rascunhosTotal = contarPropostasPorStatus(propostas, "Rascunho");
+  const recusadasTotal = contarPropostasPorStatus(propostas, "Recusada");
 
   return [
     {
-      label: "Propostas aprovadas",
-      value: aceitasTotal.toString(),
-      icon: Sparkles,
-      tone: "purple",
+      label: "Clientes cadastrados",
+      value: clientesTotal.toString(),
+      icon: UsersRound,
+      tone: "slate",
+      onClick: onAbrirClientes,
     },
     {
       label: "Serviços salvos",
       value: servicosTotal.toString(),
       icon: PackageCheck,
       tone: "teal",
+      onClick: onAbrirServicos,
+    },
+    {
+      label: "Em rascunho",
+      value: rascunhosTotal.toString(),
+      icon: ReceiptText,
+      tone: "amber",
+      onClick: () => onAbrirPropostasPorStatus("Rascunho"),
+    },
+    {
+      label: "Propostas aprovadas",
+      value: geradasTotal.toString(),
+      icon: Sparkles,
+      tone: "purple",
+      onClick: () => onAbrirPropostasPorStatus("Gerada"),
     },
     {
       label: "Propostas enviadas",
       value: enviadasTotal.toString(),
       icon: FileText,
       tone: "blue",
+      onClick: () => onAbrirPropostasPorStatus("Enviada"),
     },
     {
-      label: "Em rascunho",
-      value: rascunhosTotal.toString(),
-      icon: ReceiptText,
+      label: "Propostas aceitas",
+      value: aceitasTotal.toString(),
+      icon: BadgeCheck,
+      tone: "green",
+      onClick: () => onAbrirPropostasPorStatus("Aceita"),
+    },
+    {
+      label: "Propostas recusadas",
+      value: recusadasTotal.toString(),
+      icon: CircleMinus,
       tone: "red",
+      onClick: () => onAbrirPropostasPorStatus("Recusada"),
     },
   ];
 }
@@ -12086,6 +12350,10 @@ function getAuthModeInicial(): AuthMode {
     return "confirmar-alteracao-email";
   }
 
+  if (auth === "cadastro") {
+    return "cadastro";
+  }
+
   return "login";
 }
 
@@ -12216,6 +12484,9 @@ function mapPerfilContaForm(
       perfilContaDefaultValues.corSistemaSecundaria,
     logoUrl: perfilConta.logoUrl ?? "",
     templateVisualPadrao: normalizarTemplateVisual(perfilConta.templateVisualPadrao),
+    formatoArquivoPreferido: normalizarFormatoArquivoPreferido(
+      perfilConta.formatoArquivoPreferido,
+    ),
   };
 }
 
@@ -12235,6 +12506,9 @@ function buildPerfilContaPayload(
     corSistemaSecundaria: normalizarHexPreview(input.corSistemaSecundaria),
     logoUrl: normalizarOpcional(input.logoUrl),
     templateVisualPadrao: normalizarTemplateVisual(input.templateVisualPadrao),
+    formatoArquivoPreferido: normalizarFormatoArquivoPreferido(
+      input.formatoArquivoPreferido,
+    ),
   };
 }
 
@@ -12485,6 +12759,13 @@ function normalizarTemplateVisual(
 
   const template = propostaTemplateVisualValores.find((opcao) => opcao === valor);
   return template ?? propostaTemplateVisualDefault;
+}
+
+function normalizarFormatoArquivoPreferido(
+  valor: string | null | undefined,
+): FormatoArquivoPreferido {
+  const formato = formatoArquivoPreferidoValores.find((opcao) => opcao === valor);
+  return formato ?? formatoArquivoPreferidoDefault;
 }
 
 function getPropostaTemplateLabel(templateVisual: PropostaTemplateVisual): string {
@@ -12738,6 +13019,41 @@ function buildClienteSocialUrl(
   }
 
   return `https://www.tiktok.com/@${usuario}`;
+}
+
+function buildClienteEmailUrl({
+  email,
+  logoMarcaUrl,
+  nomeMarca,
+}: {
+  email: string | null | undefined;
+  logoMarcaUrl: string | null | undefined;
+  nomeMarca: string;
+}): string {
+  const destinatario = email?.trim();
+
+  if (!destinatario || !isEmailContatoClienteValido(destinatario)) {
+    return "";
+  }
+
+  const assinatura = [
+    "Atenciosamente,",
+    nomeMarca.trim() || "Emprely",
+    logoMarcaUrl?.trim() && !logoMarcaUrl.trim().startsWith("data:")
+      ? `Logo: ${logoMarcaUrl.trim()}`
+      : "",
+  ].filter(Boolean);
+  const corpo = ["Olá,", "", "", ...assinatura].join("\n");
+  const parametros = new URLSearchParams({
+    subject: `Contato - ${nomeMarca.trim() || "Emprely"}`,
+    body: corpo,
+  });
+
+  return `mailto:${encodeURIComponent(destinatario)}?${parametros.toString()}`;
+}
+
+function isEmailContatoClienteValido(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
 function buildWhatsappPropostaUrl(
@@ -13317,7 +13633,6 @@ function getAppViewLabel(view: AppView): string {
     conta: "Configuracoes",
     personalizacao: "Personalizacao",
     suporte: "Suporte",
-    adminEmails: "Admin emails",
   };
 
   return labels[view];

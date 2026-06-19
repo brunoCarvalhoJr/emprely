@@ -240,6 +240,32 @@ export async function adminResendConfirmacaoEmail(
   });
 }
 
+export async function getAdminEmailsHistoricoPainel(
+  token: string,
+): Promise<AdminEmailHistoricoResponse[]> {
+  return apiFetch<AdminEmailHistoricoResponse[]>(
+    "/api/admin/emails",
+    {
+      method: "GET",
+    },
+    { token },
+  );
+}
+
+export async function adminResendConfirmacaoEmailPainel(
+  input: AdminResendConfirmacaoEmailInput,
+  token: string,
+): Promise<void> {
+  return apiFetch<void>(
+    "/api/admin/emails/resend-confirmation",
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+    { token },
+  );
+}
+
 export async function adminLogin(
   input: AdminLoginInput,
 ): Promise<AdminLoginResponse> {

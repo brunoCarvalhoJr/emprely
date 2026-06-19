@@ -15,9 +15,12 @@ O Emprely hoje ja possui uma base comercial simples:
 - Conta nova nasce em `Trial`.
 - O trial dura 7 dias.
 - O `Plano Fundador` existe no dominio.
-- Trial expirado bloqueia gerar, imprimir/PDF, compartilhar via WhatsApp e marcar proposta como enviada.
+- Trial expirado bloqueia gerar, imprimir/PDF, exportar imagem, compartilhar via WhatsApp e marcar proposta como enviada.
+- Trial expirado permite login, leitura historica, visualizacao interna com marca d'água grande, criacao de clientes/servicos/rascunhos e duplicacao de propostas.
 - A ativacao do `Plano Fundador` e administrativa.
 - Nao existe billing real, checkout, assinatura, Pix, cartao, webhook, fatura ou reembolso implementado.
+
+Atualizacao de 2026-05-23: as regras V1 de ciclo de proposta, trial expirado e marca d'água foram implementadas na API e no webapp em `spec/2026-05-23-regras-proposta-trial-watermark.md`. Este documento de billing deve considerar essas regras como base atual do produto.
 
 Arquivos atuais mais relevantes:
 
@@ -362,7 +365,7 @@ Eventos exemplos:
 ```mermaid
 flowchart TD
     A["Usuario cria conta"] --> B["Conta nasce em Trial por 7 dias"]
-    B --> C["Usuario clica em Contratar plano"]
+    B --> C["Usuario clica em Ativar plano"]
     C --> D["Web chama API de billing"]
     D --> E["API cria cliente/checkout no provedor"]
     E --> F["API salva checkout pendente"]
@@ -552,7 +555,7 @@ O web deve usar status retornado pela API.
 Mudancas necessarias:
 
 - criar area `Plano e cobranca`;
-- criar CTA `Contratar plano`;
+- criar CTA `Ativar plano`;
 - criar tela/estado de `Aguardando confirmacao`;
 - invalidar `/api/me` apos retorno do checkout;
 - nao confiar no `localStorage` como estado final do plano;
@@ -889,21 +892,25 @@ Mensagens:
 
 - "Voce esta no teste de 7 dias."
 - "Depois do teste, escolha um plano para continuar gerando e enviando propostas."
-- CTA: "Contratar plano".
+- CTA: "Ativar plano".
 
 ### 24.2 Trial expirado
 
 Mensagem:
 
-- "Seu teste expirou. Contrate um plano para gerar, exportar e compartilhar propostas."
+- "Seu teste expirou. Ative o plano para gerar, exportar e compartilhar propostas."
 
 Acoes liberadas:
 
 - login;
 - ver historico;
-- editar dados;
+- editar proposta `Rascunho`;
+- editar proposta `Gerada`, com aviso de retorno para `Rascunho` ao salvar;
+- duplicar proposta nao arquivada;
+- criar clientes, servicos e propostas rascunho;
+- visualizar proposta internamente com marca d'água grande;
 - acessar cobranca;
-- contratar plano.
+- ativar plano.
 
 Acoes bloqueadas:
 
@@ -911,6 +918,7 @@ Acoes bloqueadas:
 - exportar PDF/imagem;
 - compartilhar via WhatsApp;
 - marcar proposta como enviada.
+- editar diretamente proposta `Enviada`, `Aceita` ou `Recusada`.
 
 ### 24.3 Pagamento pendente
 

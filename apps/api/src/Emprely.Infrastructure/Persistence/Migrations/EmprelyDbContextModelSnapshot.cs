@@ -477,6 +477,11 @@ namespace Emprely.Infrastructure.Persistence.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
+                    b.Property<string>("FormatoArquivoPreferido")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<string>("Instagram")
                         .HasMaxLength(80)
                         .HasColumnType("character varying(80)");

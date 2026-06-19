@@ -31,17 +31,21 @@ import {
   adminDesbloquearUsuario,
   adminDownloadUsuariosCsv,
   adminEnviarEmailPersonalizado,
+  adminResendConfirmacaoEmailPainel,
   adminLogin,
   adminReativarConta,
   adminSuspenderConta,
+  getAdminEmailsHistoricoPainel,
   getAdminAdmins,
   getAdminUsuarioDetalhe,
   getAdminUsuarios,
 } from "@/lib/api";
 import type {
   AdminAtualResponse,
-  AdminPainelAdminResponse,
   AdminEmailAnexoInput,
+  AdminEmailHistoricoResponse,
+  AdminPainelAdminResponse,
+  AdminResendConfirmacaoEmailInput,
   AdminUsuarioDetalheResponse,
   AdminLoginResponse,
   AdminUsuarioResumoResponse,
@@ -116,6 +120,10 @@ type EmailForm = {
   anexos: AdminEmailAnexoInput[];
 };
 
+type AdminResendConfirmacaoForm = {
+  email: string;
+};
+
 type CriarAdminForm = {
   nome: string;
   email: string;
@@ -174,6 +182,10 @@ const initialEmailForm: EmailForm = {
   anexos: [],
 };
 
+const initialAdminResendConfirmacaoForm: AdminResendConfirmacaoForm = {
+  email: "",
+};
+
 const initialCriarAdminForm: CriarAdminForm = {
   nome: "",
   email: "",
@@ -202,6 +214,8 @@ export default function AdminApp() {
   });
   const [selectedUsuarioId, setSelectedUsuarioId] = useState<string | null>(null);
   const [action, setAction] = useState<ActionState | null>(null);
+  const [adminResendConfirmacaoForm, setAdminResendConfirmacaoForm] =
+    useState<AdminResendConfirmacaoForm>(initialAdminResendConfirmacaoForm);
 
   const painelQuery = useQuery({
     queryKey: ["admin-usuarios", filtros, token],
@@ -219,6 +233,13 @@ export default function AdminApp() {
     queryKey: ["admin-admins", token],
     queryFn: () => getAdminAdmins(token),
     enabled: Boolean(token) && isSuperAdmin(adminAtual),
+  });
+
+  const adminEmailsQuery = useQuery({
+    queryKey: ["admin-emails-painel", token],
+    queryFn: () => getAdminEmailsHistoricoPainel(token),
+    enabled: Boolean(token) && isSuperAdmin(adminAtual),
+    retry: false,
   });
 
   const loginMutation = useMutation({
@@ -240,10 +261,20 @@ export default function AdminApp() {
     localStorage.removeItem(adminAtualStorageKey);
   };
 
+  const adminResendConfirmacaoMutation = useMutation({
+    mutationFn: (input: AdminResendConfirmacaoEmailInput) =>
+      adminResendConfirmacaoEmailPainel(input, token),
+    onSuccess: async () => {
+      setAdminResendConfirmacaoForm(initialAdminResendConfirmacaoForm);
+      await queryClient.invalidateQueries({ queryKey: ["admin-emails-painel"] });
+    },
+  });
+
   const refresh = async () => {
     await queryClient.invalidateQueries({ queryKey: ["admin-usuarios"] });
     await queryClient.invalidateQueries({ queryKey: ["admin-usuario-detalhe"] });
     await queryClient.invalidateQueries({ queryKey: ["admin-admins"] });
+    await queryClient.invalidateQueries({ queryKey: ["admin-emails-painel"] });
   };
 
   if (!token || !adminAtual) {
@@ -384,15 +415,33 @@ export default function AdminApp() {
             onSelect={setSelectedUsuarioId}
           />
           {isSuperAdmin(adminAtual) ? (
-            <AdminsPanel
-              admins={adminsQuery.data ?? []}
-              token={token}
-              adminAtual={adminAtual}
-              isLoading={adminsQuery.isLoading}
-              onDone={() => {
-                void queryClient.invalidateQueries({ queryKey: ["admin-admins"] });
-              }}
-            />
+            <>
+              <AdminsPanel
+                admins={adminsQuery.data ?? []}
+                token={token}
+                adminAtual={adminAtual}
+                isLoading={adminsQuery.isLoading}
+                onDone={() => {
+                  void queryClient.invalidateQueries({ queryKey: ["admin-admins"] });
+                }}
+              />
+              <AdminEmailsPanel
+                form={adminResendConfirmacaoForm}
+                emails={adminEmailsQuery.data ?? []}
+                isLoading={adminEmailsQuery.isLoading}
+                isFetching={adminEmailsQuery.isFetching}
+                error={adminEmailsQuery.error}
+                resendError={adminResendConfirmacaoMutation.error}
+                isResending={adminResendConfirmacaoMutation.isPending}
+                onChangeForm={setAdminResendConfirmacaoForm}
+                onRefresh={() => void adminEmailsQuery.refetch()}
+                onSubmit={() =>
+                  adminResendConfirmacaoMutation.mutate({
+                    email: adminResendConfirmacaoForm.email.trim(),
+                  })
+                }
+              />
+            </>
           ) : null}
         </section>
 
@@ -738,6 +787,153 @@ function AdminsPanel({
             })}
           </tbody>
         </table>
+      </div>
+    </section>
+  );
+}
+
+function AdminEmailsPanel({
+  form,
+  emails,
+  isLoading,
+  isFetching,
+  error,
+  resendError,
+  isResending,
+  onChangeForm,
+  onRefresh,
+  onSubmit,
+}: {
+  form: AdminResendConfirmacaoForm;
+  emails: AdminEmailHistoricoResponse[];
+  isLoading: boolean;
+  isFetching: boolean;
+  error: Error | null;
+  resendError: Error | null;
+  isResending: boolean;
+  onChangeForm: (form: AdminResendConfirmacaoForm) => void;
+  onRefresh: () => void;
+  onSubmit: () => void;
+}) {
+  const emailValido = isValidEmail(form.email);
+
+  return (
+    <section className="rounded-md border border-slate-200 bg-white p-4">
+      <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <p className="text-sm font-semibold text-slate-500">Emails administrativos</p>
+          <h2 className="text-lg font-semibold text-slate-950">Confirmações e histórico</h2>
+        </div>
+        <button
+          className="admin-button-secondary w-full md:w-auto"
+          type="button"
+          disabled={isFetching}
+          onClick={onRefresh}
+        >
+          <RefreshCw size={16} aria-hidden="true" />
+          {isFetching ? "Atualizando..." : "Atualizar"}
+        </button>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-[minmax(260px,0.75fr)_minmax(0,1.25fr)]">
+        <form
+          className="grid gap-3 rounded-md border border-slate-200 bg-slate-50 p-4"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onSubmit();
+          }}
+        >
+          <LabeledInput
+            label="Email do usuario"
+            type="email"
+            value={form.email}
+            error={form.email.trim() && !emailValido ? "Digite um e-mail valido." : undefined}
+            onChange={(email) => onChangeForm({ email })}
+          />
+          {resendError ? (
+            <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">
+              {resendError.message}
+            </p>
+          ) : null}
+          <button
+            className="admin-button-primary h-11 w-full"
+            type="submit"
+            disabled={!emailValido || isResending}
+          >
+            <Mail size={16} aria-hidden="true" />
+            {isResending ? "Reenviando..." : "Reenviar confirmação"}
+          </button>
+        </form>
+
+        <div className="min-w-0 rounded-md border border-slate-200">
+          {error ? (
+            <p className="m-3 rounded-md bg-red-50 p-3 text-sm text-red-700">
+              {error.message}
+            </p>
+          ) : null}
+          {isLoading ? (
+            <p className="p-4 text-sm text-slate-500">Carregando historico de emails...</p>
+          ) : null}
+          {!isLoading && emails.length === 0 ? (
+            <p className="p-4 text-sm text-slate-500">Nenhum email encontrado.</p>
+          ) : null}
+          {emails.length > 0 ? (
+            <>
+              <div className="grid gap-2 p-3 md:hidden">
+                {emails.slice(0, 20).map((email) => (
+                  <article
+                    key={email.id}
+                    className="rounded-md border border-slate-200 bg-white p-3"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <strong className="block truncate text-sm text-slate-950">
+                          {email.tipo}
+                        </strong>
+                        <span className="block truncate text-xs text-slate-500">
+                          {email.destinatario}
+                        </span>
+                      </div>
+                      <span className="shrink-0 rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
+                        {email.status}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-xs text-slate-500">{formatDate(email.createdAt)}</p>
+                    {email.erro ? (
+                      <p className="mt-2 rounded-md bg-red-50 p-2 text-xs text-red-700">
+                        {email.erro}
+                      </p>
+                    ) : null}
+                  </article>
+                ))}
+              </div>
+              <div className="hidden overflow-x-auto md:block">
+                <table className="w-full min-w-[680px] border-collapse text-left text-sm">
+                  <thead className="bg-slate-100 text-xs uppercase text-slate-500">
+                    <tr>
+                      <th className="px-4 py-3">Tipo</th>
+                      <th className="px-4 py-3">Destinatario</th>
+                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3">Criado em</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {emails.map((email) => (
+                      <tr key={email.id} className="border-t border-slate-100">
+                        <td className="px-4 py-3 font-medium text-slate-950">{email.tipo}</td>
+                        <td className="px-4 py-3 text-slate-600">{email.destinatario}</td>
+                        <td className="px-4 py-3 text-slate-600">{email.status}</td>
+                        <td className="px-4 py-3 text-slate-600">
+                          {formatDate(email.createdAt)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          ) : null}
+        </div>
       </div>
     </section>
   );

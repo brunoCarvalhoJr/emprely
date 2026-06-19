@@ -6,6 +6,12 @@
   "scripts": {
     "dev:web": "pnpm --dir apps/web dev",
     "build:web": "pnpm --dir apps/web build",
+    "web:build:beta": "powershell -ExecutionPolicy Bypass -File scripts/build-web-beta.ps1",
+    "web:deploy:s3": "powershell -ExecutionPolicy Bypass -File scripts/deploy-web-s3.ps1",
+    "landing:dev": "pnpm --dir apps/landing dev",
+    "landing:check": "pnpm --dir apps/landing check",
+    "landing:build": "pnpm --dir apps/landing build",
+    "landing:deploy:prod": "pnpm --dir apps/landing deploy:prod",
     "lint:web": "pnpm --dir apps/web lint",
     "test:e2e:web": "node scripts/run-web-e2e.mjs",
     "build:api": "dotnet build apps/api/Emprely.sln",
@@ -18,6 +24,10 @@
     "beta:env:domains": "powershell -ExecutionPolicy Bypass -File scripts/set-beta-domains.ps1",
     "beta:env:validate": "powershell -ExecutionPolicy Bypass -File scripts/validate-beta-env.ps1",
     "beta:env:validate:public": "powershell -ExecutionPolicy Bypass -File scripts/validate-beta-env.ps1 -RequirePublicUrls",
-    "validate:mvp": "pnpm validate:beta && pnpm validate:deploy"
+    "lightsail:env:validate": "powershell -ExecutionPolicy Bypass -File scripts/validate-lightsail-env.ps1",
+    "lightsail:api:build": "powershell -ExecutionPolicy Bypass -File scripts/build-lightsail-api-image.ps1",
+    "lightsail:api:deploy": "powershell -ExecutionPolicy Bypass -File scripts/deploy-lightsail-api-image.ps1",
+    "validate:lightsail": "powershell -ExecutionPolicy Bypass -File scripts/validate-lightsail-env.ps1 -EnvPath infra/lightsail/lightsail.env.example -AllowPlaceholders && docker compose -f infra/lightsail/docker-compose.api.yml --env-file infra/lightsail/lightsail.env.example config",
+    "validate:mvp": "pnpm validate:beta && pnpm validate:deploy && pnpm validate:lightsail"
   }
 }

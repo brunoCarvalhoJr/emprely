@@ -2,172 +2,212 @@
 
 ## Objetivo
 
-Subir o MVP em um ambiente beta/staging simples com Docker Compose, mantendo secrets reais fora do repositorio. Este guia e neutro de provedor: funciona como base para uma VM, servidor Docker ou pipeline inicial.
+Subir o MVP em um ambiente beta/staging barato, sem cold start na API e mantendo secrets reais fora do repositorio.
 
-## Arquivos
+Caminho oficial atual:
 
-- `infra/docker/Dockerfile.api`: publica a API .NET em container.
-- `infra/docker/Dockerfile.web`: builda o web React/Vite e serve com Nginx.
-- `infra/docker/nginx.web.conf`: fallback SPA e healthcheck do web.
-- `infra/docker/docker-compose.beta.example.yml`: API, web e PostgreSQL.
-- `infra/docker/beta.env.example`: variaveis de exemplo sem secrets reais.
+- Web React/Vite: S3 + CloudFront em `https://app.emprely.com.br`.
+- Painel administrativo: mesma publicacao do webapp, em `https://app.emprely.com.br/admin`, com login separado.
+- API ASP.NET Core: Lightsail Linux US$7/mes + Docker Compose + Caddy em `https://api.emprely.com.br` (publicada e validada).
+- Banco: Neon Free PostgreSQL.
+- Arquivos/logos: S3 privado + CloudFront em `https://dz3i7ivpc873w.cloudfront.net`.
+- E-mails transacionais: Amazon SES em `us-east-1` usando `contato@emprely.com.br`.
+- Caixa profissional/manual: Zoho Mail em `contato@emprely.com.br`.
+- Landing V1: manter como esta em S3 + CloudFront.
+
+Lambda + API Gateway deixam de ser o caminho oficial inicial e ficam como alternativa futura.
+
+## Referencias
+
+- Spec SDD atual: `spec/2026-06-14-deploy-lightsail-api-baixo-custo.md`.
+- Runbook Lightsail: `infra/lightsail/README.md`.
+- Runbook webapp S3 + CloudFront: `docs/product/webapp-s3-cloudfront-deploy.md`.
+- Mapa de dominios: `docs/architecture/dominios-ambientes.md`.
+- Checklist beta: `docs/product/checklist-final-beta-mvp.md`.
+- Runbook local: `docs/product/beta-mvp-runbook.md`.
 
 ## Pre-requisitos
 
-- Docker Engine ou Docker Desktop ativo com suporte a containers Linux.
-- Docker Compose disponivel no terminal.
+- Conta AWS com acesso a Lightsail, S3, CloudFront, Route 53, ACM e Budgets.
+- Dominio `emprely.com.br` gerenciado no Route 53.
+- Instancia Lightsail Linux US$7/mes com IP estatico ja criada para a API.
+- Docker e Docker Compose plugin instalados no Lightsail.
+- Projeto Neon Free criado para o banco beta/staging.
 - .NET SDK instalado na maquina que aplicar migrations pelo `dotnet ef`.
-- Valores reais de secrets configurados fora do repositorio.
+- Docker Desktop local para buildar a imagem da API.
+- `pnpm validate:mvp` passando localmente antes do deploy.
+- Secrets reais configurados fora do Git.
 
-## Validar configuracao
+## Ordem recomendada
 
-Na raiz do monorepo:
+1. Finalizar e validar email Zoho: MX, SPF, DKIM, DMARC, envio e recebimento.
+2. Rodar `pnpm validate:mvp`.
+3. Criar banco Neon Free.
+4. Aplicar migrations EF Core no Neon.
+5. Criar bucket/CDN para assets/logos.
+6. Criar instancia Lightsail Linux US$7/mes e IP estatico.
+7. Apontar `api.emprely.com.br` para o IP do Lightsail.
+8. Criar `/opt/emprely/orcamentos/lightsail.env` com secrets reais.
+9. Buildar imagem da API localmente com `pnpm lightsail:api:build`.
+10. Enviar imagem e compose para o Lightsail.
+11. Subir API + Caddy e validar health checks.
+12. Buildar web com `VITE_API_BASE_URL=https://api.emprely.com.br`.
+13. Publicar web em S3 + CloudFront.
+14. Configurar DNS e certificados do app web.
+15. Criar AWS Budgets/alertas.
+16. Rodar aceite manual com dados reais de teste.
+17. Abrir beta assistido para poucos usuarios.
 
-```powershell
-pnpm validate:deploy
-```
+Etapas 1, 3, 4, 5, 6, 7, 8, 9, 10 e 11 ja foram executadas para o ambiente atual. O SES tambem ja foi configurado em producao para o dominio `emprely.com.br`, com envio real funcionando por `contato@emprely.com.br`.
 
-Esse comando valida a sintaxe do compose beta/staging usando os placeholders de exemplo.
+Em 2026-06-16, a revisao geral confirmou:
 
-Para validar build das imagens, subida temporaria dos containers, migrations e health checks locais:
+- lint web passou;
+- build beta web passou com `VITE_API_BASE_URL=https://api.emprely.com.br`;
+- build da API passou;
+- testes unitarios e de integracao da API passaram apos ajuste do logger dos testes de integracao no Windows;
+- E2E web passou apos ajuste do wrapper `scripts/run-web-e2e.mjs`;
+- `pnpm validate:mvp` passou;
+- arquivos locais sensiveis continuam fora do Git.
 
-```powershell
-pnpm validate:deploy:runtime
-```
+O proximo bloqueante e publicar o webapp.
 
-O script usa portas alternativas `15432`, `18080` e `18081`, aplica migrations em um banco temporario do compose beta e derruba os containers com volume ao final.
+## Variaveis da API
 
-Para rodar o mesmo smoke com o arquivo privado gerado:
+Use `infra/lightsail/lightsail.env.example` como base para o arquivo privado `lightsail.env` no servidor.
 
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/validate-beta-runtime.ps1 -EnvFile infra/docker/beta.env
-```
-
-## Variaveis obrigatorias
-
-Configure valores reais fora do Git:
+Principais variaveis:
 
 ```txt
-POSTGRES_PASSWORD=<senha-forte>
-API_PUBLIC_URL=https://api.emprely.com.br
-WEB_PUBLIC_URL=https://app.emprely.com.br
-JWT_SIGNING_KEY=<chave-com-pelo-menos-32-caracteres>
-ADMIN_OPERACOES_KEY=<chave-admin-com-pelo-menos-32-caracteres>
+EMPRELY_API_IMAGE=emprely-api:lightsail
+EMPRELY_API_DOMAIN=api.emprely.com.br
+CADDY_ACME_EMAIL=contato@emprely.com.br
+EMPRELY_DB_CONNECTION_STRING=<connection-string-neon>
+Cors__OrigensPermitidas__0=https://app.emprely.com.br
+Cors__OrigensPermitidas__1=https://www.emprely.com.br
+Cors__OrigensPermitidas__2=https://emprely.com.br
+App__PublicWebUrl=https://app.emprely.com.br
+AdminPainel__OwnerEmail=Bruno.jr.ti@hotmail.com
+LogoPerfilStorage__Provider=S3
+LogoPerfilStorage__S3BucketName=<bucket-assets-emprely>
+LogoPerfilStorage__S3PublicBaseUrl=https://dz3i7ivpc873w.cloudfront.net
+EmailTransacional__Provider=Fake
+EmailTransacional__FromEmail=contato@emprely.com.br
+EmailTransacional__SuporteDestinoEmail=contato@emprely.com.br
 ```
 
-O web usa `VITE_API_BASE_URL` em tempo de build. No compose beta essa variavel vem de `API_PUBLIC_URL`. Se a URL publica da API mudar, gere uma nova imagem do web.
+Observacoes:
 
-## Gerar arquivo privado
+- `EmailTransacional__Provider=Fake` nao envia email real; use apenas para smoke tecnico.
+- Para beta real, usar SES como provedor transacional.
+- A caixa oficial inicial e `contato@emprely.com.br`.
+- Zoho fica como caixa de entrada/resposta manual; nao usar Zoho como dependencia do envio automatico do SaaS enquanto o SES estiver validado.
+- Os templates transacionais ficam centralizados na API em `EmailTransacionalTemplateBuilder`, com logo real do Emprely, botao de acao, fallback de link e copy pt-BR revisada.
+- Data Protection keys ficam persistidas no Postgres via `data_protection_keys`; garantir que a migration foi aplicada no Neon.
+- No beta real, `LogoPerfilStorage__Provider` deve ser `S3`.
+- `AdminPainel__OwnerEmail` define o dono principal que pode administrar outros admins. Nao e secret, mas deve estar igual nos ambientes onde o painel admin sera usado.
 
-Para gerar `infra/docker/beta.env` com secrets fortes:
+## Banco Neon
 
-```powershell
-pnpm beta:env:new
-```
-
-Para sobrescrever um arquivo existente:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/new-beta-env.ps1 -Force
-```
-
-Para gerar ja com dominios reais:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/new-beta-env.ps1 `
-  -ApiPublicUrl "https://api.emprely.com.br" `
-  -WebPublicUrl "https://app.emprely.com.br"
-```
-
-Ou aplique os dominios oficiais planejados no arquivo privado ja existente:
-
-```powershell
-pnpm beta:env:domains
-pnpm beta:env:validate:public
-```
-
-Valide antes de subir:
-
-```powershell
-pnpm beta:env:validate
-```
-
-`infra/docker/beta.env` e ignorado pelo Git. Mantenha esse arquivo fora de commits, prints e compartilhamentos.
-
-## Subir beta/staging
-
-Exemplo usando um arquivo privado `infra/docker/beta.env`:
-
-```powershell
-docker compose `
-  -f infra/docker/docker-compose.beta.example.yml `
-  --env-file infra/docker/beta.env `
-  build
-
-docker compose `
-  -f infra/docker/docker-compose.beta.example.yml `
-  --env-file infra/docker/beta.env `
-  up -d
-```
-
-## Aplicar migrations
-
-Para o beta com PostgreSQL exposto localmente pela porta definida em `POSTGRES_PORT`, aplique as migrations a partir da maquina com SDK .NET:
+1. Criar projeto Neon Free.
+2. Criar banco/role para beta.
+3. Guardar connection string fora do Git.
+4. Aplicar migrations:
 
 ```powershell
 dotnet tool restore
-$env:ConnectionStrings__EmprelyDb="Host=localhost;Port=5432;Database=emprely;Username=emprely;Password=<senha-forte>"
+$env:ConnectionStrings__EmprelyDb="<connection-string-neon>"
 dotnet ef database update --project apps/api/src/Emprely.Infrastructure --startup-project apps/api/src/Emprely.Api
 Remove-Item Env:\ConnectionStrings__EmprelyDb
 ```
 
-Em provedor gerenciado, use a connection string do banco beta/staging e aplique a migration antes de liberar usuarios.
+Essa etapa cria `data_protection_keys`, usada para manter links de confirmacao, recuperacao e alteracao de email validos apos restart/deploy da API.
 
-## Health checks
+## API Lightsail + Caddy
 
-Depois do deploy:
+Validar env example:
 
 ```powershell
-Invoke-RestMethod http://localhost:8080/health/live
-Invoke-RestMethod http://localhost:8080/health/ready
-Invoke-RestMethod http://localhost:8081/health
+pnpm validate:lightsail
 ```
 
-Em beta real, troque `localhost` pelos dominios publicos.
+Buildar imagem localmente:
+
+```powershell
+pnpm lightsail:api:build
+```
+
+Enviar e subir no servidor:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/deploy-lightsail-api-image.ps1 `
+  -SshHost "<ip-ou-host>" `
+  -User "ubuntu" `
+  -KeyPath "C:\caminho\chave.pem" `
+  -EnvFile "C:\caminho\lightsail.env" `
+  -RemoteDirectory "/opt/emprely/orcamentos"
+```
+
+Health esperado:
+
+```powershell
+Invoke-RestMethod https://api.emprely.com.br/health/live
+Invoke-RestMethod https://api.emprely.com.br/health/ready
+```
+
+## Web S3 + CloudFront
+
+Runbook completo: `docs/product/webapp-s3-cloudfront-deploy.md`.
+
+No build do web:
+
+```txt
+VITE_API_BASE_URL=https://api.emprely.com.br
+```
+
+Depois do build, publicar `apps/web/dist` no bucket S3 do app e invalidar o CloudFront quando necessario.
+
+O painel administrativo nao exige build separado. A rota `/admin` e servida pelo mesmo SPA e consome a mesma `VITE_API_BASE_URL`.
+
+Com scripts:
+
+```powershell
+pnpm web:build:beta
+powershell -ExecutionPolicy Bypass -File scripts/deploy-web-s3.ps1 -BucketName "emprely-app-web" -DistributionId "<cloudfront-id>"
+```
+
+Smoke esperado:
+
+```powershell
+Invoke-WebRequest https://app.emprely.com.br
+```
+
+## Alertas de custo
+
+Antes de liberar beta real, criar AWS Budgets/alertas para pelo menos:
+
+- US$ 5;
+- US$ 10;
+- US$ 20.
 
 ## Aceite manual minimo
 
 - Criar conta nova.
+- Confirmar email via SES.
+- Solicitar recuperacao de senha via SES.
 - Fazer login.
-- Configurar conta.
+- Configurar conta e logomarca.
 - Cadastrar cliente com WhatsApp valido.
 - Cadastrar servico.
 - Criar e gerar proposta.
-- Testar imprimir/PDF.
+- Testar imprimir/PDF no navegador.
 - Testar WhatsApp em dispositivo real.
-- Marcar proposta como enviada.
-- Marcar proposta enviada como aceita ou recusada.
+- Enviar formulario publico em `/suporte`.
+- Acessar `https://app.emprely.com.br/admin` e confirmar login administrativo com um admin `SuperAdmin` ja criado por processo operacional seguro.
+- Validar listagem admin de usuarios, bloqueio/desbloqueio de usuario de teste e exportacao CSV.
 - Ativar Plano Fundador via endpoint administrativo.
-- Confirmar que o Plano Fundador remove o bloqueio comercial esperado.
+- Confirmar que health checks continuam 200 apos restart do container.
 
-## Rollback manual
+## Fallback Docker local
 
-Para parar o ambiente sem apagar dados:
-
-```powershell
-docker compose `
-  -f infra/docker/docker-compose.beta.example.yml `
-  --env-file infra/docker/beta.env `
-  down
-```
-
-Para apagar tambem o banco beta local do compose:
-
-```powershell
-docker compose `
-  -f infra/docker/docker-compose.beta.example.yml `
-  --env-file infra/docker/beta.env `
-  down -v
-```
-
-Use `down -v` somente quando quiser descartar os dados desse ambiente.
+`infra/docker` continua versionado para validacao local, imagem base e plano B temporario. Para beta real de baixo custo, siga `infra/lightsail`.

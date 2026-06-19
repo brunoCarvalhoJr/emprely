@@ -98,6 +98,11 @@ public sealed class AccountController : ControllerBase
             return BadRequest(new { message = "Template visual padrao invalido." });
         }
 
+        if (!TryParseFormatoArquivoPreferido(request.FormatoArquivoPreferido, out var formatoArquivoPreferido))
+        {
+            return BadRequest(new { message = "Formato de arquivo preferido invalido." });
+        }
+
         var conta = await dbContext.Contas
             .Include(contaAtual => contaAtual.Perfil)
             .FirstOrDefaultAsync(
@@ -131,7 +136,8 @@ public sealed class AccountController : ControllerBase
                 request.LogoUrl,
                 templateVisualPadrao,
                 request.CorSistemaPrimaria,
-                request.CorSistemaSecundaria);
+                request.CorSistemaSecundaria,
+                formatoArquivoPreferido);
 
             dbContext.PerfisConta.Add(perfilConta);
         }
@@ -149,7 +155,8 @@ public sealed class AccountController : ControllerBase
                 request.LogoUrl,
                 templateVisualPadrao,
                 request.CorSistemaPrimaria,
-                request.CorSistemaSecundaria);
+                request.CorSistemaSecundaria,
+                formatoArquivoPreferido);
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -221,7 +228,8 @@ public sealed class AccountController : ControllerBase
             perfilConta?.UpdatedAt,
             (perfilConta?.TemplateVisualPadrao ?? TemplateVisualProposta.ComercialMinimalista).ToString(),
             perfilConta?.CorSistemaPrimaria ?? PerfilConta.CorSistemaPrimariaPadrao,
-            perfilConta?.CorSistemaSecundaria ?? PerfilConta.CorSistemaSecundariaPadrao);
+            perfilConta?.CorSistemaSecundaria ?? PerfilConta.CorSistemaSecundariaPadrao,
+            perfilConta?.FormatoArquivoPreferido ?? PerfilConta.FormatoArquivoPreferidoPadrao);
     }
 
     private static bool TryParseTemplateVisualProposta(
@@ -244,6 +252,34 @@ public sealed class AccountController : ControllerBase
 
         return Enum.TryParse(valorNormalizado, ignoreCase: true, out templateVisual)
             && Enum.IsDefined(templateVisual);
+    }
+
+    private static bool TryParseFormatoArquivoPreferido(
+        string? valor,
+        out string formatoArquivoPreferido)
+    {
+        if (string.IsNullOrWhiteSpace(valor))
+        {
+            formatoArquivoPreferido = PerfilConta.FormatoArquivoPreferidoPadrao;
+            return true;
+        }
+
+        var valorNormalizado = valor.Trim();
+
+        if (valorNormalizado.Equals(PerfilConta.FormatoArquivoPreferidoPadrao, StringComparison.OrdinalIgnoreCase))
+        {
+            formatoArquivoPreferido = PerfilConta.FormatoArquivoPreferidoPadrao;
+            return true;
+        }
+
+        if (valorNormalizado.Equals(PerfilConta.FormatoArquivoPreferidoImagem, StringComparison.OrdinalIgnoreCase))
+        {
+            formatoArquivoPreferido = PerfilConta.FormatoArquivoPreferidoImagem;
+            return true;
+        }
+
+        formatoArquivoPreferido = PerfilConta.FormatoArquivoPreferidoPadrao;
+        return false;
     }
 
     private static bool IsLogoUrlPerfilValida(string? logoUrl)

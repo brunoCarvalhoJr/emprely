@@ -197,6 +197,7 @@ public sealed class EmprelyDbContext
             entity.Property(perfil => perfil.CorSistemaSecundaria).HasMaxLength(7).IsRequired();
             entity.Property(perfil => perfil.LogoUrl).HasMaxLength(500);
             entity.Property(perfil => perfil.TemplateVisualPadrao).HasConversion<string>().HasMaxLength(40).IsRequired();
+            entity.Property(perfil => perfil.FormatoArquivoPreferido).HasMaxLength(20).IsRequired();
             entity.HasIndex(perfil => perfil.ContaId).IsUnique();
             entity.HasOne(perfil => perfil.Conta)
                 .WithOne(conta => conta.Perfil)

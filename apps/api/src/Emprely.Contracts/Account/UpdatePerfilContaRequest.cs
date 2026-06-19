@@ -14,4 +14,5 @@ public sealed record UpdatePerfilContaRequest(
     [MaxLength(500)] string? LogoUrl,
     [MaxLength(40)] string? TemplateVisualPadrao = null,
     [RegularExpression("^#[0-9A-Fa-f]{6}$")] string? CorSistemaPrimaria = null,
-    [RegularExpression("^#[0-9A-Fa-f]{6}$")] string? CorSistemaSecundaria = null);
+    [RegularExpression("^#[0-9A-Fa-f]{6}$")] string? CorSistemaSecundaria = null,
+    [MaxLength(20)] string? FormatoArquivoPreferido = null);
