@@ -8698,11 +8698,17 @@ button[class*="border-accent"]:not(:disabled):hover {
 .doc-ramo-orb,
 .doc-ramo-bars rect,
 .doc-ramo-media,
+.doc-ramo-phone,
+.doc-ramo-avatar,
+.doc-ramo-chip,
+.doc-ramo-license,
 .doc-ramo-step {
   fill: var(--ramo-accent);
 }
 
-.doc-ramo-media-alt {
+.doc-ramo-media-alt,
+.doc-ramo-phone-alt,
+.doc-ramo-chip-alt {
   fill: var(--ramo-accent-2);
 }
 
@@ -8743,6 +8749,32 @@ button[class*="border-accent"]:not(:disabled):hover {
   stroke-linejoin: round;
 }
 
+.doc-ramo-phone,
+.doc-ramo-license {
+  fill-opacity: 0.92;
+  stroke: rgba(255, 255, 255, 0.72);
+  stroke-width: 3;
+}
+
+.doc-ramo-play {
+  fill: #ffffff;
+}
+
+.doc-ramo-avatar {
+  fill: color-mix(in srgb, var(--ramo-accent) 82%, #ffffff);
+}
+
+.doc-ramo-profile {
+  fill: none;
+  stroke: var(--ramo-accent);
+  stroke-linecap: round;
+  stroke-width: 8;
+}
+
+.doc-ramo-chip {
+  fill-opacity: 0.88;
+}
+
 .doc-ramo-dot {
   fill: var(--ramo-accent-2);
 }
@@ -8766,8 +8798,14 @@ button[class*="border-accent"]:not(:disabled):hover {
 }
 
 .doc-ramo-visual-social,
-.doc-ramo-visual-design {
+.doc-ramo-visual-design,
+.doc-ramo-visual-ugc {
   --ramo-accent-2: #21c7b7;
+}
+
+.doc-ramo-visual-creator {
+  --ramo-accent: #7c3aed;
+  --ramo-accent-2: #13c7bd;
 }
 
 .doc-ramo-visual-trafego,

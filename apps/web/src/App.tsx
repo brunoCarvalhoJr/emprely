@@ -213,60 +213,60 @@ const propostaTemplateVisualOpcoes: Array<{
 }> = [
   {
     value: "ComercialMinimalista",
-    label: "Comercial minimalista",
-    detalhe: "Layout limpo com tabela e investimento em destaque.",
+    label: "Orçamento rápido WhatsApp",
+    detalhe: "Escopo, preço, prazo e próximos passos para responder no chat.",
   },
   {
     value: "OrcamentoSimplificado",
-    label: "Orçamento simplificado",
-    detalhe: "Resumo objetivo para aprovação rápida.",
+    label: "Mídia kit e rate card",
+    detalhe: "Bio, audiência, formatos vendidos, bundles e condições para creators.",
   },
   {
     value: "PropostaCompleta",
-    label: "Proposta completa",
-    detalhe: "Seções comerciais completas para proposta detalhada.",
+    label: "Proposta comercial completa",
+    detalhe: "Documento modular com escopo, entregas, investimento, termos e aceite.",
   },
   {
     value: "LunaSocialStudio",
-    label: "Luna social studio",
-    detalhe: "Hero escuro com acentos vibrantes para social media.",
+    label: "Social media mensal",
+    detalhe: "Pacotes recorrentes com posts, calendário, aprovação e relatório.",
   },
   {
     value: "DarkGrowth",
-    label: "Dark growth",
-    detalhe: "Cabeçalho escuro com visual mais comercial.",
+    label: "Tráfego pago e campanhas",
+    detalhe: "Setup, verba de mídia, campanhas, otimização e KPIs de resultado.",
   },
   {
     value: "InstagramPremium",
-    label: "Instagram premium",
-    detalhe: "Template denso para social media e conteúdo.",
+    label: "Reels, vídeos curtos e UGC",
+    detalhe: "Peças de vídeo, captação, edição, legenda, direitos de uso e exclusividade.",
   },
   {
     value: "Claymorphism",
     label: "Claymorphism",
-    detalhe: "Visual moderno com cards clay, volume suave e cores sólidas.",
+    detalhe: "Template legado fora da curadoria atual.",
   },
   {
     value: "Emprely",
     label: "Emprely",
-    detalhe: "Layout alinhado à identidade visual do sistema Emprely.",
+    detalhe: "Template legado fora da curadoria atual.",
   },
   {
     value: "ExecutivoEditorial",
-    label: "Executivo editorial",
-    detalhe: "Documento sóbrio, editorial e imponente para propostas premium.",
+    label: "Consultoria e diagnóstico",
+    detalhe: "Situação atual, problema, sessões, plano de ação e credenciais.",
     coresEstaticas: true,
   },
   {
     value: "CorporativoBoard",
-    label: "Corporativo board",
-    detalhe: "Composição executiva com bloco escuro, métricas e leitura direta.",
+    label: "Agência growth board",
+    detalhe: "Frentes de marketing, roadmap, KPIs e recorrência para agência enxuta.",
     coresEstaticas: true,
   },
   {
     value: "InstitucionalClean",
-    label: "Institucional clean",
-    detalhe: "Layout discreto, técnico e muito limpo para contextos gerais.",
+    label: "Design e identidade visual",
+    detalhe: "Entregáveis, conceitos, revisões, arquivos finais, mockups e direitos.",
     coresEstaticas: true,
   },
 ];
@@ -279,45 +279,50 @@ const propostaTemplateVisualOpcoesGaleria: Array<{
 }> = [
   {
     value: "ComercialMinimalista",
-    label: "Orçamento rápido",
-    detalhe: "Preço, escopo e próximos passos para enviar sem enrolação.",
+    label: "Orçamento rápido WhatsApp",
+    detalhe: "Preço, escopo, prazo e CTA para responder sem perder o timing.",
+  },
+  {
+    value: "OrcamentoSimplificado",
+    label: "Mídia kit e rate card",
+    detalhe: "Creator, audiência, métricas, formatos vendidos, bundles e direitos.",
   },
   {
     value: "PropostaCompleta",
-    label: "Proposta completa",
-    detalhe: "Documento comercial com escopo, valor, condições e diferenciais.",
+    label: "Proposta comercial completa",
+    detalhe: "Documento comercial com escopo, valor, condições, termos e aceite.",
   },
   {
     value: "LunaSocialStudio",
-    label: "Social media planner",
-    detalhe: "Conteúdo, calendário, entregáveis e rotina mensal para redes sociais.",
+    label: "Social media mensal",
+    detalhe: "Posts, reels, stories, calendário, aprovações, reuniões e relatório.",
   },
   {
     value: "InstagramPremium",
-    label: "Social premium",
-    detalhe: "Proposta visual para pacotes de conteúdo, reels, stories e gestão.",
+    label: "Reels, vídeos curtos e UGC",
+    detalhe: "Vídeos, roteiro, edição, legenda, prazo, licença de uso e exclusividade.",
   },
   {
     value: "DarkGrowth",
-    label: "Tráfego performance",
-    detalhe: "Campanhas, verba de mídia, otimização e métricas de resultado.",
+    label: "Tráfego pago e campanhas",
+    detalhe: "Setup, campanhas, verba separada, otimização, KPIs e relatórios.",
   },
   {
     value: "InstitucionalClean",
-    label: "Identidade visual studio",
-    detalhe: "Layout limpo para marca, design, papelaria, social kit e guias visuais.",
+    label: "Design e identidade visual",
+    detalhe: "Conceitos, revisões, arquivos finais, aplicações, mockups e direitos.",
     coresEstaticas: true,
   },
   {
     value: "ExecutivoEditorial",
-    label: "Consultoria estratégica",
-    detalhe: "Diagnóstico, plano de ação, acompanhamento e tomada de decisão.",
+    label: "Consultoria e diagnóstico",
+    detalhe: "Diagnóstico, sessões, entregáveis, plano de ação e próximos passos.",
     coresEstaticas: true,
   },
   {
     value: "CorporativoBoard",
     label: "Agência growth board",
-    detalhe: "Composição executiva para pacotes completos de marketing e crescimento.",
+    detalhe: "Pacotes completos de marketing com frentes, roadmap, KPIs e cadência.",
     coresEstaticas: true,
   },
 ];
@@ -10070,16 +10075,26 @@ function TemplateSelectionIcon({
       <path d="M18 30h28" className="template-svg-line" />
       <path d="M18 38h20" className="template-svg-line" />
       {templateVisual === "OrcamentoSimplificado" ? (
-        <path d="M44 18l6 6-16 16-8 2 2-8 16-16Z" className="template-svg-accent" />
+        <>
+          <circle cx="45" cy="23" r="7" className="template-svg-accent" />
+          <path d="M38 43c2.5-8 11.5-8 14 0" className="template-svg-stroke-accent" />
+          <path d="M18 44h16" className="template-svg-line" />
+        </>
       ) : templateVisual === "PropostaCompleta" ? (
         <>
           <rect x="39" y="17" width="10" height="10" rx="2" className="template-svg-accent" />
           <rect x="39" y="31" width="10" height="10" rx="2" className="template-svg-accent-muted" />
         </>
-      ) : templateVisual === "LunaSocialStudio" || templateVisual === "InstagramPremium" ? (
+      ) : templateVisual === "LunaSocialStudio" ? (
         <>
           <circle cx="46" cy="23" r="7" className="template-svg-accent" />
           <path d="M41 40c2.5-6 7.5-6 10 0" className="template-svg-stroke-accent" />
+        </>
+      ) : templateVisual === "InstagramPremium" ? (
+        <>
+          <rect x="39" y="17" width="11" height="22" rx="4" className="template-svg-accent" />
+          <path d="M42 25l6 4-6 4z" fill="#fff" />
+          <path d="M38 44h14" className="template-svg-stroke-accent" />
         </>
       ) : templateVisual === "DarkGrowth" ? (
         <path d="M38 42l6-10 5 5 6-14" className="template-svg-stroke-accent" />
@@ -10154,7 +10169,7 @@ function TemplateComercialMinimalista({ d }: TemplateDocumentoBaseProps) {
       <header className="doc-minimal-header">
         <DocumentoMarca d={d} />
         <div className="doc-minimal-title">
-          <span className="doc-kicker">Orçamento Comercial</span>
+          <span className="doc-kicker">Orçamento rápido WhatsApp</span>
           <DocumentoTitulo titulo={d.titulo} className="doc-minimal-title-main" />
           <span className="doc-title-rule" />
         </div>
@@ -10171,12 +10186,15 @@ function TemplateComercialMinimalista({ d }: TemplateDocumentoBaseProps) {
       </section>
 
       <DocumentoCondicoes d={d} compact />
-      <DocumentoFooter d={d} cta="Aprovar orçamento" minimal />
+      <DocumentoFooter d={d} cta="Aprovar e seguir" minimal />
     </div>
   );
 }
 
 function TemplateOrcamentoSimplificado({ d }: TemplateDocumentoBaseProps) {
+  const inclusos = getInclusosDocumento(d);
+  const textoResumo = d.introducao || d.observacoes;
+
   return (
     <div className="doc-page doc-simple-page">
       <span className="doc-simple-corner" />
@@ -10188,33 +10206,44 @@ function TemplateOrcamentoSimplificado({ d }: TemplateDocumentoBaseProps) {
       <section className="doc-simple-title">
         <span />
         <div>
-          <small>Orçamento Simplificado</small>
+          <small>Mídia kit e rate card</small>
           <DocumentoTitulo titulo={d.titulo} className="doc-simple-title-main" />
-          <p>Proposta objetiva com os principais itens para aprovação rápida.</p>
+          <p>Audiência, formatos, bundles e condições comerciais para parceria com creator.</p>
         </div>
       </section>
 
       <DocumentoMetaCards d={d} />
+      <DocumentoImagemRamo tipo="creator" />
 
-      {d.introducao ? (
+      {textoResumo ? (
         <section className="doc-simple-intro">
           <div className="doc-round-icon">
-            <Target size={46} />
+            <UsersRound size={46} />
           </div>
-          <p>{d.introducao}</p>
+          <p>{textoResumo}</p>
         </section>
       ) : null}
 
       <section className="doc-simple-grid">
-        <DocumentoTabelaServicos d={d} compact icons />
+        <div>
+          <DocumentoSectionTitle icon={<Tags size={20} />} title="Formatos e pacotes" />
+          <DocumentoTabelaServicos d={d} compact detailed icons />
+        </div>
         <DocumentoTotalCard d={d} variant="receipt" />
       </section>
+
+      {d.beneficios.length || inclusos.length ? (
+        <section className="doc-simple-grid">
+          <DocumentoBeneficios d={d} />
+          <DocumentoLista titulo="Condições de uso e entrega" itens={inclusos} positive />
+        </section>
+      ) : null}
 
       <section className="doc-simple-actions">
         <DocumentoCondicoes d={d} icon />
         <div className="doc-cta doc-cta-simple">
           <CheckCircle2 size={30} />
-          <strong>Aprovar orçamento</strong>
+          <strong>Confirmar parceria</strong>
         </div>
       </section>
 
@@ -10243,9 +10272,9 @@ function TemplatePropostaCompleta({ d }: TemplateDocumentoBaseProps) {
       <header className="doc-complete-header">
         <DocumentoMarca d={d} />
         <div className="doc-complete-heading">
-          <span>Proposta comercial</span>
+          <span>Proposta comercial completa</span>
           <DocumentoTitulo titulo={d.titulo} className="doc-complete-title-main" />
-          <small>Estratégia, conteúdo e consistência para transformar seguidores em clientes.</small>
+          <small>Escopo, entregas, prazos, condições e próximos passos para aprovar com clareza.</small>
         </div>
       </header>
 
@@ -10326,16 +10355,38 @@ function TemplateSocialDetalhado({
   d,
   luna = false,
 }: TemplateDocumentoBaseProps & { luna?: boolean }) {
+  const texto = luna
+    ? {
+        kicker: "Social media mensal",
+        titulo: "Gestão de conteúdo recorrente",
+        escopo: "Calendário, entregas e rotina mensal",
+        beneficios: "O que melhora na operação",
+        listas: "Aprovações e combinados",
+        cronograma: "Cadência mensal",
+        cta: "Aprovar plano mensal",
+        tipo: "social" as const,
+      }
+    : {
+        kicker: "Tráfego pago e campanhas",
+        titulo: "Plano de mídia e performance",
+        escopo: "Setup, campanhas e otimização",
+        beneficios: "Indicadores de resultado",
+        listas: "Responsabilidades e limites",
+        cronograma: "Ciclo de campanha",
+        cta: "Aprovar gestão de tráfego",
+        tipo: "trafego" as const,
+      };
+
   return (
     <div className={`doc-page doc-social-page ${luna ? "doc-social-page-luna" : ""}`}>
       <header className="doc-social-hero">
         <div>
           <DocumentoMarca d={d} dark={luna} large />
-          <h1>Proposta Comercial</h1>
+          <h1>{texto.kicker}</h1>
           <span className="doc-title-underline" />
           <DocumentoTitulo titulo={d.titulo} as="h2" className="doc-social-title-main" />
           {d.introducao ? <p>{d.introducao}</p> : null}
-          <DocumentoImagemRamo tipo={luna ? "social" : "trafego"} dark />
+          <DocumentoImagemRamo tipo={texto.tipo} dark />
         </div>
         <DocumentoMetaPanel d={d} dark />
       </header>
@@ -10345,7 +10396,7 @@ function TemplateSocialDetalhado({
           <>
             <DocumentoSectionTitle
               icon={<Sparkles size={20} />}
-              title="Por que esta proposta faz sentido"
+              title={texto.beneficios}
             />
             <DocumentoBeneficios d={d} />
           </>
@@ -10353,13 +10404,13 @@ function TemplateSocialDetalhado({
 
         <DocumentoSectionTitle
           icon={<FolderOpen size={20} />}
-          title="Escopo da proposta"
+          title={texto.escopo}
         />
         <DocumentoTabelaServicos d={d} compact detailed icons />
 
         {getInclusosDocumento(d).length || d.itensNaoInclusos.length ? (
           <section className="doc-social-lists">
-            <DocumentoLista titulo="O que está incluso" itens={getInclusosDocumento(d)} positive />
+            <DocumentoLista titulo={texto.listas} itens={getInclusosDocumento(d)} positive />
             <DocumentoLista titulo="O que não está incluso" itens={d.itensNaoInclusos} />
           </section>
         ) : null}
@@ -10368,7 +10419,7 @@ function TemplateSocialDetalhado({
           <>
             <DocumentoSectionTitle
               icon={<Clock3 size={20} />}
-              title="Cronograma e condições"
+              title={texto.cronograma}
             />
             <DocumentoTimeline d={d} horizontal />
           </>
@@ -10382,7 +10433,7 @@ function TemplateSocialDetalhado({
               <p>{d.observacoes || d.condicoesPagamento}</p>
               <div className="doc-cta">
                 <CheckCircle2 size={24} />
-                <strong>Aprovar proposta</strong>
+                <strong>{texto.cta}</strong>
               </div>
               <DocumentoContatoInline d={d} />
             </div>
@@ -10402,14 +10453,14 @@ function TemplateInstagramPremium({ d }: TemplateDocumentoBaseProps) {
       <header className="doc-instagram-header">
         <div>
           <DocumentoMarca d={d} large />
-          <span className="doc-kicker">Proposta comercial</span>
+          <span className="doc-kicker">Reels, vídeos curtos e UGC</span>
           <DocumentoTitulo titulo={d.titulo} className="doc-instagram-title-main" />
           {d.introducao ? <p>{d.introducao}</p> : null}
         </div>
         <DocumentoMetaPanel d={d} dark />
       </header>
 
-      <DocumentoImagemRamo tipo="social" />
+      <DocumentoImagemRamo tipo="ugc" />
 
       {textoResumo ? (
         <section className="doc-instagram-resumo">
@@ -10417,7 +10468,7 @@ function TemplateInstagramPremium({ d }: TemplateDocumentoBaseProps) {
             <InstagramGlyph size={28} />
           </div>
           <div>
-            <h2>Resumo executivo</h2>
+            <h2>Objetivo da campanha</h2>
             <p>{textoResumo}</p>
           </div>
         </section>
@@ -10427,12 +10478,12 @@ function TemplateInstagramPremium({ d }: TemplateDocumentoBaseProps) {
 
       <section className="doc-instagram-grid">
         <div>
-          <DocumentoSectionTitle title="Escopo / serviços contratados" />
+          <DocumentoSectionTitle title="Vídeos e entregáveis" />
           <DocumentoTabelaServicos d={d} compact detailed icons />
         </div>
         <div className="doc-stack">
-          <DocumentoLista titulo="O que está incluso" itens={getInclusosDocumento(d)} positive />
-          <DocumentoLista titulo="O que não está incluso" itens={d.itensNaoInclusos} />
+          <DocumentoLista titulo="Direitos de uso e condições" itens={getInclusosDocumento(d)} positive />
+          <DocumentoLista titulo="Fora do pacote" itens={d.itensNaoInclusos} />
         </div>
       </section>
 
@@ -10448,7 +10499,7 @@ function TemplateInstagramPremium({ d }: TemplateDocumentoBaseProps) {
         </div>
       ) : null}
 
-      <DocumentoFooter d={d} cta="Aprovar proposta" premium />
+      <DocumentoFooter d={d} cta="Aprovar produção" premium />
     </div>
   );
 }
@@ -10581,14 +10632,14 @@ function TemplateExecutivoEditorial({ d }: TemplateDocumentoBaseProps) {
         <DocumentoMarca d={d} />
         <div className="doc-executive-seal">
           <BriefcaseBusiness size={18} />
-          <span>Proposta executiva</span>
+          <span>Consultoria e diagnóstico</span>
         </div>
       </header>
 
       <section className="doc-executive-cover">
         <div className="doc-executive-rule" />
         <div>
-          <span className="doc-kicker">Documento comercial</span>
+          <span className="doc-kicker">Diagnóstico, plano e acompanhamento</span>
           <DocumentoTitulo titulo={d.titulo} className="doc-executive-title-main" />
           {d.introducao ? <p>{d.introducao}</p> : null}
           <DocumentoImagemRamo tipo="consultoria" />
@@ -10601,12 +10652,12 @@ function TemplateExecutivoEditorial({ d }: TemplateDocumentoBaseProps) {
         <main>
           {d.beneficios.length ? (
             <>
-              <DocumentoSectionTitle icon={<BadgeCheck size={20} />} title="Valor da proposta" />
+              <DocumentoSectionTitle icon={<BadgeCheck size={20} />} title="Problemas e ganhos esperados" />
               <DocumentoBeneficios d={d} mode="wide" />
             </>
           ) : null}
 
-          <DocumentoSectionTitle icon={<PackageCheck size={20} />} title="Escopo comercial" />
+          <DocumentoSectionTitle icon={<PackageCheck size={20} />} title="Sessões e entregáveis" />
           <DocumentoTabelaServicos d={d} compact totalColumn />
         </main>
 
@@ -10618,8 +10669,8 @@ function TemplateExecutivoEditorial({ d }: TemplateDocumentoBaseProps) {
 
       {inclusos.length || d.itensNaoInclusos.length ? (
         <section className="doc-executive-lists">
-          <DocumentoLista titulo="Incluído" itens={inclusos} positive />
-          <DocumentoLista titulo="Fora do escopo" itens={d.itensNaoInclusos} />
+          <DocumentoLista titulo="Incluído na consultoria" itens={inclusos} positive />
+          <DocumentoLista titulo="Fora do diagnóstico" itens={d.itensNaoInclusos} />
         </section>
       ) : null}
 
@@ -10630,7 +10681,7 @@ function TemplateExecutivoEditorial({ d }: TemplateDocumentoBaseProps) {
         </div>
       ) : null}
 
-      <DocumentoFooter d={d} cta="Aprovar proposta" minimal />
+      <DocumentoFooter d={d} cta="Aprovar diagnóstico" minimal />
     </div>
   );
 }
@@ -10643,7 +10694,7 @@ function TemplateCorporativoBoard({ d }: TemplateDocumentoBaseProps) {
       <header className="doc-board-hero">
         <div>
           <DocumentoMarca d={d} dark large />
-          <span className="doc-board-label">Commercial board</span>
+          <span className="doc-board-label">Agência growth board</span>
           <DocumentoTitulo titulo={d.titulo} className="doc-board-title-main" />
           {d.introducao ? <p>{d.introducao}</p> : null}
           <DocumentoImagemRamo tipo="agencia" dark />
@@ -10658,12 +10709,12 @@ function TemplateCorporativoBoard({ d }: TemplateDocumentoBaseProps) {
 
       <section className="doc-board-content">
         <main>
-          <DocumentoSectionTitle icon={<ShieldCheck size={20} />} title="Escopo contratado" />
+          <DocumentoSectionTitle icon={<ShieldCheck size={20} />} title="Frentes contratadas" />
           <DocumentoTabelaServicos d={d} compact detailed />
 
           {d.beneficios.length ? (
             <>
-              <DocumentoSectionTitle icon={<Target size={20} />} title="Direcionadores" />
+              <DocumentoSectionTitle icon={<Target size={20} />} title="Metas e indicadores" />
               <DocumentoBeneficios d={d} />
             </>
           ) : null}
@@ -10671,15 +10722,15 @@ function TemplateCorporativoBoard({ d }: TemplateDocumentoBaseProps) {
 
         {inclusos.length || d.itensNaoInclusos.length ? (
           <aside>
-            <DocumentoLista titulo="Incluído" itens={inclusos} positive />
-            <DocumentoLista titulo="Não incluído" itens={d.itensNaoInclusos} />
+            <DocumentoLista titulo="Entregas inclusas" itens={inclusos} positive />
+            <DocumentoLista titulo="Fora da cadência" itens={d.itensNaoInclusos} />
           </aside>
         ) : null}
       </section>
 
       {d.cronograma.length ? (
         <section className="doc-board-timeline">
-          <DocumentoSectionTitle icon={<Clock3 size={20} />} title="Etapas" />
+          <DocumentoSectionTitle icon={<Clock3 size={20} />} title="Roadmap e cadência" />
           <DocumentoTimeline d={d} horizontal />
         </section>
       ) : null}
@@ -10691,7 +10742,7 @@ function TemplateCorporativoBoard({ d }: TemplateDocumentoBaseProps) {
         </div>
       ) : null}
 
-      <DocumentoFooter d={d} cta="Aprovar proposta" premium />
+      <DocumentoFooter d={d} cta="Aprovar growth board" premium />
     </div>
   );
 }
@@ -10703,11 +10754,11 @@ function TemplateInstitucionalClean({ d }: TemplateDocumentoBaseProps) {
     <div className="doc-page doc-institutional-page">
       <header className="doc-institutional-header">
         <DocumentoMarca d={d} />
-        <span>Proposta institucional</span>
+        <span>Design e identidade visual</span>
       </header>
 
       <section className="doc-institutional-title">
-        <span className="doc-kicker">Orçamento comercial</span>
+        <span className="doc-kicker">Marca, aplicações e arquivos finais</span>
         <DocumentoTitulo titulo={d.titulo} className="doc-institutional-title-main" />
         <DocumentoImagemRamo tipo="design" />
         {d.introducao ? <p>{d.introducao}</p> : null}
@@ -10719,12 +10770,12 @@ function TemplateInstitucionalClean({ d }: TemplateDocumentoBaseProps) {
         <main>
           {d.beneficios.length ? (
             <>
-              <DocumentoSectionTitle icon={<Target size={20} />} title="Objetivos" />
+              <DocumentoSectionTitle icon={<Target size={20} />} title="Direção criativa e objetivos" />
               <DocumentoBeneficios d={d} mode="wide" />
             </>
           ) : null}
 
-          <DocumentoSectionTitle icon={<PackageCheck size={20} />} title="Serviços e investimento" />
+          <DocumentoSectionTitle icon={<PackageCheck size={20} />} title="Entregáveis, revisões e investimento" />
           <DocumentoTabelaServicos d={d} compact totalColumn />
         </main>
 
@@ -10736,14 +10787,14 @@ function TemplateInstitucionalClean({ d }: TemplateDocumentoBaseProps) {
 
       {inclusos.length || d.itensNaoInclusos.length ? (
         <section className="doc-institutional-lists">
-          <DocumentoLista titulo="Incluído" itens={inclusos} positive />
-          <DocumentoLista titulo="Não incluído" itens={d.itensNaoInclusos} />
+          <DocumentoLista titulo="Arquivos e aplicações inclusas" itens={inclusos} positive />
+          <DocumentoLista titulo="Fora do escopo criativo" itens={d.itensNaoInclusos} />
         </section>
       ) : null}
 
       {d.cronograma.length ? (
         <section className="doc-institutional-timeline">
-          <DocumentoSectionTitle icon={<Clock3 size={20} />} title="Cronograma" />
+          <DocumentoSectionTitle icon={<Clock3 size={20} />} title="Etapas e aprovações" />
           <DocumentoTimeline d={d} horizontal />
         </section>
       ) : null}
@@ -10755,7 +10806,7 @@ function TemplateInstitucionalClean({ d }: TemplateDocumentoBaseProps) {
         </div>
       ) : null}
 
-      <DocumentoFooter d={d} cta="Aprovar proposta" minimal />
+      <DocumentoFooter d={d} cta="Aprovar identidade" minimal />
     </div>
   );
 }
@@ -10929,25 +10980,45 @@ function DocumentoImagemRamo({
   tipo,
   dark = false,
 }: {
-  tipo: "rapido" | "social" | "trafego" | "design" | "consultoria" | "agencia";
+  tipo:
+    | "rapido"
+    | "social"
+    | "ugc"
+    | "creator"
+    | "trafego"
+    | "design"
+    | "consultoria"
+    | "agencia";
   dark?: boolean;
 }) {
   const config = {
     rapido: {
-      kicker: "envio rápido",
-      title: "Escopo + preço",
+      kicker: "WhatsApp",
+      title: "Escopo, prazo e preço",
       metric: "24h",
       bars: [82, 56, 68],
     },
     social: {
       kicker: "rotina mensal",
-      title: "Feed, reels e stories",
+      title: "Posts, reels e aprovações",
       metric: "30d",
       bars: [62, 84, 44],
     },
+    ugc: {
+      kicker: "conteúdo curto",
+      title: "Reels, UGC e licença",
+      metric: "9:16",
+      bars: [76, 50, 88],
+    },
+    creator: {
+      kicker: "creator commerce",
+      title: "Audiência, formatos e rate card",
+      metric: "ER%",
+      bars: [58, 82, 64],
+    },
     trafego: {
       kicker: "performance",
-      title: "Campanhas e verba",
+      title: "Campanhas, verba e KPIs",
       metric: "ROAS",
       bars: [44, 70, 92],
     },
@@ -11003,6 +11074,22 @@ function DocumentoImagemRamo({
           <>
             <rect className="doc-ramo-media" x="64" y="126" width="56" height="42" rx="10" />
             <rect className="doc-ramo-media doc-ramo-media-alt" x="130" y="126" width="56" height="42" rx="10" />
+          </>
+        ) : null}
+        {tipo === "ugc" ? (
+          <>
+            <rect className="doc-ramo-phone" x="62" y="116" width="42" height="66" rx="13" />
+            <rect className="doc-ramo-phone doc-ramo-phone-alt" x="116" y="108" width="42" height="74" rx="13" />
+            <path className="doc-ramo-play" d="M132 132l16 10-16 10z" />
+            <rect className="doc-ramo-license" x="172" y="126" width="54" height="28" rx="14" />
+          </>
+        ) : null}
+        {tipo === "creator" ? (
+          <>
+            <circle className="doc-ramo-avatar" cx="84" cy="139" r="22" />
+            <path className="doc-ramo-profile" d="M52 176c8-22 56-22 64 0" />
+            <rect className="doc-ramo-chip" x="134" y="124" width="78" height="18" rx="9" />
+            <rect className="doc-ramo-chip doc-ramo-chip-alt" x="134" y="152" width="58" height="18" rx="9" />
           </>
         ) : null}
         {tipo === "trafego" || tipo === "agencia" ? (

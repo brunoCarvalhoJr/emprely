@@ -1,33 +1,36 @@
-# Análise - Curadoria de templates de orçamento para serviços digitais
+# Analise - Curadoria de templates de orcamento para servicos digitais
 
 ## Contexto
 
-Após a pesquisa de fluxo e de referências de orçamento para prestadores de serviços digitais, os templates atuais precisam sair de uma coleção genérica para uma galeria mais direcionada ao público-alvo da Emprely: social media, gestores de tráfego, designers, consultores e pequenas agências.
+A pesquisa estrategica mostrou que a Emprely deve vender mais do que um PDF bonito. O produto precisa parecer um sistema de propostas para quem vende servicos criativos e digitais por WhatsApp, DM e e-mail: social medias, creators, UGC creators, gestores de trafego, designers, consultores e pequenas agencias.
 
 ## Problema
 
-A galeria atual tem muitos templates com diferença mais estética do que comercial. Alguns nomes como Claymorphism e Emprely não comunicam um uso real para o usuário final. Também faltam visuais que ajudem a proposta a parecer criada para o ramo de trabalho do prestador.
+A galeria atual mistura templates por estilo visual e nao por situacao real de venda. Nomes como Claymorphism e Emprely nao comunicam o uso comercial para o usuario final. Tambem faltava um template claro para midia kit/rate card de creators e uma separacao melhor entre social media mensal, UGC, trafego, design, consultoria e agencia.
 
-## Decisões
+## Decisoes
 
-- Manter os IDs técnicos existentes para evitar quebra em propostas antigas e no contrato da API.
-- Desativar da galeria os templates menos úteis para aquisição e escolha rápida.
-- Reposicionar os templates ativos por caso de uso, com nomes e descrições comerciais.
-- Adicionar imagens/ilustrações SVG dentro dos templates para representar rotina e entregáveis do ramo.
-- Preservar renderização dos templates antigos para propostas já salvas.
+- Reaproveitar os IDs tecnicos existentes, conforme decisao de produto, sem alterar enum, contrato da API ou banco.
+- Aceitar que propostas antigas que usem IDs reaproveitados passem a exibir o novo conceito visual do template.
+- Desativar da galeria os templates menos uteis para aquisicao e escolha rapida.
+- Reposicionar os templates ativos por caso de uso, com nomes e descricoes comerciais.
+- Usar imagens/ilustracoes SVG/CSS locais dentro dos templates para representar rotina e entregaveis do ramo.
+- Evitar imagens externas para reduzir risco em exportacao PDF/PNG.
 
 ## Templates ativos esperados
 
-- Orçamento rápido
-- Proposta completa
-- Social media planner
-- Social premium
-- Tráfego performance
-- Identidade visual studio
-- Consultoria estratégica
-- Agência growth board
+- Orcamento rapido WhatsApp
+- Proposta comercial completa
+- Social media mensal
+- Reels, videos curtos e UGC
+- Midia kit e rate card
+- Trafego pago e campanhas
+- Design e identidade visual
+- Consultoria e diagnostico
+- Agencia growth board
 
 ## Riscos
 
-- Como os IDs técnicos continuam iguais, o texto do label pode mudar em propostas existentes quando exibido no app. O risco é aceitável porque o objetivo é evoluir a curadoria sem migração de banco.
-- Imagens externas aumentariam risco de carregamento/exportação; por isso serão SVGs/CSS locais no próprio documento.
+- Como os IDs tecnicos serao reaproveitados, o layout de propostas antigas pode mudar quando reaberto no app. O risco e aceitavel porque a prioridade e evoluir a curadoria sem migracao.
+- Templates removidos da galeria precisam continuar aceitos pelo normalizador para nao quebrar dados existentes.
+- Imagens externas aumentariam risco de carregamento/exportacao; por isso os visuais devem ser SVG/CSS locais no proprio documento.
