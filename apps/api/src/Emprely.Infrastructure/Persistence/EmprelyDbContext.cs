@@ -2,6 +2,7 @@ using Emprely.Domain.Admin;
 using Emprely.Domain.Clientes;
 using Emprely.Domain.Comunicacoes;
 using Emprely.Domain.Contas;
+using Emprely.Domain.Onboarding;
 using Emprely.Domain.Propostas;
 using Emprely.Domain.Servicos;
 using Emprely.Domain.Suporte;
@@ -47,6 +48,10 @@ public sealed class EmprelyDbContext
 
     public DbSet<SuporteSolicitacao> SuporteSolicitacoes => Set<SuporteSolicitacao>();
 
+    public DbSet<OnboardingUsuario> OnboardingUsuarios => Set<OnboardingUsuario>();
+
+    public DbSet<OnboardingEvento> OnboardingEventos => Set<OnboardingEvento>();
+
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     protected override void OnModelCreating(ModelBuilder builder)
@@ -67,6 +72,8 @@ public sealed class EmprelyDbContext
         ConfigureEmailTransacional(builder);
         ConfigureEmailAlteracaoPendente(builder);
         ConfigureSuporteSolicitacao(builder);
+        ConfigureOnboardingUsuario(builder);
+        ConfigureOnboardingEvento(builder);
         ConfigureDataProtectionKeys(builder);
     }
 
@@ -191,6 +198,8 @@ public sealed class EmprelyDbContext
             entity.Property(perfil => perfil.SiteUrl).HasMaxLength(300);
             entity.Property(perfil => perfil.Instagram).HasMaxLength(80);
             entity.Property(perfil => perfil.Documento).HasMaxLength(40);
+            entity.Property(perfil => perfil.Segmento).HasMaxLength(80);
+            entity.Property(perfil => perfil.CidadeUf).HasMaxLength(120);
             entity.Property(perfil => perfil.CorPrimaria).HasMaxLength(7).IsRequired();
             entity.Property(perfil => perfil.CorSecundaria).HasMaxLength(7).IsRequired();
             entity.Property(perfil => perfil.CorSistemaPrimaria).HasMaxLength(7).IsRequired();
@@ -359,6 +368,49 @@ public sealed class EmprelyDbContext
             entity.Property(suporte => suporte.Status).HasConversion<string>().HasMaxLength(24).IsRequired();
             entity.HasIndex(suporte => suporte.ContaId);
             entity.HasIndex(suporte => suporte.UsuarioId);
+        });
+    }
+
+    private static void ConfigureOnboardingUsuario(ModelBuilder builder)
+    {
+        builder.Entity<OnboardingUsuario>(entity =>
+        {
+            entity.ToTable("onboarding_usuarios");
+            entity.HasKey(onboarding => onboarding.Id);
+            entity.Property(onboarding => onboarding.StatusConfiguracaoConta).HasMaxLength(24).IsRequired();
+            entity.Property(onboarding => onboarding.EtapaConfiguracaoConta).HasMaxLength(80).IsRequired();
+            entity.Property(onboarding => onboarding.StatusPrimeiraProposta).HasMaxLength(24).IsRequired();
+            entity.Property(onboarding => onboarding.EtapaPrimeiraProposta).HasMaxLength(80).IsRequired();
+            entity.Property(onboarding => onboarding.StatusTour).HasMaxLength(24).IsRequired();
+            entity.HasIndex(onboarding => new { onboarding.ContaId, onboarding.UsuarioId }).IsUnique();
+            entity.HasOne(onboarding => onboarding.Conta)
+                .WithMany()
+                .HasForeignKey(onboarding => onboarding.ContaId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<UsuarioAplicacao>()
+                .WithMany()
+                .HasForeignKey(onboarding => onboarding.UsuarioId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+    }
+
+    private static void ConfigureOnboardingEvento(ModelBuilder builder)
+    {
+        builder.Entity<OnboardingEvento>(entity =>
+        {
+            entity.ToTable("onboarding_eventos");
+            entity.HasKey(evento => evento.Id);
+            entity.Property(evento => evento.Tipo).HasMaxLength(80).IsRequired();
+            entity.Property(evento => evento.Etapa).HasMaxLength(80);
+            entity.HasIndex(evento => new { evento.ContaId, evento.UsuarioId, evento.CreatedAt });
+            entity.HasOne(evento => evento.Conta)
+                .WithMany()
+                .HasForeignKey(evento => evento.ContaId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<UsuarioAplicacao>()
+                .WithMany()
+                .HasForeignKey(evento => evento.UsuarioId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 

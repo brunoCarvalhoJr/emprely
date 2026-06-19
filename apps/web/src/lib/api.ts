@@ -57,6 +57,11 @@ import type {
   PropostaResponse,
   UpdatePropostaInput,
 } from "@/types/proposal";
+import type {
+  CreateOnboardingEventoInput,
+  OnboardingResponse,
+  UpdateOnboardingInput,
+} from "@/types/onboarding";
 
 export const sessaoInvalidaEventName = "emprely:sessao-invalida";
 
@@ -555,6 +560,44 @@ export async function getPerfilContaAtual(
     "/api/account/profile",
     {
       method: "GET",
+    },
+    { token },
+  );
+}
+
+export async function getOnboarding(token: string): Promise<OnboardingResponse> {
+  return apiFetch<OnboardingResponse>(
+    "/api/onboarding",
+    {
+      method: "GET",
+    },
+    { token },
+  );
+}
+
+export async function updateOnboarding(
+  input: UpdateOnboardingInput,
+  token: string,
+): Promise<OnboardingResponse> {
+  return apiFetch<OnboardingResponse>(
+    "/api/onboarding",
+    {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    },
+    { token },
+  );
+}
+
+export async function createOnboardingEvento(
+  input: CreateOnboardingEventoInput,
+  token: string,
+): Promise<OnboardingResponse> {
+  return apiFetch<OnboardingResponse>(
+    "/api/onboarding/events",
+    {
+      method: "POST",
+      body: JSON.stringify(input),
     },
     { token },
   );

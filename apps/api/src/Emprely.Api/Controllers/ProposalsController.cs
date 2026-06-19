@@ -2,6 +2,7 @@ using Emprely.Application.Auth;
 using Emprely.Contracts.Proposals;
 using Emprely.Domain.Clientes;
 using Emprely.Domain.Contas;
+using Emprely.Domain.Onboarding;
 using Emprely.Domain.Propostas;
 using Emprely.Domain.Servicos;
 using Emprely.Infrastructure.Persistence;
@@ -188,7 +189,8 @@ public sealed class ProposalsController : ControllerBase
             id,
             proposta => proposta.GerarProposta(),
             cancellationToken,
-            validarFluxoComercial: true);
+            validarFluxoComercial: true,
+            concluirOnboardingPrimeiraProposta: true);
     }
 
     [HttpPost("{id:guid}/duplicate")]
@@ -317,7 +319,8 @@ public sealed class ProposalsController : ControllerBase
         Guid id,
         Action<Proposta> alterarStatus,
         CancellationToken cancellationToken,
-        bool validarFluxoComercial = false)
+        bool validarFluxoComercial = false,
+        bool concluirOnboardingPrimeiraProposta = false)
     {
         var proposta = await FindPropostaConta(id, cancellationToken);
 
@@ -344,9 +347,39 @@ public sealed class ProposalsController : ControllerBase
             return Conflict(new { message = exception.Message });
         }
 
+        if (concluirOnboardingPrimeiraProposta)
+        {
+            var onboarding = await GetOrCreateOnboardingAsync(cancellationToken);
+            onboarding.MarcarPrimeiraPropostaConcluida(proposta.Id);
+            dbContext.OnboardingEventos.Add(OnboardingEvento.Create(
+                currentContaContext.ContaId,
+                currentContaContext.UsuarioId,
+                "ConcluiuPrimeiraProposta",
+                "geracao",
+                proposta.Id));
+        }
+
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return Ok(BuildPropostaResponse(proposta));
+    }
+
+    private async Task<OnboardingUsuario> GetOrCreateOnboardingAsync(CancellationToken cancellationToken)
+    {
+        var onboarding = await dbContext.OnboardingUsuarios.FirstOrDefaultAsync(
+            item =>
+                item.ContaId == currentContaContext.ContaId &&
+                item.UsuarioId == currentContaContext.UsuarioId,
+            cancellationToken);
+
+        if (onboarding is not null)
+        {
+            return onboarding;
+        }
+
+        onboarding = OnboardingUsuario.Create(currentContaContext.ContaId, currentContaContext.UsuarioId);
+        dbContext.OnboardingUsuarios.Add(onboarding);
+        return onboarding;
     }
 
     private async Task<bool> ValidateReferenciasProposta(

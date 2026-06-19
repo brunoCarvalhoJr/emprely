@@ -78,6 +78,7 @@ import {
   type TextareaHTMLAttributes,
 } from "react";
 import { createPortal, flushSync } from "react-dom";
+import { Joyride, type EventData, type Step } from "react-joyride";
 import {
   Controller,
   useFieldArray,
@@ -103,6 +104,7 @@ import {
   deleteServico,
   forgotSenhaUsuario,
   getClientesConta,
+  getOnboarding,
   getPerfilContaAtual,
   getServicosConta,
   getUsuarioAtual,
@@ -112,6 +114,7 @@ import {
   resetSenhaUsuario,
   resolveApiAssetUrl,
   updateCliente,
+  updateOnboarding,
   updatePerfilConta,
   createProposta,
   deleteProposta,
@@ -125,6 +128,7 @@ import {
   uploadLogoPerfilConta,
   updateProposta,
   updateServico,
+  createOnboardingEvento,
 } from "@/lib/api";
 import type {
   AuthUsuarioResponse,
@@ -161,6 +165,7 @@ import type {
   PropostaTemplateVisual,
   UpdatePropostaInput,
 } from "@/types/proposal";
+import type { OnboardingResponse } from "@/types/onboarding";
 
 const propostaTemplateVisualValores = [
   "ComercialMinimalista",
@@ -177,7 +182,7 @@ const propostaTemplateVisualValores = [
 ] as const satisfies readonly PropostaTemplateVisual[];
 
 type PropostaTemplateVisualAtivo = (typeof propostaTemplateVisualValores)[number];
-const formatoArquivoPreferidoValores = ["Pdf", "Imagem"] as const;
+const formatoArquivoPreferidoValores = ["Pdf", "Imagem", "PdfImagem"] as const;
 type FormatoArquivoPreferido = (typeof formatoArquivoPreferidoValores)[number];
 const formatoArquivoPreferidoDefault: FormatoArquivoPreferido = "Pdf";
 const telefoneDigitosFixoNacionais = 10;
@@ -406,6 +411,8 @@ const perfilContaSchema = z.object({
     .string()
     .max(cpfCnpjMascaraMaxLength)
     .refine((valor) => isCpfCnpjCampoValido(valor), cpfCnpjMensagemFormato),
+  segmento: z.string().trim().max(80),
+  cidadeUf: z.string().trim().max(120),
   corPrimaria: z
     .string()
     .regex(/^#[0-9A-Fa-f]{6}$/, "Use uma cor no formato #RRGGBB."),
@@ -669,6 +676,8 @@ const perfilContaDefaultValues: PerfilContaFormInput = {
   siteUrl: "",
   instagram: "",
   documento: "",
+  segmento: "",
+  cidadeUf: "",
   corPrimaria: "#6E38FF",
   corSecundaria: "#13C7BD",
   corSistemaPrimaria: "#6E38FF",
@@ -869,6 +878,12 @@ export default function App() {
     useState<PropostaAssistenteEtapa>("inicio");
   const [propostaWizardEtapaAtiva, setPropostaWizardEtapaAtiva] =
     useState<PropostaWizardEtapaId>("cliente");
+  const [onboardingModalAberto, setOnboardingModalAberto] = useState(false);
+  const [onboardingJornadaAtiva, setOnboardingJornadaAtiva] = useState<
+    "conta" | "proposta"
+  >("conta");
+  const [onboardingTourRodando, setOnboardingTourRodando] = useState(false);
+  const onboardingAutoAberturaRef = useRef<string | null>(null);
   const [
     personalizacaoPreviewTemplateAberto,
     setPersonalizacaoPreviewTemplateAberto,
@@ -1041,6 +1056,13 @@ export default function App() {
   const propostasQuery = useQuery({
     queryKey: ["propostas", accessToken],
     queryFn: () => getPropostasConta(accessToken!),
+    enabled: Boolean(accessToken),
+    retry: false,
+  });
+
+  const onboardingQuery = useQuery({
+    queryKey: ["onboarding", accessToken],
+    queryFn: () => getOnboarding(accessToken!),
     enabled: Boolean(accessToken),
     retry: false,
   });
@@ -1332,6 +1354,8 @@ export default function App() {
     ? getStatusComercialContaEfetivo(conta)
     : "TrialExpirado";
   const perfilConta = perfilContaQuery.data;
+  const onboarding = onboardingQuery.data;
+  const perfilContaMinimoCompleto = isPerfilContaOnboardingCompleto(perfilConta);
   const perfilTemplateVisualPadrao = normalizarTemplateVisual(
     perfilConta?.templateVisualPadrao,
   );
@@ -1351,6 +1375,9 @@ export default function App() {
     (servico) => servico.id === servicoSelecionadoId,
   );
   const propostas = propostasQuery.data ?? [];
+  const primeiraPropostaGerada = propostas.some(
+    (proposta) => proposta.status !== "Rascunho" && proposta.status !== "Arquivada",
+  );
   const clientesFiltrados = clientes.filter((cliente) =>
     matchBuscaTexto(buscaClientes, [
       cliente.nome,
@@ -1838,6 +1865,64 @@ export default function App() {
       setPerfilMensagem("Perfil salvo.");
     },
   });
+
+  const onboardingMutation = useMutation({
+    mutationFn: (input: Parameters<typeof updateOnboarding>[0]) =>
+      updateOnboarding(input, accessToken!),
+    onSuccess: (response) => {
+      queryClient.setQueryData(["onboarding", accessToken], response);
+    },
+  });
+
+  const onboardingEventoMutation = useMutation({
+    mutationFn: (input: Parameters<typeof createOnboardingEvento>[0]) =>
+      createOnboardingEvento(input, accessToken!),
+    onSuccess: (response) => {
+      queryClient.setQueryData(["onboarding", accessToken], response);
+    },
+  });
+
+  useEffect(() => {
+    if (!usuario || !conta || !onboarding) {
+      return;
+    }
+
+    const chaveAbertura = `${conta.id}:${usuario.id}:${onboarding.updatedAt ?? "inicial"}`;
+
+    if (onboardingAutoAberturaRef.current === chaveAbertura) {
+      return;
+    }
+
+    if (onboarding.deveAbrirAutomaticamente || onboarding.deveLembrarAposPular) {
+      onboardingAutoAberturaRef.current = chaveAbertura;
+      const timeoutId = window.setTimeout(() => {
+        setOnboardingJornadaAtiva(
+          onboarding.configuracaoConta.status === "Concluido" ? "proposta" : "conta",
+        );
+        setOnboardingModalAberto(true);
+      }, 0);
+
+      return () => window.clearTimeout(timeoutId);
+    }
+  }, [conta, onboarding, usuario]);
+
+  useEffect(() => {
+    if (!usuario || !conta || !onboarding || onboardingTourRodando) {
+      return;
+    }
+
+    if (
+      onboarding.configuracaoConta.status === "Concluido" &&
+      onboarding.tour.status === "NaoIniciado"
+    ) {
+      const timeoutId = window.setTimeout(() => {
+        setOnboardingTourRodando(true);
+        onboardingEventoMutation.mutate({ tipo: "TourExibido", etapa: "dashboard" });
+      }, 0);
+
+      return () => window.clearTimeout(timeoutId);
+    }
+  }, [conta, onboarding, onboardingEventoMutation, onboardingTourRodando, usuario]);
 
   const salvarClienteMutation = useMutation({
     mutationFn: (input: ClienteFormInput) => {
@@ -2373,6 +2458,53 @@ export default function App() {
       }
       setAppView("propostas");
     });
+  }
+
+  function abrirOnboarding(jornada: "conta" | "proposta") {
+    setOnboardingJornadaAtiva(jornada);
+    setOnboardingModalAberto(true);
+  }
+
+  function pularOnboarding() {
+    onboardingEventoMutation.mutate({
+      tipo: "Pulou",
+      etapa: onboardingJornadaAtiva === "conta" ? "configuracao-conta" : "primeira-proposta",
+    });
+    setOnboardingModalAberto(false);
+  }
+
+  function iniciarConfiguracaoContaOnboarding() {
+    onboardingMutation.mutate({
+      statusConfiguracaoConta: "EmAndamento",
+      etapaConfiguracaoConta: perfilContaMinimoCompleto ? "personalizacao" : "dados-marca",
+    });
+    setOnboardingModalAberto(false);
+    navegarParaView(perfilContaMinimoCompleto ? "personalizacao" : "conta");
+  }
+
+  function iniciarPrimeiraPropostaOnboarding() {
+    onboardingMutation.mutate({
+      statusPrimeiraProposta: "EmAndamento",
+      etapaPrimeiraProposta: clientes.length > 0 ? "proposta" : "cliente",
+    });
+    setOnboardingModalAberto(false);
+    abrirNovaProposta();
+  }
+
+  function iniciarTourOnboarding() {
+    setOnboardingModalAberto(false);
+    setOnboardingTourRodando(true);
+    onboardingEventoMutation.mutate({ tipo: "TourExibido", etapa: "dashboard" });
+  }
+
+  function handleOnboardingTourCallback(data: EventData) {
+    if (data.status === "finished" || data.status === "skipped") {
+      setOnboardingTourRodando(false);
+      onboardingEventoMutation.mutate({
+        tipo: data.status === "finished" ? "TourConcluiu" : "TourPulou",
+        etapa: typeof data.step?.target === "string" ? data.step.target : "dashboard",
+      });
+    }
   }
 
   function selecionarClienteAssistente(clienteId: string) {
@@ -3243,6 +3375,14 @@ export default function App() {
           perfilPersonalizacaoPreview.nomeComercial?.trim() ||
           perfilConta?.nomeComercial ||
           conta.nome,
+        segmento:
+          perfilPersonalizacaoPreview.segmento?.trim() ||
+          perfilConta?.segmento ||
+          null,
+        cidadeUf:
+          perfilPersonalizacaoPreview.cidadeUf?.trim() ||
+          perfilConta?.cidadeUf ||
+          null,
         emailContato:
           perfilPersonalizacaoPreview.emailContato?.trim() ||
           perfilConta?.emailContato ||
@@ -3350,6 +3490,21 @@ export default function App() {
 
   return (
     <div className="app-shell min-h-screen bg-background text-foreground">
+      {usuario && conta ? (
+        <Joyride
+          continuous
+          onEvent={handleOnboardingTourCallback}
+          options={{
+            buttons: ["skip", "back", "primary"],
+            closeButtonAction: "skip",
+            overlayClickAction: false,
+            primaryColor: "#2563eb",
+            showProgress: true,
+          }}
+          run={onboardingTourRodando}
+          steps={buildOnboardingTourSteps()}
+        />
+      ) : null}
       <div
         className={`app-frame mx-auto min-h-screen w-full ${
           usuario && conta
@@ -6478,6 +6633,18 @@ export default function App() {
                               {...perfilForm.register("nomeComercial")}
                             />
                             <CampoTexto
+                              label="Segmento"
+                              placeholder="Ex.: social media, fotografia, consultoria"
+                              error={perfilForm.formState.errors.segmento?.message}
+                              {...perfilForm.register("segmento")}
+                            />
+                            <CampoTexto
+                              label="Cidade/UF"
+                              placeholder="Ex.: Belo Horizonte/MG"
+                              error={perfilForm.formState.errors.cidadeUf?.message}
+                              {...perfilForm.register("cidadeUf")}
+                            />
+                            <CampoTexto
                               label="Responsável"
                               value={usuario.nome}
                               readOnly
@@ -6710,6 +6877,8 @@ export default function App() {
                       )}
                     >
                       <input type="hidden" {...perfilForm.register("nomeComercial")} />
+                      <input type="hidden" {...perfilForm.register("segmento")} />
+                      <input type="hidden" {...perfilForm.register("cidadeUf")} />
                       <input type="hidden" {...perfilForm.register("emailContato")} />
                       <input
                         type="hidden"
@@ -6818,7 +6987,7 @@ export default function App() {
                             <p className="mt-1 text-sm text-muted">
                               Usado no card de mensagem inicial com anexo.
                             </p>
-                            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                            <div className="mt-3 grid gap-2 lg:grid-cols-3">
                               <button
                                 type="button"
                                 aria-pressed={
@@ -6877,6 +7046,36 @@ export default function App() {
                                 <span>
                                   <strong>Imagem</strong>
                                   <small>Visual unico para compartilhar rapidamente.</small>
+                                </span>
+                              </button>
+                              <button
+                                type="button"
+                                aria-pressed={
+                                  perfilPersonalizacaoPreview.formatoArquivoPreferido ===
+                                  "PdfImagem"
+                                }
+                                onClick={() => {
+                                  perfilForm.setValue(
+                                    "formatoArquivoPreferido",
+                                    "PdfImagem",
+                                    {
+                                      shouldDirty: true,
+                                      shouldValidate: true,
+                                    },
+                                  );
+                                  setPerfilMensagem(null);
+                                }}
+                                className={`personalization-choice ${
+                                  perfilPersonalizacaoPreview.formatoArquivoPreferido ===
+                                  "PdfImagem"
+                                    ? "is-active"
+                                    : ""
+                                }`}
+                              >
+                                <Paperclip size={18} aria-hidden="true" />
+                                <span>
+                                  <strong>PDF + imagem</strong>
+                                  <small>Envia os dois formatos quando fizer sentido.</small>
                                 </span>
                               </button>
                             </div>
@@ -7097,9 +7296,10 @@ export default function App() {
                   <DashboardContent
                     conta={conta}
                     propostas={propostas}
-                    perfilContaAtualizado={Boolean(perfilConta?.updatedAt)}
+                    perfilContaAtualizado={perfilContaMinimoCompleto}
                     clientesTotal={clientes.length}
                     servicosTotal={servicos.length}
+                    primeiraPropostaGerada={primeiraPropostaGerada}
                     isLoading={
                       clientesQuery.isLoading ||
                       servicosQuery.isLoading ||
@@ -7133,6 +7333,7 @@ export default function App() {
                     onNovaProposta={() => abrirNovaProposta()}
                     onCadastrarCliente={abrirNovoCliente}
                     onSalvarServico={abrirNovoServico}
+                    onAbrirOnboarding={() => abrirOnboarding("conta")}
                   />
                 ) : null}
               </>
@@ -7978,6 +8179,20 @@ export default function App() {
           </section>
         </div>
       ) : null}
+      <OnboardingModal
+        aberto={onboardingModalAberto}
+        onboarding={onboarding}
+        jornadaAtiva={onboardingJornadaAtiva}
+        perfilCompleto={perfilContaMinimoCompleto}
+        primeiraPropostaGerada={primeiraPropostaGerada}
+        isPending={onboardingMutation.isPending || onboardingEventoMutation.isPending}
+        onAlterarJornada={setOnboardingJornadaAtiva}
+        onFechar={() => setOnboardingModalAberto(false)}
+        onPular={pularOnboarding}
+        onConfigurarConta={iniciarConfiguracaoContaOnboarding}
+        onPrimeiraProposta={iniciarPrimeiraPropostaOnboarding}
+        onIniciarTour={iniciarTourOnboarding}
+      />
       <ModalConfirmacaoSistema
         confirmacao={confirmacaoSistema}
         onCancelar={() => responderConfirmacaoSistema(false)}
@@ -7988,6 +8203,190 @@ export default function App() {
         onFechar={fecharToastSistema}
       />
     </div>
+  );
+}
+
+function OnboardingModal({
+  aberto,
+  onboarding,
+  jornadaAtiva,
+  perfilCompleto,
+  primeiraPropostaGerada,
+  isPending,
+  onAlterarJornada,
+  onFechar,
+  onPular,
+  onConfigurarConta,
+  onPrimeiraProposta,
+  onIniciarTour,
+}: {
+  aberto: boolean;
+  onboarding?: OnboardingResponse;
+  jornadaAtiva: "conta" | "proposta";
+  perfilCompleto: boolean;
+  primeiraPropostaGerada: boolean;
+  isPending: boolean;
+  onAlterarJornada: (jornada: "conta" | "proposta") => void;
+  onFechar: () => void;
+  onPular: () => void;
+  onConfigurarConta: () => void;
+  onPrimeiraProposta: () => void;
+  onIniciarTour: () => void;
+}) {
+  if (!aberto || typeof document === "undefined") {
+    return null;
+  }
+
+  const configuracaoStatus = onboarding?.configuracaoConta.status ?? "NaoIniciado";
+  const propostaStatus = onboarding?.primeiraProposta.status ?? "NaoIniciado";
+  const etapaPrincipal =
+    jornadaAtiva === "conta"
+      ? {
+          titulo: "Configure sua conta",
+          detalhe:
+            "Complete dados do negocio, logomarca, template, cores e formato preferido para padronizar as propostas.",
+          acao: "Configurar conta",
+          onClick: onConfigurarConta,
+          concluido: perfilCompleto,
+        }
+      : {
+          titulo: "Gere a primeira proposta",
+          detalhe:
+            "Cadastre cliente, servico, orcamento e gere o arquivo pronto para envio.",
+          acao: "Criar primeira proposta",
+          onClick: onPrimeiraProposta,
+          concluido: primeiraPropostaGerada,
+        };
+
+  return createPortal(
+    <div
+      className="onboarding-modal-overlay"
+      onMouseDown={(event) => {
+        if (isBackdropClick(event)) {
+          onFechar();
+        }
+      }}
+    >
+      <section
+        className="onboarding-modal-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="onboarding-modal-title"
+      >
+        <header className="onboarding-modal-header">
+          <div>
+            <p className="onboarding-modal-kicker">Guia inicial</p>
+            <h2 id="onboarding-modal-title">Primeiros passos na Emprely</h2>
+          </div>
+          <button
+            type="button"
+            onClick={onFechar}
+            className="tooltip-icon-button"
+            aria-label="Fechar guia inicial"
+            title="Fechar"
+          >
+            <X size={18} aria-hidden="true" />
+          </button>
+        </header>
+
+        <div className="onboarding-modal-tabs" role="tablist" aria-label="Jornadas do guia">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={jornadaAtiva === "conta"}
+            className={jornadaAtiva === "conta" ? "is-active" : ""}
+            onClick={() => onAlterarJornada("conta")}
+          >
+            <Settings size={16} aria-hidden="true" />
+            Conta
+            {perfilCompleto ? <CheckCircle2 size={15} aria-hidden="true" /> : null}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={jornadaAtiva === "proposta"}
+            className={jornadaAtiva === "proposta" ? "is-active" : ""}
+            onClick={() => onAlterarJornada("proposta")}
+          >
+            <FileText size={16} aria-hidden="true" />
+            Proposta
+            {primeiraPropostaGerada ? <CheckCircle2 size={15} aria-hidden="true" /> : null}
+          </button>
+        </div>
+
+        <div className="onboarding-modal-body">
+          <div className="onboarding-focus-panel">
+            <span className="onboarding-focus-icon">
+              {etapaPrincipal.concluido ? (
+                <CheckCircle2 size={22} aria-hidden="true" />
+              ) : (
+                <Rocket size={22} aria-hidden="true" />
+              )}
+            </span>
+            <div>
+              <h3>{etapaPrincipal.titulo}</h3>
+              <p>{etapaPrincipal.detalhe}</p>
+              <div className="onboarding-status-row">
+                <span>Conta: {getOnboardingStatusLabel(configuracaoStatus)}</span>
+                <span>Proposta: {getOnboardingStatusLabel(propostaStatus)}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="onboarding-step-list">
+            {(jornadaAtiva === "conta"
+              ? [
+                  "Preencher nome, segmento, cidade/UF e contato.",
+                  "Adicionar ou revisar logomarca.",
+                  "Escolher template padrao, cores e formato preferido.",
+                ]
+              : [
+                  "Cadastrar ou selecionar o primeiro cliente.",
+                  "Cadastrar um servico reutilizavel.",
+                  "Montar, revisar e gerar a proposta para envio.",
+                ]
+            ).map((passo, index) => (
+              <div key={passo} className="onboarding-step-item">
+                <span>{index + 1}</span>
+                <p>{passo}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <footer className="onboarding-modal-footer">
+          <button
+            type="button"
+            onClick={onIniciarTour}
+            disabled={isPending}
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-border px-4 text-sm font-semibold"
+          >
+            <Sparkles size={16} aria-hidden="true" />
+            Ver tour rapido
+          </button>
+          <div className="onboarding-modal-actions">
+            <button
+              type="button"
+              onClick={onPular}
+              disabled={isPending}
+              className="inline-flex h-11 items-center justify-center rounded-md px-4 text-sm font-semibold text-muted transition hover:text-slate-950 disabled:opacity-60"
+            >
+              Lembrar depois
+            </button>
+            <button
+              type="button"
+              onClick={etapaPrincipal.onClick}
+              disabled={isPending || etapaPrincipal.concluido}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {etapaPrincipal.concluido ? "Concluido" : etapaPrincipal.acao}
+              <ArrowRight size={16} aria-hidden="true" />
+            </button>
+          </div>
+        </footer>
+      </section>
+    </div>,
+    document.body,
   );
 }
 
@@ -11561,6 +11960,7 @@ function DashboardContent({
   perfilContaAtualizado,
   clientesTotal,
   servicosTotal,
+  primeiraPropostaGerada,
   isLoading,
   isError,
   onRetry,
@@ -11572,12 +11972,14 @@ function DashboardContent({
   onNovaProposta,
   onCadastrarCliente,
   onSalvarServico,
+  onAbrirOnboarding,
 }: {
   conta: ContaAtualResponse;
   propostas: PropostaResponse[];
   perfilContaAtualizado: boolean;
   clientesTotal: number;
   servicosTotal: number;
+  primeiraPropostaGerada: boolean;
   isLoading: boolean;
   isError: boolean;
   onRetry: () => void;
@@ -11589,6 +11991,7 @@ function DashboardContent({
   onNovaProposta: () => void;
   onCadastrarCliente: () => void;
   onSalvarServico: () => void;
+  onAbrirOnboarding: () => void;
 }) {
   const metricas = buildMetricasDashboard({
     propostas,
@@ -11602,7 +12005,7 @@ function DashboardContent({
     perfilContaAtualizado,
     clientesTotal,
     servicosTotal,
-    propostasTotal: propostas.length,
+    primeiraPropostaGerada,
     onEditarPerfil,
     onCadastrarCliente,
     onSalvarServico,
@@ -11615,7 +12018,7 @@ function DashboardContent({
 
   return (
     <>
-      <div className="dashboard-hero rounded-md border border-border bg-surface p-5">
+      <div className="dashboard-hero rounded-md border border-border bg-surface p-5" data-tour="dashboard-hero">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="max-w-2xl">
             <p className="inline-flex max-w-full items-center gap-2 rounded-md bg-violet-50 px-3 py-1.5 font-heading text-lg font-semibold leading-snug text-slate-950 sm:text-xl">
@@ -11627,6 +12030,7 @@ function DashboardContent({
             <button
               type="button"
               onClick={onNovaProposta}
+              data-tour="nova-proposta"
               className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-primary px-5 text-sm font-semibold text-white shadow-sm"
             >
               <Plus size={18} aria-hidden="true" />
@@ -11635,6 +12039,7 @@ function DashboardContent({
             <button
               type="button"
               onClick={onSalvarServico}
+              data-tour="servicos"
               className="inline-flex h-12 items-center justify-center gap-2 rounded-md border border-border bg-white px-5 text-sm font-semibold"
             >
               <PackageCheck size={18} aria-hidden="true" />
@@ -11643,6 +12048,7 @@ function DashboardContent({
             <button
               type="button"
               onClick={onCadastrarCliente}
+              data-tour="clientes"
               className="inline-flex h-12 items-center justify-center gap-2 rounded-md border border-border bg-white px-5 text-sm font-semibold"
             >
               <UsersRound size={18} aria-hidden="true" />
@@ -11653,6 +12059,15 @@ function DashboardContent({
       </div>
 
       {conta.plano === "Trial" ? <TrialUpsellBanner conta={conta} /> : null}
+
+      <button
+        type="button"
+        onClick={onAbrirOnboarding}
+        className="inline-flex h-10 w-fit items-center justify-center gap-2 rounded-md border border-border bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-primary hover:text-primary"
+      >
+        <Rocket size={16} aria-hidden="true" />
+        Abrir guia inicial
+      </button>
 
       {isLoading ? <DashboardCarregando /> : null}
 
@@ -11853,7 +12268,10 @@ function PrimeirosPassosDashboard({
     passos[indiceAtual] ?? passos[passos.length - 1];
 
   return (
-    <section className="rounded-md border border-border bg-surface p-4 shadow-sm sm:p-5">
+    <section
+      className="rounded-md border border-border bg-surface p-4 shadow-sm sm:p-5"
+      data-tour="primeiros-passos"
+    >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           <p className="text-sm font-semibold text-accent">Primeiros passos</p>
@@ -11975,7 +12393,7 @@ function buildPrimeirosPassosDashboard({
   perfilContaAtualizado,
   clientesTotal,
   servicosTotal,
-  propostasTotal,
+  primeiraPropostaGerada,
   onEditarPerfil,
   onCadastrarCliente,
   onSalvarServico,
@@ -11984,7 +12402,7 @@ function buildPrimeirosPassosDashboard({
   perfilContaAtualizado: boolean;
   clientesTotal: number;
   servicosTotal: number;
-  propostasTotal: number;
+  primeiraPropostaGerada: boolean;
   onEditarPerfil: () => void;
   onCadastrarCliente: () => void;
   onSalvarServico: () => void;
@@ -12019,11 +12437,58 @@ function buildPrimeirosPassosDashboard({
       id: "proposta",
       titulo: "Primeira proposta",
       detalhe: "Gere a proposta para WhatsApp, PDF ou imagem e mostre valor antes do preço.",
-      concluido: propostasTotal > 0,
+      concluido: primeiraPropostaGerada,
       acaoLabel: "Criar proposta",
       onClick: onNovaProposta,
     },
   ];
+}
+
+function buildOnboardingTourSteps(): Step[] {
+  return [
+    {
+      target: '[data-tour="dashboard-hero"]',
+      title: "Painel inicial",
+      content:
+        "Aqui ficam os atalhos para criar proposta, cadastrar cliente e cadastrar servico.",
+      skipBeacon: true,
+    },
+    {
+      target: '[data-tour="primeiros-passos"]',
+      title: "Checklist guiado",
+      content:
+        "Acompanhe o que falta para configurar a conta e gerar a primeira proposta.",
+    },
+    {
+      target: '[data-tour="clientes"]',
+      title: "Cliente",
+      content:
+        "Comece cadastrando quem vai receber a proposta. Esses dados entram automaticamente no documento.",
+    },
+    {
+      target: '[data-tour="servicos"]',
+      title: "Servico",
+      content:
+        "Cadastre entregas reutilizaveis para montar orcamentos mais rapido.",
+    },
+    {
+      target: '[data-tour="nova-proposta"]',
+      title: "Primeira proposta",
+      content:
+        "Use o assistente para revisar cliente, itens, template e gerar o arquivo final.",
+    },
+  ];
+}
+
+function getOnboardingStatusLabel(status: OnboardingResponse["configuracaoConta"]["status"]) {
+  const labels: Record<OnboardingResponse["configuracaoConta"]["status"], string> = {
+    NaoIniciado: "nao iniciado",
+    EmAndamento: "em andamento",
+    Pulado: "adiado",
+    Concluido: "concluido",
+  };
+
+  return labels[status];
 }
 
 function buildMetricasDashboard({
@@ -12721,6 +13186,8 @@ function mapPerfilContaForm(
     siteUrl: perfilConta.siteUrl ?? "",
     instagram: perfilConta.instagram ?? "",
     documento: formatCpfCnpjCampo(perfilConta.documento),
+    segmento: perfilConta.segmento ?? "",
+    cidadeUf: perfilConta.cidadeUf ?? "",
     corPrimaria: perfilConta.corPrimaria,
     corSecundaria: perfilConta.corSecundaria,
     corSistemaPrimaria:
@@ -12736,6 +13203,21 @@ function mapPerfilContaForm(
   };
 }
 
+function isPerfilContaOnboardingCompleto(
+  perfilConta?: PerfilContaResponse,
+): boolean {
+  return Boolean(
+    perfilConta?.nomeComercial?.trim() &&
+      perfilConta.telefoneContato?.trim() &&
+      perfilConta.emailContato?.trim() &&
+      perfilConta.segmento?.trim() &&
+      perfilConta.templateVisualPadrao?.trim() &&
+      perfilConta.corPrimaria?.trim() &&
+      perfilConta.corSecundaria?.trim() &&
+      perfilConta.formatoArquivoPreferido?.trim(),
+  );
+}
+
 function buildPerfilContaPayload(
   input: PerfilContaFormInput,
 ): UpdatePerfilContaInput {
@@ -12746,6 +13228,8 @@ function buildPerfilContaPayload(
     siteUrl: normalizarOpcional(input.siteUrl),
     instagram: normalizarOpcional(input.instagram),
     documento: normalizarOpcional(formatCpfCnpjCampo(input.documento)),
+    segmento: normalizarOpcional(input.segmento),
+    cidadeUf: normalizarOpcional(input.cidadeUf),
     corPrimaria: normalizarHexPreview(input.corPrimaria),
     corSecundaria: normalizarHexPreview(input.corSecundaria),
     corSistemaPrimaria: normalizarHexPreview(input.corSistemaPrimaria),

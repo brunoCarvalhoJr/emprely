@@ -3,6 +3,7 @@ using Emprely.Api.Servicos;
 using Emprely.Contracts.Account;
 using Emprely.Contracts.Auth;
 using Emprely.Domain.Contas;
+using Emprely.Domain.Onboarding;
 using Emprely.Domain.Propostas;
 using Emprely.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
@@ -137,7 +138,9 @@ public sealed class AccountController : ControllerBase
                 templateVisualPadrao,
                 request.CorSistemaPrimaria,
                 request.CorSistemaSecundaria,
-                formatoArquivoPreferido);
+                formatoArquivoPreferido,
+                segmento: request.Segmento,
+                cidadeUf: request.CidadeUf);
 
             dbContext.PerfisConta.Add(perfilConta);
         }
@@ -156,10 +159,24 @@ public sealed class AccountController : ControllerBase
                 templateVisualPadrao,
                 request.CorSistemaPrimaria,
                 request.CorSistemaSecundaria,
-                formatoArquivoPreferido);
+                formatoArquivoPreferido,
+                segmento: request.Segmento,
+                cidadeUf: request.CidadeUf);
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+
+        if (OnboardingController.IsPerfilMinimoCompleto(perfilConta))
+        {
+            var onboarding = await GetOrCreateOnboardingAsync(cancellationToken);
+            onboarding.MarcarConfiguracaoContaConcluida();
+            dbContext.OnboardingEventos.Add(OnboardingEvento.Create(
+                currentContaContext.ContaId,
+                currentContaContext.UsuarioId,
+                "ConcluiuConta",
+                "configuracao"));
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
 
         return Ok(BuildPerfilContaResponse(conta, perfilConta, emailUsuario));
     }
@@ -229,7 +246,9 @@ public sealed class AccountController : ControllerBase
             (perfilConta?.TemplateVisualPadrao ?? TemplateVisualProposta.ComercialMinimalista).ToString(),
             perfilConta?.CorSistemaPrimaria ?? PerfilConta.CorSistemaPrimariaPadrao,
             perfilConta?.CorSistemaSecundaria ?? PerfilConta.CorSistemaSecundariaPadrao,
-            perfilConta?.FormatoArquivoPreferido ?? PerfilConta.FormatoArquivoPreferidoPadrao);
+            perfilConta?.FormatoArquivoPreferido ?? PerfilConta.FormatoArquivoPreferidoPadrao,
+            perfilConta?.Segmento,
+            perfilConta?.CidadeUf);
     }
 
     private static bool TryParseTemplateVisualProposta(
@@ -278,6 +297,12 @@ public sealed class AccountController : ControllerBase
             return true;
         }
 
+        if (valorNormalizado.Equals(PerfilConta.FormatoArquivoPreferidoPdfImagem, StringComparison.OrdinalIgnoreCase))
+        {
+            formatoArquivoPreferido = PerfilConta.FormatoArquivoPreferidoPdfImagem;
+            return true;
+        }
+
         formatoArquivoPreferido = PerfilConta.FormatoArquivoPreferidoPadrao;
         return false;
     }
@@ -303,5 +328,23 @@ public sealed class AccountController : ControllerBase
 
         return Uri.TryCreate(valor, UriKind.Absolute, out var uri)
             && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+    }
+
+    private async Task<OnboardingUsuario> GetOrCreateOnboardingAsync(CancellationToken cancellationToken)
+    {
+        var onboarding = await dbContext.OnboardingUsuarios.FirstOrDefaultAsync(
+            item =>
+                item.ContaId == currentContaContext.ContaId &&
+                item.UsuarioId == currentContaContext.UsuarioId,
+            cancellationToken);
+
+        if (onboarding is not null)
+        {
+            return onboarding;
+        }
+
+        onboarding = OnboardingUsuario.Create(currentContaContext.ContaId, currentContaContext.UsuarioId);
+        dbContext.OnboardingUsuarios.Add(onboarding);
+        return onboarding;
     }
 }

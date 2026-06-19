@@ -6,6 +6,7 @@ using Emprely.Contracts.Account;
 using Emprely.Contracts.Admin;
 using Emprely.Contracts.Auth;
 using Emprely.Contracts.Customers;
+using Emprely.Contracts.Onboarding;
 using Emprely.Contracts.Proposals;
 using Emprely.Contracts.Services;
 using Emprely.Contracts.Suporte;
@@ -365,6 +366,112 @@ public sealed class MvpFluxoApiTests : IClassFixture<EmprelyApiFactory>
         Assert.Equal("Rascunho", propostaDuplicada.Status);
         Assert.Equal(proposta.Total, propostaDuplicada.Total);
         Assert.EndsWith(" (copia)", propostaDuplicada.Titulo, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Onboarding_DeveAbrirAdiarConcluirPerfilEGerarPrimeiraProposta()
+    {
+        var auth = await RegisterUsuarioAsync("mvp-onboarding@emprely.dev");
+        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.AccessToken);
+
+        var onboardingInicial = await GetJsonAsync<OnboardingResponse>("/api/onboarding");
+
+        Assert.True(onboardingInicial.DeveAbrirAutomaticamente);
+        Assert.Equal("NaoIniciado", onboardingInicial.ConfiguracaoConta.Status);
+        Assert.Equal("NaoIniciado", onboardingInicial.PrimeiraProposta.Status);
+
+        var onboardingPulado = await PostJsonAsync<OnboardingResponse>(
+            "/api/onboarding/events",
+            new CreateOnboardingEventoRequest("Pulou", "boas-vindas"),
+            HttpStatusCode.OK);
+
+        Assert.True(onboardingPulado.DeveLembrarAposPular);
+        Assert.Equal("Pulado", onboardingPulado.ConfiguracaoConta.Status);
+
+        var perfilAtualizado = await httpClient.PutAsJsonAsync(
+            "/api/account/profile",
+            new UpdatePerfilContaRequest(
+                "Emprely Testes",
+                "mvp-onboarding@emprely.dev",
+                "(11) 99999-9999",
+                "https://emprely.dev",
+                "@emprely",
+                null,
+                "#2563eb",
+                "#10b981",
+                null,
+                "ComercialMinimalista",
+                "#2563eb",
+                "#10b981",
+                "PdfImagem",
+                "Consultoria",
+                "Sao Paulo/SP"),
+            JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, perfilAtualizado.StatusCode);
+
+        var onboardingPerfilConcluido = await GetJsonAsync<OnboardingResponse>("/api/onboarding");
+
+        Assert.Equal("Concluido", onboardingPerfilConcluido.ConfiguracaoConta.Status);
+        Assert.True(onboardingPerfilConcluido.ConfiguracaoConta.ConcluidoPorDados);
+
+        var cliente = await PostJsonAsync<ClienteResponse>(
+            "/api/customers",
+            new CreateClienteRequest(
+                "Cliente Onboarding",
+                "cliente-onboarding@emprely.dev",
+                "(11) 98888-7777",
+                null,
+                null,
+                null,
+                "Sao Paulo",
+                null,
+                null,
+                null,
+                null),
+            HttpStatusCode.Created);
+
+        var servico = await PostJsonAsync<ServicoResponse>(
+            "/api/services",
+            new CreateServicoRequest(
+                "Diagnostico comercial",
+                "Mapeamento de oportunidades e plano de acao.",
+                "Consultoria",
+                900,
+                "Unico",
+                "Servico"),
+            HttpStatusCode.Created);
+
+        var proposta = await PostJsonAsync<PropostaResponse>(
+            "/api/proposals",
+            new CreatePropostaRequest(
+                cliente.Id,
+                "Proposta de diagnostico comercial",
+                "Plano inicial para melhorar o processo comercial.",
+                null,
+                10,
+                new[]
+                {
+                    new PropostaItemRequest(
+                        servico.Id,
+                        servico.Nome,
+                        servico.Descricao,
+                        1,
+                        servico.Preco),
+                }),
+            HttpStatusCode.Created);
+
+        await PostJsonAsync<PropostaResponse>(
+            $"/api/proposals/{proposta.Id}/generate",
+            new { },
+            HttpStatusCode.OK);
+
+        var onboardingConcluido = await GetJsonAsync<OnboardingResponse>("/api/onboarding");
+
+        Assert.Equal("Concluido", onboardingConcluido.ConfiguracaoConta.Status);
+        Assert.Equal("Concluido", onboardingConcluido.PrimeiraProposta.Status);
+        Assert.True(onboardingConcluido.PrimeiraProposta.ConcluidoPorDados);
+        Assert.False(onboardingConcluido.DeveAbrirAutomaticamente);
     }
 
     [Fact]

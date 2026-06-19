@@ -7,6 +7,8 @@ export type PerfilContaResponse = {
   siteUrl: string | null;
   instagram: string | null;
   documento: string | null;
+  segmento: string | null;
+  cidadeUf: string | null;
   corPrimaria: string;
   corSecundaria: string;
   corSistemaPrimaria: string;
@@ -31,6 +33,8 @@ export type UpdatePerfilContaInput = {
   siteUrl: string | null;
   instagram: string | null;
   documento: string | null;
+  segmento: string | null;
+  cidadeUf: string | null;
   corPrimaria: string;
   corSecundaria: string;
   corSistemaPrimaria: string;

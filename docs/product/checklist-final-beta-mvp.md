@@ -125,6 +125,8 @@ Este checklist define o estado atual do MVP antes de abrir um beta controlado. E
 - [x] Configurar e validar email transacional real via SES.
 - [ ] Fazer deploy da nova imagem da API com templates transacionais revisados.
 - [ ] Revalidar confirmação de e-mail, recuperação de senha e suporte em Gmail e Hotmail após deploy.
+- [ ] Implementar onboarding guiado do beta em uma entrega unica: abertura automatica no primeiro login, checklist persistente, Wizard 1 de conta/marca, Wizard 2 de primeira proposta, tour React Joyride e progresso por usuario no backend.
+- [ ] Validar onboarding guiado em producao com uma conta nova.
 - [ ] Rodar aceite manual completo com dados reais de teste.
 - [ ] Rodar aceite manual especifico de ciclo de proposta/trial: editar `Gerada`, bloquear `Enviada`/`Aceita`/`Recusada`, duplicar, expirar trial, validar watermark grande e CTA “Ativar plano”.
 - [ ] Validar envio de WhatsApp em dispositivo real do usuario beta.
@@ -172,4 +174,4 @@ Observacao: se o ambiente nao tiver .NET SDK disponivel, `pnpm validate:mvp`/`do
 
 ## Decisao atual
 
-Em 2026-06-17, o envio transacional real via SES já funciona com `contato@emprely.com.br`, e a API compila com os templates transacionais revisados. Para beta real, os próximos bloqueios são: publicar a nova imagem da API no Lightsail, revalidar os e-mails reais, criar CloudFront/OAC para o webapp, configurar `app.emprely.com.br`, validar o fluxo completo pelo domínio real e criar alertas de custo. As pendências visuais ficam explicitamente adiadas para a etapa final, conforme decisão atual do projeto.
+Em 2026-06-19, antes do smoke MVP completo, o proximo passo recomendado passou a ser implementar o onboarding guiado do beta. A decisao esta documentada em `docs/product/onboarding-guiado-beta.md`, com analise SDD em `.cursor/analise/2026-06-19-onboarding-guiado-beta.md` e spec em `spec/2026-06-19-onboarding-guiado-beta.md`. A definicao fechada e: entrega unica, abertura automatica no primeiro login, pulo permitido com lembrete no proximo login, progresso por usuario no backend, logo recomendada com fallback de iniciais, template obrigatorio, WhatsApp como canal padrao, primeira proposta concluida ao gerar, tour React Joyride automatico uma vez e versao mobile simplificada. Depois de validar o onboarding com uma conta nova em producao, o projeto deve executar o aceite manual completo, validar ciclo de proposta/trial, configurar alertas de custo AWS se ainda pendente e seguir para venda manual do Plano Fundador.
