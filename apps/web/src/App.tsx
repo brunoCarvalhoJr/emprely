@@ -271,6 +271,57 @@ const propostaTemplateVisualOpcoes: Array<{
   },
 ];
 
+const propostaTemplateVisualOpcoesGaleria: Array<{
+  value: PropostaTemplateVisualAtivo;
+  label: string;
+  detalhe: string;
+  coresEstaticas?: boolean;
+}> = [
+  {
+    value: "ComercialMinimalista",
+    label: "Orçamento rápido",
+    detalhe: "Preço, escopo e próximos passos para enviar sem enrolação.",
+  },
+  {
+    value: "PropostaCompleta",
+    label: "Proposta completa",
+    detalhe: "Documento comercial com escopo, valor, condições e diferenciais.",
+  },
+  {
+    value: "LunaSocialStudio",
+    label: "Social media planner",
+    detalhe: "Conteúdo, calendário, entregáveis e rotina mensal para redes sociais.",
+  },
+  {
+    value: "InstagramPremium",
+    label: "Social premium",
+    detalhe: "Proposta visual para pacotes de conteúdo, reels, stories e gestão.",
+  },
+  {
+    value: "DarkGrowth",
+    label: "Tráfego performance",
+    detalhe: "Campanhas, verba de mídia, otimização e métricas de resultado.",
+  },
+  {
+    value: "InstitucionalClean",
+    label: "Identidade visual studio",
+    detalhe: "Layout limpo para marca, design, papelaria, social kit e guias visuais.",
+    coresEstaticas: true,
+  },
+  {
+    value: "ExecutivoEditorial",
+    label: "Consultoria estratégica",
+    detalhe: "Diagnóstico, plano de ação, acompanhamento e tomada de decisão.",
+    coresEstaticas: true,
+  },
+  {
+    value: "CorporativoBoard",
+    label: "Agência growth board",
+    detalhe: "Composição executiva para pacotes completos de marketing e crescimento.",
+    coresEstaticas: true,
+  },
+];
+
 const registerSchema = z.object({
   nome: z.string().trim().min(1, "Este campo é obrigatório."),
   email: z.string().trim().email("Digite um e-mail válido."),
@@ -5251,7 +5302,7 @@ export default function App() {
                               PDF, imagem e WhatsApp.
                             </p>
                             <div className="proposal-template-step-grid">
-                              {propostaTemplateVisualOpcoes.map((template) => {
+                              {propostaTemplateVisualOpcoesGaleria.map((template) => {
                                 const templateSelecionado =
                                   normalizarTemplateVisual(
                                     propostaPreview.templateVisual,
@@ -6904,7 +6955,7 @@ export default function App() {
                           ) : null}
 
                           <div className="template-selection-grid">
-                            {propostaTemplateVisualOpcoes.map((template) => {
+                            {propostaTemplateVisualOpcoesGaleria.map((template) => {
                               const templateAtivo =
                                 templateVisualPersonalizacaoPreview === template.value;
 
@@ -7455,7 +7506,7 @@ export default function App() {
               </button>
             </div>
             <div className="template-selector-grid">
-              {propostaTemplateVisualOpcoes.map((template) => {
+              {propostaTemplateVisualOpcoesGaleria.map((template) => {
                 const templateSelecionado =
                   normalizarTemplateVisual(propostaPreview.templateVisual) ===
                   template.value;
@@ -10111,6 +10162,7 @@ function TemplateComercialMinimalista({ d }: TemplateDocumentoBaseProps) {
 
       <DocumentoMetaStrip d={d} labelsUpper />
       {d.introducao ? <p className="doc-lead doc-minimal-lead">{d.introducao}</p> : null}
+      <DocumentoImagemRamo tipo="rapido" />
 
       <DocumentoTabelaServicos d={d} totalColumn />
 
@@ -10198,6 +10250,7 @@ function TemplatePropostaCompleta({ d }: TemplateDocumentoBaseProps) {
       </header>
 
       <DocumentoMetaStrip d={d} iconMode />
+      <DocumentoImagemRamo tipo="agencia" />
       {d.introducao ? (
         <>
           <DocumentoSectionTitle icon={<FileText size={22} />} index={resumoIndex} title="Resumo executivo" />
@@ -10282,6 +10335,7 @@ function TemplateSocialDetalhado({
           <span className="doc-title-underline" />
           <DocumentoTitulo titulo={d.titulo} as="h2" className="doc-social-title-main" />
           {d.introducao ? <p>{d.introducao}</p> : null}
+          <DocumentoImagemRamo tipo={luna ? "social" : "trafego"} dark />
         </div>
         <DocumentoMetaPanel d={d} dark />
       </header>
@@ -10354,6 +10408,8 @@ function TemplateInstagramPremium({ d }: TemplateDocumentoBaseProps) {
         </div>
         <DocumentoMetaPanel d={d} dark />
       </header>
+
+      <DocumentoImagemRamo tipo="social" />
 
       {textoResumo ? (
         <section className="doc-instagram-resumo">
@@ -10535,6 +10591,7 @@ function TemplateExecutivoEditorial({ d }: TemplateDocumentoBaseProps) {
           <span className="doc-kicker">Documento comercial</span>
           <DocumentoTitulo titulo={d.titulo} className="doc-executive-title-main" />
           {d.introducao ? <p>{d.introducao}</p> : null}
+          <DocumentoImagemRamo tipo="consultoria" />
         </div>
       </section>
 
@@ -10589,6 +10646,7 @@ function TemplateCorporativoBoard({ d }: TemplateDocumentoBaseProps) {
           <span className="doc-board-label">Commercial board</span>
           <DocumentoTitulo titulo={d.titulo} className="doc-board-title-main" />
           {d.introducao ? <p>{d.introducao}</p> : null}
+          <DocumentoImagemRamo tipo="agencia" dark />
         </div>
         <DocumentoMetaPanel d={d} dark />
       </header>
@@ -10651,6 +10709,7 @@ function TemplateInstitucionalClean({ d }: TemplateDocumentoBaseProps) {
       <section className="doc-institutional-title">
         <span className="doc-kicker">Orçamento comercial</span>
         <DocumentoTitulo titulo={d.titulo} className="doc-institutional-title-main" />
+        <DocumentoImagemRamo tipo="design" />
         {d.introducao ? <p>{d.introducao}</p> : null}
       </section>
 
@@ -10863,6 +10922,106 @@ function InstagramGlyph({
       <circle cx="12" cy="12" r="4" />
       <circle cx="17.5" cy="6.5" r="0.8" fill="currentColor" stroke="none" />
     </svg>
+  );
+}
+
+function DocumentoImagemRamo({
+  tipo,
+  dark = false,
+}: {
+  tipo: "rapido" | "social" | "trafego" | "design" | "consultoria" | "agencia";
+  dark?: boolean;
+}) {
+  const config = {
+    rapido: {
+      kicker: "envio rápido",
+      title: "Escopo + preço",
+      metric: "24h",
+      bars: [82, 56, 68],
+    },
+    social: {
+      kicker: "rotina mensal",
+      title: "Feed, reels e stories",
+      metric: "30d",
+      bars: [62, 84, 44],
+    },
+    trafego: {
+      kicker: "performance",
+      title: "Campanhas e verba",
+      metric: "ROAS",
+      bars: [44, 70, 92],
+    },
+    design: {
+      kicker: "identidade",
+      title: "Marca e social kit",
+      metric: "RGB",
+      bars: [78, 38, 58],
+    },
+    consultoria: {
+      kicker: "plano de ação",
+      title: "Diagnóstico e roadmap",
+      metric: "OKR",
+      bars: [36, 58, 86],
+    },
+    agencia: {
+      kicker: "growth board",
+      title: "Aquisição, conteúdo e CRM",
+      metric: "KPI",
+      bars: [54, 76, 94],
+    },
+  }[tipo];
+
+  return (
+    <div className={`doc-ramo-visual doc-ramo-visual-${tipo} ${dark ? "doc-ramo-visual-dark" : ""}`}>
+      <div className="doc-ramo-visual-copy">
+        <span>{config.kicker}</span>
+        <strong>{config.title}</strong>
+        <small>{config.metric}</small>
+      </div>
+      <svg viewBox="0 0 420 220" role="img" aria-label={`Imagem do template ${config.title}`}>
+        <rect className="doc-ramo-card-main" x="18" y="18" width="236" height="172" rx="22" />
+        <rect className="doc-ramo-card-side" x="276" y="38" width="116" height="132" rx="18" />
+        <circle className="doc-ramo-orb" cx="336" cy="66" r="20" />
+        <path className="doc-ramo-line-strong" d="M48 58h104" />
+        <path className="doc-ramo-line" d="M48 86h152" />
+        <path className="doc-ramo-line" d="M48 112h128" />
+        <path className="doc-ramo-line-muted" d="M48 148h172" />
+        <g className="doc-ramo-bars">
+          {config.bars.map((bar, index) => (
+            <rect
+              key={`${tipo}-${bar}`}
+              x={298 + index * 24}
+              y={142 - bar * 0.62}
+              width="14"
+              height={bar * 0.62}
+              rx="7"
+            />
+          ))}
+        </g>
+        <path className="doc-ramo-path" d="M278 158c22-42 48-34 70-72 12-21 26-31 46-34" />
+        {tipo === "social" || tipo === "design" ? (
+          <>
+            <rect className="doc-ramo-media" x="64" y="126" width="56" height="42" rx="10" />
+            <rect className="doc-ramo-media doc-ramo-media-alt" x="130" y="126" width="56" height="42" rx="10" />
+          </>
+        ) : null}
+        {tipo === "trafego" || tipo === "agencia" ? (
+          <>
+            <path className="doc-ramo-funnel" d="M60 124h132l-42 46H102z" />
+            <circle className="doc-ramo-dot" cx="192" cy="58" r="10" />
+            <circle className="doc-ramo-dot" cx="222" cy="86" r="7" />
+          </>
+        ) : null}
+        {tipo === "consultoria" ? (
+          <>
+            <circle className="doc-ramo-step" cx="72" cy="144" r="11" />
+            <circle className="doc-ramo-step" cx="128" cy="144" r="11" />
+            <circle className="doc-ramo-step" cx="184" cy="144" r="11" />
+            <path className="doc-ramo-step-line" d="M83 144h34M139 144h34" />
+          </>
+        ) : null}
+      </svg>
+    </div>
   );
 }
 
@@ -11374,7 +11533,7 @@ function DashboardContent({
           <div className="max-w-2xl">
             <p className="inline-flex max-w-full items-center gap-2 rounded-md bg-violet-50 px-3 py-1.5 font-heading text-lg font-semibold leading-snug text-slate-950 sm:text-xl">
               <Sparkles size={16} aria-hidden="true" />
-              Crie orçamentos profissionais em minutos
+              Crie sua primeira proposta profissional em minutos
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap lg:justify-end">
@@ -11612,12 +11771,12 @@ function PrimeirosPassosDashboard({
         <div className="min-w-0">
           <p className="text-sm font-semibold text-accent">Primeiros passos</p>
           <h2 className="mt-1 font-heading text-xl font-semibold leading-7 text-slate-950">
-            Fluxo guiado de teste
+            Fluxo guiado para sua primeira proposta
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
             {passosConcluidos} de {passos.length} etapas concluídas. Continue
-            pelo próximo passo para aprender o ciclo completo: cliente, serviço
-            e proposta.
+            pelo próximo passo para montar uma proposta com marca, cliente,
+            serviço e valor percebido antes do preço.
           </p>
         </div>
         <button
@@ -11748,7 +11907,7 @@ function buildPrimeirosPassosDashboard({
     {
       id: "perfil",
       titulo: "Perfil da conta",
-      detalhe: "Defina marca, contato e cores usados na proposta.",
+      detalhe: "Defina marca, contato e cores para a proposta sair com cara do seu negócio.",
       concluido: perfilContaAtualizado,
       acaoLabel: "Editar perfil",
       onClick: onEditarPerfil,
@@ -11756,7 +11915,7 @@ function buildPrimeirosPassosDashboard({
     {
       id: "cliente",
       titulo: "Primeiro cliente",
-      detalhe: "Cadastre o contato que vai receber a proposta.",
+      detalhe: "Cadastre quem pediu preço para enviar a proposta sem retrabalho.",
       concluido: clientesTotal > 0,
       acaoLabel: "Cadastrar cliente",
       onClick: onCadastrarCliente,
@@ -11764,7 +11923,7 @@ function buildPrimeirosPassosDashboard({
     {
       id: "servico",
       titulo: "Primeiro serviço",
-      detalhe: "Monte um item reutilizável para compor orçamentos.",
+      detalhe: "Monte um item reutilizável com escopo, entregas e valor.",
       concluido: servicosTotal > 0,
       acaoLabel: "Cadastrar serviço",
       onClick: onSalvarServico,
@@ -11772,7 +11931,7 @@ function buildPrimeirosPassosDashboard({
     {
       id: "proposta",
       titulo: "Primeira proposta",
-      detalhe: "Crie o primeiro rascunho e siga o fluxo comercial.",
+      detalhe: "Gere a proposta para WhatsApp, PDF ou imagem e mostre valor antes do preço.",
       concluido: propostasTotal > 0,
       acaoLabel: "Criar proposta",
       onClick: onNovaProposta,
@@ -12772,6 +12931,8 @@ function getPropostaTemplateLabel(templateVisual: PropostaTemplateVisual): strin
   const templateVisualNormalizado = normalizarTemplateVisual(templateVisual);
 
   return (
+    propostaTemplateVisualOpcoesGaleria.find((template) => template.value === templateVisualNormalizado)
+      ?.label ??
     propostaTemplateVisualOpcoes.find((template) => template.value === templateVisualNormalizado)
       ?.label ?? "Comercial minimalista"
   );
@@ -12781,9 +12942,12 @@ function isTemplateCoresEstaticas(templateVisual: PropostaTemplateVisual): boole
   const templateVisualNormalizado = normalizarTemplateVisual(templateVisual);
 
   return Boolean(
-    propostaTemplateVisualOpcoes.find(
+    propostaTemplateVisualOpcoesGaleria.find(
       (template) => template.value === templateVisualNormalizado,
-    )?.coresEstaticas,
+    )?.coresEstaticas ??
+      propostaTemplateVisualOpcoes.find(
+        (template) => template.value === templateVisualNormalizado,
+      )?.coresEstaticas,
   );
 }
 

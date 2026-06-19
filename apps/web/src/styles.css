@@ -8628,6 +8628,158 @@ button[class*="border-accent"]:not(:disabled):hover {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.doc-ramo-visual {
+  --ramo-surface: color-mix(in srgb, var(--proposal-primary) 7%, #ffffff);
+  --ramo-card: #ffffff;
+  --ramo-side: color-mix(in srgb, var(--proposal-secondary) 11%, #f8fafc);
+  --ramo-ink: #06173a;
+  --ramo-muted: rgba(86, 102, 127, 0.5);
+  --ramo-accent: var(--proposal-primary);
+  --ramo-accent-2: var(--proposal-secondary);
+  display: grid;
+  grid-template-columns: minmax(0, 0.78fr) minmax(0, 1.22fr);
+  gap: 1rem;
+  align-items: center;
+  margin: 1rem 0;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--proposal-primary) 18%, rgba(128, 148, 178, 0.22));
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 88% 18%, color-mix(in srgb, var(--ramo-accent-2) 24%, transparent), transparent 24%),
+    var(--ramo-surface);
+  padding: 0.9rem 1rem;
+}
+
+.doc-ramo-visual-copy {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.doc-ramo-visual-copy span,
+.doc-ramo-visual-copy small {
+  color: var(--ramo-accent);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.doc-ramo-visual-copy strong {
+  color: var(--ramo-ink);
+  font-size: 1.25rem;
+  font-weight: 900;
+  line-height: 1.08;
+}
+
+.doc-ramo-visual-copy small {
+  justify-self: start;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ramo-accent) 11%, #ffffff);
+  padding: 0.35rem 0.55rem;
+}
+
+.doc-ramo-visual svg {
+  width: 100%;
+  min-width: 0;
+  height: auto;
+}
+
+.doc-ramo-card-main,
+.doc-ramo-card-side {
+  fill: var(--ramo-card);
+  stroke: color-mix(in srgb, var(--ramo-accent) 18%, rgba(128, 148, 178, 0.28));
+}
+
+.doc-ramo-card-side {
+  fill: var(--ramo-side);
+}
+
+.doc-ramo-orb,
+.doc-ramo-bars rect,
+.doc-ramo-media,
+.doc-ramo-step {
+  fill: var(--ramo-accent);
+}
+
+.doc-ramo-media-alt {
+  fill: var(--ramo-accent-2);
+}
+
+.doc-ramo-line,
+.doc-ramo-line-muted,
+.doc-ramo-line-strong,
+.doc-ramo-path,
+.doc-ramo-step-line {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.doc-ramo-line-strong {
+  stroke: var(--ramo-ink);
+  stroke-width: 12;
+}
+
+.doc-ramo-line {
+  stroke: var(--ramo-accent);
+  stroke-width: 9;
+}
+
+.doc-ramo-line-muted {
+  stroke: var(--ramo-muted);
+  stroke-width: 9;
+}
+
+.doc-ramo-path {
+  stroke: var(--ramo-accent-2);
+  stroke-width: 9;
+}
+
+.doc-ramo-funnel {
+  fill: color-mix(in srgb, var(--ramo-accent) 18%, #ffffff);
+  stroke: var(--ramo-accent);
+  stroke-width: 4;
+  stroke-linejoin: round;
+}
+
+.doc-ramo-dot {
+  fill: var(--ramo-accent-2);
+}
+
+.doc-ramo-step-line {
+  stroke: var(--ramo-accent);
+  stroke-width: 6;
+}
+
+.doc-ramo-visual-dark {
+  --ramo-surface: rgba(255, 255, 255, 0.1);
+  --ramo-card: rgba(255, 255, 255, 0.16);
+  --ramo-side: rgba(255, 255, 255, 0.1);
+  --ramo-ink: #ffffff;
+  --ramo-muted: rgba(255, 255, 255, 0.34);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.doc-ramo-visual-dark .doc-ramo-visual-copy small {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.doc-ramo-visual-social,
+.doc-ramo-visual-design {
+  --ramo-accent-2: #21c7b7;
+}
+
+.doc-ramo-visual-trafego,
+.doc-ramo-visual-agencia {
+  --ramo-accent-2: #f97316;
+}
+
+.doc-ramo-visual-consultoria {
+  --ramo-accent: #8a6b3f;
+  --ramo-accent-2: #315f52;
+}
+
 .doc-benefit-card {
   min-height: 132px;
   border: 1px solid rgba(128, 148, 178, 0.24);
