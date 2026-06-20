@@ -185,6 +185,7 @@ type PropostaTemplateVisualAtivo = (typeof propostaTemplateVisualValores)[number
 const formatoArquivoPreferidoValores = ["Pdf", "Imagem", "PdfImagem"] as const;
 type FormatoArquivoPreferido = (typeof formatoArquivoPreferidoValores)[number];
 const formatoArquivoPreferidoDefault: FormatoArquivoPreferido = "Pdf";
+const onboardingTourScrollDelayMs = 140;
 const telefoneDigitosFixoNacionais = 10;
 const telefoneDigitosCelularNacionais = 11;
 const telefoneDigitosMaximosNacionais = telefoneDigitosCelularNacionais;
@@ -885,6 +886,7 @@ export default function App() {
   const [onboardingTourRodando, setOnboardingTourRodando] = useState(false);
   const [onboardingTourStepIndex, setOnboardingTourStepIndex] = useState(0);
   const onboardingTourAutoInicioRef = useRef<string | null>(null);
+  const onboardingTourEncerradoSessaoRef = useRef<string | null>(null);
   const [
     personalizacaoPreviewTemplateAberto,
     setPersonalizacaoPreviewTemplateAberto,
@@ -1889,7 +1891,12 @@ export default function App() {
     }
 
     if (onboarding.tour.status === "NaoIniciado" || onboarding.tour.status === "EmAndamento") {
+      const chaveUsuarioTour = `${conta.id}:${usuario.id}`;
       const chaveTour = `${conta.id}:${usuario.id}:${onboarding.tour.status}:${onboarding.updatedAt ?? "inicial"}`;
+
+      if (onboardingTourEncerradoSessaoRef.current === chaveUsuarioTour) {
+        return;
+      }
 
       if (onboardingTourAutoInicioRef.current === chaveTour) {
         return;
@@ -1911,6 +1918,33 @@ export default function App() {
       return () => window.clearTimeout(timeoutId);
     }
   }, [conta, onboarding, onboardingEventoMutation, onboardingTourRodando, usuario]);
+
+  useEffect(() => {
+    if (!onboardingTourRodando) {
+      return;
+    }
+
+    const target = getOnboardingTourTarget(onboardingTourStepIndex);
+    if (!target) {
+      return;
+    }
+
+    const scrollParaAlvo = () => {
+      const elemento = document.querySelector(target);
+      if (elemento instanceof HTMLElement) {
+        elemento.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+          inline: "nearest",
+        });
+      }
+    };
+
+    scrollParaAlvo();
+    const timeoutId = window.setTimeout(scrollParaAlvo, onboardingTourScrollDelayMs);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [appView, onboardingTourRodando, onboardingTourStepIndex]);
 
   const salvarClienteMutation = useMutation({
     mutationFn: (input: ClienteFormInput) => {
@@ -2480,6 +2514,7 @@ export default function App() {
   }
 
   function iniciarTourOnboarding() {
+    onboardingTourEncerradoSessaoRef.current = null;
     setOnboardingModalAberto(false);
     setAppView("dashboard");
     setMobileMenuAberto(false);
@@ -2492,17 +2527,25 @@ export default function App() {
   function navegarParaOnboardingTourStep(stepIndex: number) {
     const totalSteps = buildOnboardingTourSteps().length;
     const proximoIndice = Math.max(0, Math.min(stepIndex, totalSteps - 1));
+    const proximaView = getOnboardingTourView(proximoIndice);
 
-    setAppView(getOnboardingTourView(proximoIndice));
-    setMobileMenuAberto(false);
-    setContaMenuAberto(false);
-    setOnboardingTourStepIndex(proximoIndice);
+    flushSync(() => {
+      setAppView(proximaView);
+      setMobileMenuAberto(false);
+      setContaMenuAberto(false);
+      setOnboardingTourStepIndex(proximoIndice);
+    });
   }
 
   function handleOnboardingTourCallback(data: EventData) {
     if (data.status === "finished" || data.status === "skipped") {
-      setOnboardingTourRodando(false);
-      setOnboardingTourStepIndex(0);
+      const chaveUsuarioTour = conta && usuario ? `${conta.id}:${usuario.id}` : null;
+      onboardingTourEncerradoSessaoRef.current = chaveUsuarioTour;
+      flushSync(() => {
+        setOnboardingTourRodando(false);
+        setOnboardingTourStepIndex(0);
+      });
+      window.setTimeout(limparArtefatosOnboardingTour, 0);
       onboardingEventoMutation.mutate({
         tipo: data.status === "finished" ? "TourConcluiu" : "TourPulou",
         etapa: typeof data.step?.target === "string" ? data.step.target : "dashboard",
@@ -2511,10 +2554,11 @@ export default function App() {
     }
 
     if (data.type === "step:after" || data.type === "error:target_not_found") {
+      const indiceAtual = typeof data.index === "number" ? data.index : onboardingTourStepIndex;
       navegarParaOnboardingTourStep(
         data.action === "prev"
-          ? onboardingTourStepIndex - 1
-          : onboardingTourStepIndex + 1,
+          ? indiceAtual - 1
+          : indiceAtual + 1,
       );
     }
   }
@@ -12513,9 +12557,9 @@ function buildOnboardingTourSteps(): Step[] {
   return [
     {
       target: '[data-tour="dashboard-hero"]',
-      title: "Vamos preparar sua conta",
+      title: "Atalhos do primeiro orcamento",
       content:
-        "Este tour aparece no primeiro login e mostra o caminho para deixar sua conta pronta e gerar o primeiro orcamento.",
+        "No dashboard voce encontra os atalhos para criar proposta, cadastrar cliente e salvar servico. O tour primeiro mostra a configuracao da conta e depois volta para esses atalhos.",
       skipBeacon: true,
     },
     {
@@ -12561,6 +12605,26 @@ function buildOnboardingTourSteps(): Step[] {
         "Use Nova proposta para montar o orcamento completo, revisar os itens e gerar o arquivo final para enviar.",
     },
   ];
+}
+
+function getOnboardingTourTarget(stepIndex: number) {
+  const target = buildOnboardingTourSteps()[stepIndex]?.target;
+
+  return typeof target === "string" ? target : null;
+}
+
+function limparArtefatosOnboardingTour() {
+  document.body.style.overflow = "";
+  document.body.style.pointerEvents = "";
+  document.documentElement.style.overflow = "";
+
+  document
+    .querySelectorAll(
+      '#react-joyride-step, [id^="react-joyride-"], .react-joyride__overlay, .react-joyride__spotlight',
+    )
+    .forEach((elemento) => {
+      elemento.parentElement?.removeChild(elemento);
+    });
 }
 
 function getOnboardingTourView(stepIndex: number): AppView {
