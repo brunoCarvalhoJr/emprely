@@ -883,7 +883,8 @@ export default function App() {
     "conta" | "proposta"
   >("conta");
   const [onboardingTourRodando, setOnboardingTourRodando] = useState(false);
-  const onboardingAutoAberturaRef = useRef<string | null>(null);
+  const [onboardingTourStepIndex, setOnboardingTourStepIndex] = useState(0);
+  const onboardingTourAutoInicioRef = useRef<string | null>(null);
   const [
     personalizacaoPreviewTemplateAberto,
     setPersonalizacaoPreviewTemplateAberto,
@@ -1883,42 +1884,29 @@ export default function App() {
   });
 
   useEffect(() => {
-    if (!usuario || !conta || !onboarding) {
-      return;
-    }
-
-    const chaveAbertura = `${conta.id}:${usuario.id}:${onboarding.updatedAt ?? "inicial"}`;
-
-    if (onboardingAutoAberturaRef.current === chaveAbertura) {
-      return;
-    }
-
-    if (onboarding.deveAbrirAutomaticamente || onboarding.deveLembrarAposPular) {
-      onboardingAutoAberturaRef.current = chaveAbertura;
-      const timeoutId = window.setTimeout(() => {
-        setOnboardingJornadaAtiva(
-          onboarding.configuracaoConta.status === "Concluido" ? "proposta" : "conta",
-        );
-        setOnboardingModalAberto(true);
-      }, 0);
-
-      return () => window.clearTimeout(timeoutId);
-    }
-  }, [conta, onboarding, usuario]);
-
-  useEffect(() => {
     if (!usuario || !conta || !onboarding || onboardingTourRodando) {
       return;
     }
 
-    if (
-      onboarding.configuracaoConta.status === "Concluido" &&
-      onboarding.tour.status === "NaoIniciado"
-    ) {
+    if (onboarding.tour.status === "NaoIniciado" || onboarding.tour.status === "EmAndamento") {
+      const chaveTour = `${conta.id}:${usuario.id}:${onboarding.tour.status}:${onboarding.updatedAt ?? "inicial"}`;
+
+      if (onboardingTourAutoInicioRef.current === chaveTour) {
+        return;
+      }
+
+      onboardingTourAutoInicioRef.current = chaveTour;
       const timeoutId = window.setTimeout(() => {
+        setOnboardingTourStepIndex(0);
+        setAppView("dashboard");
+        setMobileMenuAberto(false);
+        setContaMenuAberto(false);
+        setOnboardingModalAberto(false);
         setOnboardingTourRodando(true);
-        onboardingEventoMutation.mutate({ tipo: "TourExibido", etapa: "dashboard" });
-      }, 0);
+        if (onboarding.tour.status === "NaoIniciado") {
+          onboardingEventoMutation.mutate({ tipo: "TourExibido", etapa: "dashboard" });
+        }
+      }, 250);
 
       return () => window.clearTimeout(timeoutId);
     }
@@ -2493,17 +2481,41 @@ export default function App() {
 
   function iniciarTourOnboarding() {
     setOnboardingModalAberto(false);
+    setAppView("dashboard");
+    setMobileMenuAberto(false);
+    setContaMenuAberto(false);
+    setOnboardingTourStepIndex(0);
     setOnboardingTourRodando(true);
     onboardingEventoMutation.mutate({ tipo: "TourExibido", etapa: "dashboard" });
+  }
+
+  function navegarParaOnboardingTourStep(stepIndex: number) {
+    const totalSteps = buildOnboardingTourSteps().length;
+    const proximoIndice = Math.max(0, Math.min(stepIndex, totalSteps - 1));
+
+    setAppView(getOnboardingTourView(proximoIndice));
+    setMobileMenuAberto(false);
+    setContaMenuAberto(false);
+    setOnboardingTourStepIndex(proximoIndice);
   }
 
   function handleOnboardingTourCallback(data: EventData) {
     if (data.status === "finished" || data.status === "skipped") {
       setOnboardingTourRodando(false);
+      setOnboardingTourStepIndex(0);
       onboardingEventoMutation.mutate({
         tipo: data.status === "finished" ? "TourConcluiu" : "TourPulou",
         etapa: typeof data.step?.target === "string" ? data.step.target : "dashboard",
       });
+      return;
+    }
+
+    if (data.type === "step:after" || data.type === "error:target_not_found") {
+      navegarParaOnboardingTourStep(
+        data.action === "prev"
+          ? onboardingTourStepIndex - 1
+          : onboardingTourStepIndex + 1,
+      );
     }
   }
 
@@ -3494,15 +3506,50 @@ export default function App() {
         <Joyride
           continuous
           onEvent={handleOnboardingTourCallback}
+          locale={{
+            back: "Voltar",
+            close: "Fechar",
+            last: "Concluir",
+            next: "Proximo",
+            nextWithProgress: "Proximo ({current} de {total})",
+            open: "Abrir",
+            skip: "Pular",
+          }}
           options={{
+            blockTargetInteraction: true,
             buttons: ["skip", "back", "primary"],
             closeButtonAction: "skip",
             overlayClickAction: false,
+            overlayColor: "rgba(2, 6, 23, 0.78)",
             primaryColor: "#2563eb",
+            scrollOffset: 88,
             showProgress: true,
+            spotlightPadding: 8,
+            spotlightRadius: 10,
           }}
           run={onboardingTourRodando}
+          scrollToFirstStep
+          stepIndex={onboardingTourStepIndex}
           steps={buildOnboardingTourSteps()}
+          styles={{
+            tooltip: {
+              borderRadius: 8,
+              boxShadow: "0 24px 70px rgba(2, 6, 23, 0.28)",
+              maxWidth: 340,
+            },
+            tooltipTitle: {
+              color: "#0f172a",
+              fontSize: 18,
+              fontWeight: 800,
+              lineHeight: 1.25,
+            },
+            tooltipContent: {
+              color: "#475569",
+              fontSize: 14,
+              lineHeight: 1.55,
+              padding: "12px 0",
+            },
+          }}
         />
       ) : null}
       <div
@@ -6621,7 +6668,10 @@ export default function App() {
                           type="hidden"
                           {...perfilForm.register("templateVisualPadrao")}
                         />
-                        <div className="account-settings-section account-identity-section">
+                        <div
+                          className="account-settings-section account-identity-section"
+                          data-tour="configurar-dados-conta"
+                        >
                           <div className="account-settings-section-heading">
                             <h3>Identificação</h3>
                             <p>Dados principais exibidos nos documentos e propostas.</p>
@@ -6702,7 +6752,10 @@ export default function App() {
                           </div>
                         </div>
 
-                        <div className="account-settings-section account-logo-section">
+                        <div
+                          className="account-settings-section account-logo-section"
+                          data-tour="configurar-logo"
+                        >
                           <div className="account-settings-section-heading">
                             <h3>Marca</h3>
                             <p>Use a logomarca que aparecerá nos materiais gerados pela Emprely.</p>
@@ -6956,7 +7009,10 @@ export default function App() {
                           </div>
                         </div>
 
-                        <div className="personalization-section mt-6 border-t border-border pt-5">
+                        <div
+                          className="personalization-section mt-6 border-t border-border pt-5"
+                          data-tour="configurar-cores-formato"
+                        >
                           <div>
                             <p className="text-sm font-medium text-primary">
                               Orçamentos
@@ -7099,7 +7155,10 @@ export default function App() {
                         </div>
                       </div>
 
-                      <aside className="personalization-template-card rounded-md border border-border bg-surface">
+                      <aside
+                        className="personalization-template-card rounded-md border border-border bg-surface"
+                        data-tour="configurar-template"
+                      >
                         <div className="personalization-template-header flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                           <div className="flex min-w-0 items-start gap-2">
                             <FileText
@@ -12085,7 +12144,10 @@ function DashboardContent({
         <PrimeirosPassosDashboard passos={primeirosPassos} />
       ) : null}
 
-      <div className="dashboard-metrics-grid grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div
+        className="dashboard-metrics-grid grid gap-4 md:grid-cols-2 xl:grid-cols-4"
+        data-tour="dashboard-metricas"
+      >
         {metricas.map((metrica) => {
           const Icon = metrica.icon;
 
@@ -12451,36 +12513,66 @@ function buildOnboardingTourSteps(): Step[] {
   return [
     {
       target: '[data-tour="dashboard-hero"]',
-      title: "Painel inicial",
+      title: "Vamos preparar sua conta",
       content:
-        "Aqui ficam os atalhos para criar proposta, cadastrar cliente e cadastrar servico.",
+        "Este tour aparece no primeiro login e mostra o caminho para deixar sua conta pronta e gerar o primeiro orcamento.",
       skipBeacon: true,
     },
     {
-      target: '[data-tour="primeiros-passos"]',
-      title: "Checklist guiado",
+      target: '[data-tour="configurar-dados-conta"]',
+      title: "Dados do seu negocio",
       content:
-        "Acompanhe o que falta para configurar a conta e gerar a primeira proposta.",
+        "Comece preenchendo nome comercial, segmento, cidade, telefone e email. Esses dados aparecem nos orcamentos.",
+    },
+    {
+      target: '[data-tour="configurar-logo"]',
+      title: "Logomarca",
+      content:
+        "Adicione sua logo para que o PDF e a imagem saiam com a identidade da sua marca.",
+    },
+    {
+      target: '[data-tour="configurar-template"]',
+      title: "Template padrao",
+      content:
+        "Escolha o modelo visual que a Emprely vai usar por padrao nos novos orcamentos.",
+    },
+    {
+      target: '[data-tour="configurar-cores-formato"]',
+      title: "Cores e formato de envio",
+      content:
+        "Defina as cores da marca e escolha se prefere enviar PDF, imagem ou os dois formatos.",
     },
     {
       target: '[data-tour="clientes"]',
-      title: "Cliente",
+      title: "Cadastre o cliente",
       content:
-        "Comece cadastrando quem vai receber a proposta. Esses dados entram automaticamente no documento.",
+        "Depois da conta configurada, cadastre quem vai receber o primeiro orcamento.",
     },
     {
       target: '[data-tour="servicos"]',
-      title: "Servico",
+      title: "Cadastre o servico",
       content:
-        "Cadastre entregas reutilizaveis para montar orcamentos mais rapido.",
+        "Salve o servico, pacote ou entrega que sera cobrado. Voce podera reutilizar isso em outros orcamentos.",
     },
     {
       target: '[data-tour="nova-proposta"]',
-      title: "Primeira proposta",
+      title: "Gere o primeiro orcamento",
       content:
-        "Use o assistente para revisar cliente, itens, template e gerar o arquivo final.",
+        "Use Nova proposta para montar o orcamento completo, revisar os itens e gerar o arquivo final para enviar.",
     },
   ];
+}
+
+function getOnboardingTourView(stepIndex: number): AppView {
+  if (stepIndex >= 1 && stepIndex <= 2) {
+    return "conta";
+  }
+
+  if (stepIndex >= 3 && stepIndex <= 4) {
+    return "personalizacao";
+  }
+
+  return "dashboard";
 }
 
 function getOnboardingStatusLabel(status: OnboardingResponse["configuracaoConta"]["status"]) {
