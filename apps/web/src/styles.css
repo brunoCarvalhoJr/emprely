@@ -1205,6 +1205,14 @@ body.is-mobile-menu-open {
   color: var(--foreground);
 }
 
+.metric-card-content {
+  min-width: 0;
+}
+
+.metric-card-action-indicator {
+  display: none;
+}
+
 .metric-card:hover {
   border-color: rgba(110, 56, 255, 0.24);
   transform: translateY(-2px);
@@ -1213,6 +1221,11 @@ body.is-mobile-menu-open {
 .metric-card-action {
   width: 100%;
   min-height: 6.75rem;
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 0.85rem;
   appearance: none;
   cursor: pointer;
   text-align: left;
@@ -10642,24 +10655,72 @@ button[class*="border-accent"]:not(:disabled):hover {
     width: 100%;
   }
 
-  .metric-card {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    min-height: 0;
-    padding: 1rem !important;
+  .dashboard-metrics-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem !important;
   }
 
-  .metric-card > div {
-    grid-column: 1 / -1;
+  .metric-card {
     min-width: 0;
+    border-radius: var(--mobile-card-radius) !important;
+  }
+
+  .metric-card-action {
+    min-height: 5.75rem;
+    overflow: hidden;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 0.5rem;
+    padding: 0.78rem !important;
+    box-shadow: 0 10px 22px rgba(7, 24, 50, 0.05);
+  }
+
+  .metric-card:hover {
+    transform: none;
+  }
+
+  .metric-card-content {
+    display: flex;
+    min-width: 0;
+    flex-direction: column-reverse;
+    gap: 0.18rem;
+  }
+
+  .metric-card p {
+    display: -webkit-box;
+    min-height: 2.15rem;
+    overflow: hidden;
+    font-size: 0.76rem !important;
+    font-weight: 750 !important;
+    line-height: 1.32;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
   }
 
   .metric-card strong {
-    grid-column: 1 / -1;
-    margin-top: 0.25rem;
-    font-size: 2rem !important;
+    margin-top: 0 !important;
+    font-size: 1.78rem !important;
     line-height: 1;
+    letter-spacing: 0;
+  }
+
+  .metric-card .metric-icon {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 8px;
+  }
+
+  .metric-card .metric-icon svg {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .metric-card-action-indicator {
+    position: absolute;
+    right: 0.52rem;
+    bottom: 0.45rem;
+    display: inline-flex;
+    color: rgba(100, 116, 139, 0.55);
   }
 
   .proposal-wizard-nav,

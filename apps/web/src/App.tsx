@@ -12085,7 +12085,7 @@ function DashboardContent({
         <PrimeirosPassosDashboard passos={primeirosPassos} />
       ) : null}
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="dashboard-metrics-grid grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {metricas.map((metrica) => {
           const Icon = metrica.icon;
 
@@ -12096,15 +12096,18 @@ function DashboardContent({
               onClick={metrica.onClick}
               className="metric-card metric-card-action rounded-md border border-border bg-surface p-4"
             >
-              <div className="flex items-center justify-between gap-3">
+              <div className="metric-card-content">
                 <p className="text-sm font-medium text-muted">{metrica.label}</p>
-                <span className={`metric-icon metric-icon-${metrica.tone}`}>
-                  <Icon size={18} aria-hidden="true" />
-                </span>
+                <strong className="mt-2 block text-3xl font-semibold">
+                  {metrica.value}
+                </strong>
               </div>
-              <strong className="mt-2 block text-3xl font-semibold">
-                {metrica.value}
-              </strong>
+              <span className={`metric-icon metric-icon-${metrica.tone}`}>
+                <Icon size={18} aria-hidden="true" />
+              </span>
+              <span className="metric-card-action-indicator" aria-hidden="true">
+                <ArrowRight size={13} />
+              </span>
             </button>
           );
         })}
