@@ -376,7 +376,7 @@ const suporteSchema = z.object({
 
 const contatoPublicoSchema = z.object({
   nome: z.string().trim().min(2, "Informe seu nome.").max(120),
-  email: z.string().trim().email("Digite um e-mail valido.").max(200),
+  email: z.string().trim().email("Digite um e-mail válido.").max(200),
   telefone: z
     .string()
     .trim()
@@ -906,12 +906,25 @@ export default function App() {
   const [temaVisual, setTemaVisual] = useState<TemaVisual>(getTemaVisualInicial);
   const [toastsSistema, setToastsSistema] = useState<ToastSistemaItem[]>([]);
   const toastSistemaIdRef = useRef(0);
+  const suprimirProximoToastRascunhoRef = useRef(false);
   const [confirmacaoSistema, setConfirmacaoSistema] =
     useState<ConfirmacaoSistemaState | null>(null);
   const confirmacaoSistemaResolverRef = useRef<
     ((confirmado: boolean) => void) | null
   >(null);
   const confirmacaoSistemaIdRef = useRef(0);
+
+  const fecharPropostaVisualizacaoModal = useCallback(() => {
+    setPropostaVisualizacaoModalId(null);
+  }, []);
+
+  const fecharPropostaPreviewModal = useCallback(() => {
+    setPropostaPreviewModalAberto(false);
+  }, []);
+
+  const fecharPersonalizacaoPreviewTemplate = useCallback(() => {
+    setPersonalizacaoPreviewTemplateAberto(null);
+  }, []);
 
   const fecharToastSistema = useCallback((id: number) => {
     setToastsSistema((toastsAtuais) =>
@@ -1027,6 +1040,48 @@ export default function App() {
   useEffect(() => {
     exibirMensagemSistema(propostaExportacaoMensagem, "exportacao");
   }, [exibirMensagemSistema, propostaExportacaoMensagem]);
+
+  useEffect(() => {
+    const modalAberto =
+      propostaVisualizacaoModalId ||
+      propostaPreviewModalAberto ||
+      personalizacaoPreviewTemplateAberto;
+
+    if (!modalAberto) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") {
+        return;
+      }
+
+      if (propostaVisualizacaoModalId) {
+        fecharPropostaVisualizacaoModal();
+        return;
+      }
+
+      if (propostaPreviewModalAberto) {
+        fecharPropostaPreviewModal();
+        return;
+      }
+
+      fecharPersonalizacaoPreviewTemplate();
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [
+    fecharPersonalizacaoPreviewTemplate,
+    fecharPropostaPreviewModal,
+    fecharPropostaVisualizacaoModal,
+    personalizacaoPreviewTemplateAberto,
+    propostaPreviewModalAberto,
+    propostaVisualizacaoModalId,
+  ]);
 
   const usuarioAtualQuery = useQuery({
     queryKey: ["usuario-atual", accessToken],
@@ -2113,11 +2168,16 @@ export default function App() {
       setServicoParaAdicionarId("");
       setPropostaPagina(1);
       setPropostaWizardEtapaAtiva("revisao");
-      setPropostaMensagem(
-        eraEdicao
-          ? "Alteracoes salvas."
-          : "Rascunho salvo. Revise o preview e gere a proposta quando estiver pronto.",
-      );
+      if (suprimirProximoToastRascunhoRef.current) {
+        suprimirProximoToastRascunhoRef.current = false;
+        setPropostaMensagem(null);
+      } else {
+        setPropostaMensagem(
+          eraEdicao
+            ? "Alteracoes salvas."
+            : "Rascunho salvo. Revise o preview e gere a proposta quando estiver pronto.",
+        );
+      }
       await queryClient.invalidateQueries({ queryKey: ["propostas", accessToken] });
     },
   });
@@ -2671,13 +2731,23 @@ export default function App() {
     navegarParaEtapaProposta("revisao");
 
     try {
-      const propostaBase =
-        !propostaSelecionada || propostaTemAlteracoes
-          ? await salvarPropostaMutation.mutateAsync(propostaForm.getValues())
-          : propostaSelecionada;
+      const precisaSalvarAntesDeGerar = !propostaSelecionada || propostaTemAlteracoes;
+
+      if (precisaSalvarAntesDeGerar) {
+        suprimirProximoToastRascunhoRef.current = true;
+      }
+
+      const propostaBase = precisaSalvarAntesDeGerar
+        ? await salvarPropostaMutation.mutateAsync(propostaForm.getValues())
+        : propostaSelecionada;
+
+      if (!propostaBase) {
+        return;
+      }
 
       await gerarPropostaMutation.mutateAsync(propostaBase.id);
     } catch {
+      suprimirProximoToastRascunhoRef.current = false;
       // As mutations ja exibem os erros nos componentes de mensagem.
     }
   }
@@ -3119,27 +3189,21 @@ export default function App() {
     const margem = 24;
     const larguraDisponivel = larguraPagina - margem * 2;
     const alturaDisponivel = alturaPagina - margem * 2;
-    const escala = larguraDisponivel / tamanhoImagem.width;
-    const larguraImagem = larguraDisponivel;
+    const escalaLargura = larguraDisponivel / tamanhoImagem.width;
+    const escalaAltura = alturaDisponivel / tamanhoImagem.height;
+    const escala = Math.min(escalaLargura, escalaAltura);
+    const larguraImagem = tamanhoImagem.width * escala;
     const alturaImagem = tamanhoImagem.height * escala;
-    let deslocamentoImagem = 0;
+    const posicaoX = (larguraPagina - larguraImagem) / 2;
 
-    do {
-      if (deslocamentoImagem > 0) {
-        pdf.addPage();
-      }
-
-      pdf.addImage(
-        pngDataUrl,
-        "PNG",
-        margem,
-        margem - deslocamentoImagem,
-        larguraImagem,
-        alturaImagem,
-      );
-
-      deslocamentoImagem += alturaDisponivel;
-    } while (deslocamentoImagem < alturaImagem);
+    pdf.addImage(
+      pngDataUrl,
+      "PNG",
+      posicaoX,
+      margem,
+      larguraImagem,
+      alturaImagem,
+    );
 
     return pdf.output("blob");
   }
@@ -3722,24 +3786,26 @@ export default function App() {
                       <button
                         type="button"
                         className="mobile-drawer-secondary-button"
+                        data-testid="mobile-drawer-action-new-client"
                         onClick={() => {
                           setMobileMenuAberto(false);
                           abrirNovoCliente();
                         }}
                       >
                         <UsersRound size={17} aria-hidden="true" />
-                        Cliente
+                        Novo cliente
                       </button>
                       <button
                         type="button"
                         className="mobile-drawer-secondary-button"
+                        data-testid="mobile-drawer-action-new-service"
                         onClick={() => {
                           setMobileMenuAberto(false);
                           abrirNovoServico();
                         }}
                       >
                         <PackageCheck size={17} aria-hidden="true" />
-                        Servico
+                        Novo servico
                       </button>
                     </div>
 
@@ -3755,6 +3821,7 @@ export default function App() {
                             className={`mobile-drawer-nav-item ${
                               itemAtivo ? "is-active" : ""
                             }`}
+                            data-testid={`mobile-drawer-nav-${item.view}`}
                             aria-current={itemAtivo ? "page" : undefined}
                             onClick={() => navegarParaView(item.view)}
                           >
@@ -3890,6 +3957,7 @@ export default function App() {
                   aria-haspopup="menu"
                   aria-expanded={contaMenuAberto}
                   data-tooltip={nomeMarcaTopo}
+                  title={`${nomeMarcaTopo} - ${subtituloMarcaTopo}`}
                   onClick={() => setContaMenuAberto((aberto) => !aberto)}
                 >
                   {logoMarcaTopo ? (
@@ -4896,18 +4964,13 @@ export default function App() {
                     {propostaModo === "assistente" ? (
                       <div className="proposal-wizard-panel rounded-md border border-border bg-surface p-5">
                         <div className="proposal-assistant-steps" aria-label="Etapas da nova proposta">
-                          {[
-                            "Cliente",
-                            "Proposta",
-                            "Itens",
-                            "Revisão",
-                          ].map((step, index) => (
+                          {propostaWizardEtapas.map((step, index) => (
                             <span
-                              key={step}
+                              key={step.id}
                               className={index === 0 ? "is-active" : ""}
                             >
                               <strong>{index + 1}</strong>
-                              {step}
+                              {step.label}
                             </span>
                           ))}
                         </div>
@@ -5438,7 +5501,7 @@ export default function App() {
                                   </div>
                                   <div className="proposal-item-fields">
                                     <CampoTexto
-                                      label="Item"
+                                      label={`Item ${index + 1}`}
                                       error={
                                         propostaForm.formState.errors.itens?.[index]
                                           ?.nome?.message
@@ -5448,7 +5511,7 @@ export default function App() {
                                       )}
                                     />
                                     <CampoTexto
-                                      label="Qtd"
+                                      label={`Quantidade do item ${index + 1}`}
                                       type="number"
                                       min="1"
                                       step="1"
@@ -5469,7 +5532,7 @@ export default function App() {
                                       name={`itens.${index}.valorUnitario` as const}
                                       render={({ field }) => (
                                         <CampoMoedaReal
-                                          label="Valor"
+                                          label={`Valor do item ${index + 1}`}
                                           name={field.name}
                                           ref={field.ref}
                                           value={field.value}
@@ -5485,7 +5548,7 @@ export default function App() {
                                   </div>
                                   <div className="proposal-item-description">
                                     <CampoTextarea
-                                      label="Descrição"
+                                      label={`Descrição do item ${index + 1}`}
                                       rows={1}
                                       error={
                                         propostaForm.formState.errors.itens?.[index]
@@ -5957,7 +6020,7 @@ export default function App() {
                                   >
                                     <div className="proposal-review-card-header">
                                       <div>
-                                        <span>{grupo.itens.length} item{grupo.itens.length === 1 ? "" : "s"}</span>
+                                        <span>{formatQuantidadeItens(grupo.itens.length)}</span>
                                         <h4>{grupo.titulo}</h4>
                                       </div>
                                     </div>
@@ -6481,8 +6544,7 @@ export default function App() {
                                       <td data-label="Total">
                                         <strong>{formatMoney(proposta.total)}</strong>
                                         <span>
-                                          {proposta.itens.length} item
-                                          {proposta.itens.length === 1 ? "" : "s"}
+                                          {formatQuantidadeItens(proposta.itens.length)}
                                         </span>
                                       </td>
                                       <td data-label="Status">
@@ -6498,10 +6560,12 @@ export default function App() {
                                       <td data-label="Ações">
                                         <ListagemAcoes
                                           ariaLabel={`Ações da proposta ${proposta.titulo}`}
+                                          dataTestId={`proposal-actions-${proposta.id}`}
                                           acoes={[
                                             {
                                               label: "Visualizar",
                                               icon: <Eye size={16} />,
+                                              testId: `proposal-action-view-${proposta.id}`,
                                               onClick: () =>
                                                 visualizarProposta(proposta.id),
                                             },
@@ -6515,6 +6579,7 @@ export default function App() {
                                                       ? mensagemBloqueioPlano
                                                       : "Gerar proposta",
                                                     accent: true,
+                                                    testId: `proposal-action-generate-${proposta.id}`,
                                                     onClick: () =>
                                                       gerarPropostaMutation.mutate(
                                                         proposta.id,
@@ -6532,6 +6597,7 @@ export default function App() {
                                                     tooltip: propostaPodeExportar
                                                       ? "Imprimir ou salvar em PDF"
                                                       : mensagemBloqueioPlano,
+                                                    testId: `proposal-action-pdf-${proposta.id}`,
                                                     onClick: () =>
                                                       imprimirPropostaSalva(
                                                         proposta,
@@ -6552,6 +6618,7 @@ export default function App() {
                                                       ? "Escolher mensagem"
                                                       : mensagemBloqueioPlano,
                                                     accent: true,
+                                                    testId: `proposal-action-whatsapp-${proposta.id}`,
                                                   },
                                                 ] satisfies ListagemAcao[]
                                               : []),
@@ -6561,6 +6628,7 @@ export default function App() {
                                                     label: "Enviar",
                                                     icon: <Send size={16} />,
                                                     disabled: envioBloqueado,
+                                                    testId: `proposal-action-send-${proposta.id}`,
                                                     onClick: () =>
                                                       marcarPropostaEnviada(
                                                         proposta,
@@ -6577,6 +6645,7 @@ export default function App() {
                                                     ),
                                                     disabled: decisaoBloqueada,
                                                     accent: true,
+                                                    testId: `proposal-action-accept-${proposta.id}`,
                                                     onClick: () =>
                                                       marcarPropostaAceita(
                                                         proposta,
@@ -6587,6 +6656,7 @@ export default function App() {
                                                     icon: <XCircle size={16} />,
                                                     destructive: true,
                                                     disabled: decisaoBloqueada,
+                                                    testId: `proposal-action-reject-${proposta.id}`,
                                                     onClick: () =>
                                                       marcarPropostaRecusada(
                                                         proposta,
@@ -6601,6 +6671,7 @@ export default function App() {
                                               tooltip: propostaEditavel
                                                 ? "Editar proposta"
                                                 : "Duplique para alterar esta proposta",
+                                              testId: `proposal-action-edit-${proposta.id}`,
                                               onClick: () =>
                                                 selecionarProposta(proposta.id),
                                             },
@@ -6609,6 +6680,7 @@ export default function App() {
                                               icon: <RefreshCw size={16} />,
                                               disabled:
                                                 duplicarPropostaMutation.isPending,
+                                              testId: `proposal-action-duplicate-${proposta.id}`,
                                               onClick: () =>
                                                 duplicarPropostaComConfirmacao(
                                                   proposta,
@@ -6620,6 +6692,7 @@ export default function App() {
                                               destructive: true,
                                               disabled:
                                                 arquivarPropostaMutation.isPending,
+                                              testId: `proposal-action-delete-${proposta.id}`,
                                               onClick: () =>
                                                 arquivarPropostaComConfirmacao(
                                                   proposta,
@@ -7471,18 +7544,21 @@ export default function App() {
       {propostaVisualizacaoModal && propostaVisualizacaoModalForm && conta ? (
         <div
           className="proposal-view-modal-overlay fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/70 p-4"
+          data-testid="proposal-view-modal-overlay"
           role="presentation"
           onMouseDown={(event) => {
             if (isBackdropClick(event)) {
-              setPropostaVisualizacaoModalId(null);
+              fecharPropostaVisualizacaoModal();
             }
           }}
         >
           <section
             className="proposal-view-modal-dialog w-full rounded-md border border-border bg-surface shadow-2xl"
+            data-testid="proposal-view-modal-dialog"
             role="dialog"
             aria-modal="true"
             aria-labelledby="proposal-view-modal-title"
+            onMouseDown={(event) => event.stopPropagation()}
           >
             <header className="proposal-view-modal-header">
               <div>
@@ -7517,6 +7593,7 @@ export default function App() {
                       ? "Editar"
                       : "Duplique para editar"
                   }
+                  data-testid="proposal-view-modal-edit"
                 >
                   <Edit3 size={16} aria-hidden="true" />
                 </button>
@@ -7529,6 +7606,7 @@ export default function App() {
                   className="tooltip-icon-button proposal-modal-icon-action"
                   aria-label="Duplicar proposta"
                   data-tooltip="Duplicar"
+                  data-testid="proposal-view-modal-duplicate"
                 >
                   <RefreshCw size={16} aria-hidden="true" />
                 </button>
@@ -7552,6 +7630,7 @@ export default function App() {
                       ? "Baixar PDF"
                       : "Gere a proposta antes de baixar"
                   }
+                  data-testid="proposal-view-modal-pdf"
                 >
                   <Download size={16} aria-hidden="true" />
                 </button>
@@ -7564,6 +7643,7 @@ export default function App() {
                     className="tooltip-icon-button proposal-modal-icon-action proposal-modal-icon-action-whatsapp"
                     aria-label="Enviar proposta pelo WhatsApp"
                     data-tooltip="WhatsApp"
+                    data-testid="proposal-view-modal-whatsapp"
                   >
                     <WhatsAppIcon size={16} aria-hidden="true" />
                   </button>
@@ -7574,16 +7654,18 @@ export default function App() {
                     className="tooltip-icon-button proposal-modal-icon-action"
                     aria-label="Gere a proposta antes de enviar pelo WhatsApp"
                     data-tooltip="Gere a proposta antes de enviar"
+                    data-testid="proposal-view-modal-whatsapp-disabled"
                   >
                     <WhatsAppIcon size={16} aria-hidden="true" />
                   </button>
                 )}
                 <button
                   type="button"
-                  onClick={() => setPropostaVisualizacaoModalId(null)}
+                  onClick={fecharPropostaVisualizacaoModal}
                   className="tooltip-icon-button proposal-modal-icon-action"
                   aria-label="Fechar visualização da proposta"
                   data-tooltip="Fechar"
+                  data-testid="proposal-view-modal-close"
                 >
                   <X size={18} aria-hidden="true" />
                 </button>
@@ -7629,17 +7711,20 @@ export default function App() {
       {propostaPreviewModalAberto && propostaEditorAtivo && conta ? (
         <div
           className="proposal-view-modal-overlay fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/70 p-4"
+          data-testid="proposal-editor-preview-overlay"
           onMouseDown={(event) => {
             if (isBackdropClick(event)) {
-              setPropostaPreviewModalAberto(false);
+              fecharPropostaPreviewModal();
             }
           }}
         >
           <section
             className="proposal-view-modal-dialog w-full rounded-md border border-border bg-surface shadow-2xl"
+            data-testid="proposal-editor-preview-dialog"
             role="dialog"
             aria-modal="true"
             aria-labelledby="proposal-editor-preview-title"
+            onMouseDown={(event) => event.stopPropagation()}
           >
             <input
               className="preview-zoom-radio"
@@ -7685,10 +7770,11 @@ export default function App() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => setPropostaPreviewModalAberto(false)}
+                  onClick={fecharPropostaPreviewModal}
                   className="tooltip-icon-button"
                   aria-label="Fechar visualização da proposta"
                   title="Fechar"
+                  data-testid="proposal-editor-preview-close"
                 >
                   <X size={18} aria-hidden="true" />
                 </button>
@@ -7715,17 +7801,20 @@ export default function App() {
       {personalizacaoPreviewTemplateAberto && conta ? (
         <div
           className="proposal-view-modal-overlay fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/70 p-4"
+          data-testid="personalization-template-preview-overlay"
           onMouseDown={(event) => {
             if (isBackdropClick(event)) {
-              setPersonalizacaoPreviewTemplateAberto(null);
+              fecharPersonalizacaoPreviewTemplate();
             }
           }}
         >
           <section
             className="proposal-view-modal-dialog w-full rounded-md border border-border bg-surface shadow-2xl"
+            data-testid="personalization-template-preview-dialog"
             role="dialog"
             aria-modal="true"
             aria-labelledby="personalization-template-preview-title"
+            onMouseDown={(event) => event.stopPropagation()}
           >
             <header className="proposal-view-modal-header">
               <div>
@@ -7745,7 +7834,7 @@ export default function App() {
               </div>
               <button
                 type="button"
-                onClick={() => setPersonalizacaoPreviewTemplateAberto(null)}
+                onClick={fecharPersonalizacaoPreviewTemplate}
                 className="tooltip-icon-button"
                 aria-label="Fechar preview do template padrão"
                 title="Fechar"
@@ -7789,6 +7878,7 @@ export default function App() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="proposal-template-selector-title"
+            onMouseDown={(event) => event.stopPropagation()}
           >
             <div className="template-preview-toolbar flex items-center justify-between gap-3">
               <div>
@@ -7898,6 +7988,7 @@ export default function App() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="proposal-share-title"
+            onMouseDown={(event) => event.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3">
               <div className="share-modal-heading">
@@ -8032,6 +8123,7 @@ export default function App() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="quick-client-title"
+            onMouseDown={(event) => event.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -8109,6 +8201,7 @@ export default function App() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="template-preview-title"
+            onMouseDown={(event) => event.stopPropagation()}
           >
             <input
               className="preview-zoom-radio"
@@ -8543,6 +8636,7 @@ function ModalConfirmacaoSistema({
   return createPortal(
     <div
       className="system-confirm-overlay"
+      data-testid="system-confirm-overlay"
       role="presentation"
       onMouseDown={(event) => {
         if (isBackdropClick(event)) {
@@ -8552,11 +8646,21 @@ function ModalConfirmacaoSistema({
     >
       <section
         className={`system-confirm-dialog is-${variante}`}
+        data-testid="system-confirm-dialog"
         role="alertdialog"
         aria-modal="true"
         aria-labelledby={tituloId}
         aria-describedby={descricaoId}
+        onMouseDown={(event) => event.stopPropagation()}
       >
+        <button
+          type="button"
+          className="system-confirm-close"
+          aria-label="Fechar confirmacao"
+          onClick={onCancelar}
+        >
+          <X size={17} aria-hidden="true" />
+        </button>
         <div className="system-confirm-header">
           <span className="system-confirm-icon" aria-hidden="true">
             <Icone size={22} />
@@ -8575,6 +8679,7 @@ function ModalConfirmacaoSistema({
             ref={botaoCancelarRef}
             type="button"
             className="system-confirm-button system-confirm-button-secondary"
+            data-testid="system-confirm-cancel"
             onClick={onCancelar}
           >
             {confirmacao.textoCancelar ?? "Não"}
@@ -8582,6 +8687,7 @@ function ModalConfirmacaoSistema({
           <button
             type="button"
             className="system-confirm-button system-confirm-button-primary"
+            data-testid="system-confirm-confirm"
             onClick={onConfirmar}
           >
             {confirmacao.textoConfirmar ?? "Sim"}
@@ -8801,6 +8907,8 @@ const CampoMoedaReal = forwardRef<HTMLInputElement, CampoMoedaRealProps>(
     const erroId = `${inputId}-erro`;
     const opcional = isCampoOpcional(label);
     const labelDisplay = opcional ? formatCampoLabel(label) : label;
+    const descricaoMoeda =
+      helperText ?? "Digite 1500 para R$ 1.500,00 ou 1500,50 para R$ 1.500,50.";
 
     return (
       <label
@@ -8819,14 +8927,14 @@ const CampoMoedaReal = forwardRef<HTMLInputElement, CampoMoedaRealProps>(
             onValueChange(parseMoedaRealInput(event.target.value))
           }
           aria-invalid={Boolean(error)}
-          aria-describedby={`${helperText ? descricaoId : ""} ${
+          aria-describedby={`${descricaoMoeda ? descricaoId : ""} ${
             error ? erroId : ""
           }`.trim() || undefined}
           className="mt-1 h-11 w-full rounded-md border border-border bg-white px-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-blue-100"
         />
-        {helperText ? (
+        {descricaoMoeda ? (
           <span id={descricaoId} className="campo-helper mt-1 block text-xs text-muted">
-            {helperText}
+            {descricaoMoeda}
           </span>
         ) : null}
         {error ? (
@@ -8932,11 +9040,13 @@ const CampoSelect = forwardRef<HTMLSelectElement, CampoSelectProps>(
     const labelDisplay = opcional ? formatCampoLabel(label) : label;
 
     return (
-      <label
+      <div
         className="campo-texto block"
         data-optional={opcional ? "true" : undefined}
       >
-        <span className="text-sm font-medium text-foreground">{labelDisplay}</span>
+        <label className="text-sm font-medium text-foreground" htmlFor={inputId}>
+          {labelDisplay}
+        </label>
         <select
           ref={ref}
           id={inputId}
@@ -8959,7 +9069,7 @@ const CampoSelect = forwardRef<HTMLSelectElement, CampoSelectProps>(
             {error}
           </span>
         ) : null}
-      </label>
+      </div>
     );
   },
 );
@@ -8982,11 +9092,13 @@ const CampoTextarea = forwardRef<HTMLTextAreaElement, CampoTextareaProps>(
     const labelDisplay = opcional ? formatCampoLabel(label) : label;
 
     return (
-      <label
+      <div
         className="campo-texto block"
         data-optional={opcional ? "true" : undefined}
       >
-        <span className="text-sm font-medium text-foreground">{labelDisplay}</span>
+        <label className="text-sm font-medium text-foreground" htmlFor={inputId}>
+          {labelDisplay}
+        </label>
         <textarea
           ref={ref}
           id={inputId}
@@ -9007,7 +9119,7 @@ const CampoTextarea = forwardRef<HTMLTextAreaElement, CampoTextareaProps>(
             {error}
           </span>
         ) : null}
-      </label>
+      </div>
     );
   },
 );
@@ -9899,7 +10011,7 @@ function LinkSocialClienteButton({
 function EmailClienteButton({ href }: { href: string }) {
   const tooltip = href
     ? "Enviar e-mail para este cliente"
-    : "Cliente sem e-mail valido";
+    : "Cliente sem e-mail válido";
   const className =
     "tooltip-icon-button inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-sky-200 bg-sky-50 text-sky-700 transition hover:border-sky-400 hover:bg-sky-100 disabled:cursor-not-allowed disabled:border-border disabled:bg-slate-50 disabled:text-muted disabled:opacity-60";
 
@@ -10018,14 +10130,23 @@ type ListagemAcao = {
   destructive?: boolean;
   accent?: boolean;
   tooltip?: string;
+  testId?: string;
+};
+
+type ListagemAcaoGrupo = {
+  id: "principal" | "fluxo" | "gerenciar" | "perigo";
+  label: string;
+  acoes: ListagemAcao[];
 };
 
 function ListagemAcoes({
   acoes,
   ariaLabel,
+  dataTestId,
 }: {
   acoes: ListagemAcao[];
   ariaLabel: string;
+  dataTestId?: string;
 }) {
   const [menuAberto, setMenuAberto] = useState(false);
   const [dropdownPosicao, setDropdownPosicao] = useState({
@@ -10050,10 +10171,10 @@ function ListagemAcoes({
     }
 
     const rect = button.getBoundingClientRect();
-    const larguraDropdown = 208;
+    const larguraDropdown = 288;
     const margemTela = 12;
     const espacoEntreBotao = 8;
-    const maxHeight = Math.min(360, window.innerHeight - margemTela * 2);
+    const maxHeight = Math.min(520, window.innerHeight - margemTela * 2);
     const alturaDropdown = Math.min(
       dropdownRef.current?.offsetHeight ?? maxHeight,
       maxHeight,
@@ -10125,7 +10246,11 @@ function ListagemAcoes({
 
   if (acoesAtivas.length <= 3) {
     return (
-      <div className="table-actions table-actions-icons" aria-label={ariaLabel}>
+      <div
+        className="table-actions table-actions-icons"
+        aria-label={ariaLabel}
+        data-testid={dataTestId}
+      >
         {acoesAtivas.map((acao) => (
           <ListagemAcaoIcone key={acao.label} acao={acao} />
         ))}
@@ -10134,7 +10259,11 @@ function ListagemAcoes({
   }
 
   return (
-    <div className="table-actions table-actions-menu" aria-label={ariaLabel}>
+    <div
+      className="table-actions table-actions-menu"
+      aria-label={ariaLabel}
+      data-testid={dataTestId}
+    >
       <div ref={rootRef} className="list-actions-dropdown-root">
         <button
           ref={buttonRef}
@@ -10143,6 +10272,7 @@ function ListagemAcoes({
           aria-label="Abrir menu de ações"
           aria-haspopup="menu"
           aria-expanded={menuAberto}
+          data-testid={dataTestId ? `${dataTestId}-menu` : undefined}
           data-tooltip="Mais ações"
           title="Mais ações"
           onClick={() => {
@@ -10161,18 +10291,31 @@ function ListagemAcoes({
                 ref={dropdownRef}
                 className="list-actions-dropdown"
                 role="menu"
+                data-testid={dataTestId ? `${dataTestId}-dropdown` : undefined}
                 style={{
                   top: dropdownPosicao.top,
                   left: dropdownPosicao.left,
                   maxHeight: dropdownPosicao.maxHeight,
                 }}
               >
-                {acoesAtivas.map((acao) => (
-                  <ListagemAcaoDropdown
-                    key={acao.label}
-                    acao={acao}
-                    onClose={() => setMenuAberto(false)}
-                  />
+                {getListagemAcoesGrupos(acoesAtivas).map((grupo) => (
+                  <div
+                    key={grupo.id}
+                    className={`list-actions-dropdown-group is-${grupo.id}`}
+                    role="group"
+                    aria-label={grupo.label}
+                  >
+                    <span className="list-actions-dropdown-group-title">
+                      {grupo.label}
+                    </span>
+                    {grupo.acoes.map((acao) => (
+                      <ListagemAcaoDropdown
+                        key={acao.label}
+                        acao={acao}
+                        onClose={() => setMenuAberto(false)}
+                      />
+                    ))}
+                  </div>
                 ))}
               </div>,
               document.body,
@@ -10181,6 +10324,38 @@ function ListagemAcoes({
       </div>
     </div>
   );
+}
+
+function getListagemAcoesGrupos(acoes: ListagemAcao[]): ListagemAcaoGrupo[] {
+  const grupos: ListagemAcaoGrupo[] = [
+    { id: "principal", label: "Principais", acoes: [] },
+    { id: "fluxo", label: "Fluxo comercial", acoes: [] },
+    { id: "gerenciar", label: "Gerenciar", acoes: [] },
+    { id: "perigo", label: "Perigo", acoes: [] },
+  ];
+
+  acoes.forEach((acao) => {
+    const label = acao.label.toLowerCase();
+
+    if (acao.destructive || label === "excluir") {
+      grupos.find((grupo) => grupo.id === "perigo")?.acoes.push(acao);
+      return;
+    }
+
+    if (["visualizar", "pdf", "whatsapp"].includes(label)) {
+      grupos.find((grupo) => grupo.id === "principal")?.acoes.push(acao);
+      return;
+    }
+
+    if (["gerar", "enviar", "aceita", "recusada"].includes(label)) {
+      grupos.find((grupo) => grupo.id === "fluxo")?.acoes.push(acao);
+      return;
+    }
+
+    grupos.find((grupo) => grupo.id === "gerenciar")?.acoes.push(acao);
+  });
+
+  return grupos.filter((grupo) => grupo.acoes.length > 0);
 }
 
 function ListagemAcaoIcone({ acao }: { acao: ListagemAcao }) {
@@ -10196,6 +10371,7 @@ function ListagemAcaoIcone({ acao }: { acao: ListagemAcao }) {
         aria-label={acao.label}
         title={tooltip}
         data-tooltip={tooltip}
+        data-testid={acao.testId}
         className={className}
       >
         {acao.icon}
@@ -10211,6 +10387,7 @@ function ListagemAcaoIcone({ acao }: { acao: ListagemAcao }) {
       aria-label={acao.label}
       title={tooltip}
       data-tooltip={tooltip}
+      data-testid={acao.testId}
       className={className}
     >
       {acao.icon}
@@ -10235,6 +10412,7 @@ function ListagemAcaoDropdown({
         rel={acao.rel}
         role="menuitem"
         className={className}
+        data-testid={acao.testId}
         onClick={onClose}
       >
         {acao.icon}
@@ -10249,6 +10427,7 @@ function ListagemAcaoDropdown({
       role="menuitem"
       disabled={acao.disabled}
       className={className}
+      data-testid={acao.testId}
       onClick={() => {
         if (acao.disabled) {
           return;
@@ -10679,8 +10858,6 @@ function TemplateComercialMinimalista({ d }: TemplateDocumentoBaseProps) {
 
       <DocumentoMetaStrip d={d} labelsUpper />
       {d.introducao ? <p className="doc-lead doc-minimal-lead">{d.introducao}</p> : null}
-      <DocumentoImagemRamo tipo="rapido" />
-
       <DocumentoTabelaServicos d={d} totalColumn />
 
       <section className="doc-minimal-summary">
@@ -10715,7 +10892,6 @@ function TemplateOrcamentoSimplificado({ d }: TemplateDocumentoBaseProps) {
       </section>
 
       <DocumentoMetaCards d={d} />
-      <DocumentoImagemRamo tipo="creator" />
 
       {textoResumo ? (
         <section className="doc-simple-intro">
@@ -10781,7 +10957,6 @@ function TemplatePropostaCompleta({ d }: TemplateDocumentoBaseProps) {
       </header>
 
       <DocumentoMetaStrip d={d} iconMode />
-      <DocumentoImagemRamo tipo="agencia" />
       {d.introducao ? (
         <>
           <DocumentoSectionTitle icon={<FileText size={22} />} index={resumoIndex} title="Resumo executivo" />
@@ -10888,7 +11063,6 @@ function TemplateSocialDetalhado({
           <span className="doc-title-underline" />
           <DocumentoTitulo titulo={d.titulo} as="h2" className="doc-social-title-main" />
           {d.introducao ? <p>{d.introducao}</p> : null}
-          <DocumentoImagemRamo tipo={texto.tipo} dark />
         </div>
         <DocumentoMetaPanel d={d} dark />
       </header>
@@ -10961,8 +11135,6 @@ function TemplateInstagramPremium({ d }: TemplateDocumentoBaseProps) {
         </div>
         <DocumentoMetaPanel d={d} dark />
       </header>
-
-      <DocumentoImagemRamo tipo="ugc" />
 
       {textoResumo ? (
         <section className="doc-instagram-resumo">
@@ -11144,7 +11316,6 @@ function TemplateExecutivoEditorial({ d }: TemplateDocumentoBaseProps) {
           <span className="doc-kicker">Diagnóstico, plano e acompanhamento</span>
           <DocumentoTitulo titulo={d.titulo} className="doc-executive-title-main" />
           {d.introducao ? <p>{d.introducao}</p> : null}
-          <DocumentoImagemRamo tipo="consultoria" />
         </div>
       </section>
 
@@ -11199,7 +11370,6 @@ function TemplateCorporativoBoard({ d }: TemplateDocumentoBaseProps) {
           <span className="doc-board-label">Agência growth board</span>
           <DocumentoTitulo titulo={d.titulo} className="doc-board-title-main" />
           {d.introducao ? <p>{d.introducao}</p> : null}
-          <DocumentoImagemRamo tipo="agencia" dark />
         </div>
         <DocumentoMetaPanel d={d} dark />
       </header>
@@ -11262,7 +11432,6 @@ function TemplateInstitucionalClean({ d }: TemplateDocumentoBaseProps) {
       <section className="doc-institutional-title">
         <span className="doc-kicker">Marca, aplicações e arquivos finais</span>
         <DocumentoTitulo titulo={d.titulo} className="doc-institutional-title-main" />
-        <DocumentoImagemRamo tipo="design" />
         {d.introducao ? <p>{d.introducao}</p> : null}
       </section>
 
@@ -11478,8 +11647,9 @@ function InstagramGlyph({
   );
 }
 
+/*
 function DocumentoImagemRamo({
-  tipo,
+  tipo: _tipo,
   dark = false,
 }: {
   tipo:
@@ -11493,6 +11663,10 @@ function DocumentoImagemRamo({
     | "agencia";
   dark?: boolean;
 }) {
+  void _tipo;
+  void dark;
+  return null;
+
   const config = {
     rapido: {
       kicker: "WhatsApp",
@@ -11614,6 +11788,7 @@ function DocumentoImagemRamo({
   );
 }
 
+*/
 function DocumentoBeneficios({
   d,
   mode,
@@ -11631,8 +11806,16 @@ function DocumentoBeneficios({
     <BarChart3 size={28} key="chart" />,
   ];
 
+  const classe = [
+    "doc-benefit-grid",
+    mode === "wide" ? "doc-benefit-grid-wide" : "",
+    beneficios.length === 1 ? "doc-benefit-grid-single" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
-    <section className={`doc-benefit-grid ${mode === "wide" ? "doc-benefit-grid-wide" : ""}`}>
+    <section className={classe}>
       {beneficios.map((beneficio, index) => {
         const beneficioDocumento = parseBeneficioDocumento(beneficio);
 
@@ -11890,7 +12073,7 @@ function DocumentoCondicoes({
         </span>
       ) : null}
       <div>
-        <h3>Condicoes de pagamento</h3>
+        <h3>Condições de pagamento</h3>
         <p>{d.condicoesPagamento}</p>
       </div>
     </section>
@@ -13763,6 +13946,10 @@ function formatQuantidade(valor: number | undefined): string {
   }).format(valorSeguro(valor));
 }
 
+function formatQuantidadeItens(total: number): string {
+  return `${total} ${total === 1 ? "item" : "itens"}`;
+}
+
 function formatValidadeProposta(validadeDias: number | undefined): string {
   const dias = valorSeguro(validadeDias);
 
@@ -14411,13 +14598,39 @@ function formatMoedaRealInput(valor: number | null | undefined): string {
 }
 
 function parseMoedaRealInput(valor: string): number {
-  const digitos = valor.replace(/\D/g, "");
+  const texto = valor
+    .replace(/\s/g, "")
+    .replace(/^R\$/i, "")
+    .trim();
 
-  if (!digitos) {
+  if (!texto) {
     return 0;
   }
 
-  return Number(digitos) / 100;
+  const temSeparadorDecimal = /[,.]/.test(texto);
+
+  if (!temSeparadorDecimal) {
+    const apenasDigitos = texto.replace(/\D/g, "");
+    return apenasDigitos ? Number(apenasDigitos) : 0;
+  }
+
+  const separadores = texto.match(/[,.]/g) ?? [];
+  const ultimoSeparador = Math.max(texto.lastIndexOf(","), texto.lastIndexOf("."));
+  const casasAposSeparador = texto.slice(ultimoSeparador + 1).replace(/\D/g, "").length;
+  const pareceMilhar =
+    (!texto.includes(",") && separadores.length > 1) ||
+    (texto.includes(".") && !texto.includes(",") && casasAposSeparador === 3);
+
+  if (pareceMilhar) {
+    const semMilhar = texto.replace(/[.,]/g, "").replace(/\D/g, "");
+    return semMilhar ? Number(semMilhar) : 0;
+  }
+
+  const inteiro = texto.slice(0, ultimoSeparador).replace(/\D/g, "");
+  const decimal = texto.slice(ultimoSeparador + 1).replace(/\D/g, "").padEnd(2, "0").slice(0, 2);
+  const normalizado = `${inteiro || "0"}.${decimal}`;
+
+  return Number(normalizado);
 }
 
 function hasDescontoDocumento(d: PropostaDocumentoDados): boolean {

@@ -83,6 +83,8 @@ Use [docs/operations/manutencao-projetos-emprely.md](docs/operations/manutencao-
 
 Use [docs/product/checklist-final-beta-mvp.md](docs/product/checklist-final-beta-mvp.md) para decidir prontidao do MVP, separar bloqueantes reais de beta e manter prints/imagens/polimento visual adiados para a etapa final.
 
+Use [docs/testing/arquitetura-testes.md](docs/testing/arquitetura-testes.md) como guia oficial de arquitetura de testes do Emprely e [docs/testing/roteiros-testes.md](docs/testing/roteiros-testes.md) para decidir quais suites rodar em PR, nightly, pre-release, producao e pos-incidente.
+
 Use [spec/2026-06-14-deploy-lightsail-api-baixo-custo.md](spec/2026-06-14-deploy-lightsail-api-baixo-custo.md) para a spec SDD atual do primeiro beta real barato: web em S3 + CloudFront, API em Lightsail Linux US$7/mes e banco Neon Free.
 
 Use [spec/2026-06-17-emails-transacionais-html-retencao.md](spec/2026-06-17-emails-transacionais-html-retencao.md) para a spec atual dos e-mails transacionais: Amazon SES, `contato@emprely.com.br`, template central com logo real, botao de acao e copy pt-BR revisada.

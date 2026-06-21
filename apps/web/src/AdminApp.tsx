@@ -16,7 +16,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState, type ChangeEvent, type ReactNode } from "react";
+import { useId, useMemo, useState, type ChangeEvent, type ReactNode } from "react";
 import {
   adminAlterarPerfilAdmin,
   adminAlterarPlanoConta,
@@ -292,6 +292,7 @@ export default function AdminApp() {
           </div>
           <form
             className="space-y-4"
+            autoComplete="on"
             onSubmit={(event) => {
               event.preventDefault();
               const fieldErrors = validateLoginForm(loginForm);
@@ -314,6 +315,8 @@ export default function AdminApp() {
                 setLoginFieldErrors((errors) => clearFieldError(errors, "email"));
               }}
               error={loginFieldErrors.email}
+              autoComplete="username"
+              name="admin-login-email"
             />
             <LabeledInput
               label="Senha"
@@ -324,6 +327,8 @@ export default function AdminApp() {
                 setLoginFieldErrors((errors) => clearFieldError(errors, "senha"));
               }}
               error={loginFieldErrors.senha}
+              autoComplete="current-password"
+              name="admin-login-password"
             />
             {loginErro ? <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">{loginErro}</p> : null}
             <button
@@ -412,6 +417,7 @@ export default function AdminApp() {
             usuarios={usuarios}
             selectedUsuarioId={selectedUsuarioId}
             isLoading={painelQuery.isLoading}
+            error={painelQuery.error}
             onSelect={setSelectedUsuarioId}
           />
           {isSuperAdmin(adminAtual) ? (
@@ -421,6 +427,7 @@ export default function AdminApp() {
                 token={token}
                 adminAtual={adminAtual}
                 isLoading={adminsQuery.isLoading}
+                error={adminsQuery.error}
                 onDone={() => {
                   void queryClient.invalidateQueries({ queryKey: ["admin-admins"] });
                 }}
@@ -532,7 +539,7 @@ function FiltrosUsuarios({
           onClick={() => setMostrarAvancados((valor) => !valor)}
         >
           <SlidersHorizontal size={16} aria-hidden="true" />
-          {mostrarAvancados ? "Ocultar filtros" : "Filtros avancados"}
+          {mostrarAvancados ? "Ocultar filtros" : "Filtros avançados"}
         </button>
         <div className="flex flex-wrap gap-2 text-xs text-slate-500">
           <span>Use busca para nome, email, telefone ou conta.</span>
@@ -547,11 +554,11 @@ function FiltrosUsuarios({
           <SelectField label="Sem conta" value={filtros.semConta ?? ""} onChange={(semConta) => update({ semConta })} options={["", "true", "false"]} />
           <SelectField label="Trial ativo" value={filtros.trialAtivo ?? ""} onChange={(trialAtivo) => update({ trialAtivo })} options={["", "true", "false"]} />
           <SelectField label="Trial expirado" value={filtros.trialExpirado ?? ""} onChange={(trialExpirado) => update({ trialExpirado })} options={["", "true", "false"]} />
-          <SelectField label="Dias gratis" value={filtros.diasGratisAtivo ?? ""} onChange={(diasGratisAtivo) => update({ diasGratisAtivo })} options={["", "true", "false"]} />
+          <SelectField label="Dias grátis" value={filtros.diasGratisAtivo ?? ""} onChange={(diasGratisAtivo) => update({ diasGratisAtivo })} options={["", "true", "false"]} />
           <LabeledInput label="Criado de" type="date" value={filtros.criadoDe ?? ""} onChange={(criadoDe) => update({ criadoDe })} />
-          <LabeledInput label="Criado ate" type="date" value={filtros.criadoAte ?? ""} onChange={(criadoAte) => update({ criadoAte })} />
+          <LabeledInput label="Criado até" type="date" value={filtros.criadoAte ?? ""} onChange={(criadoAte) => update({ criadoAte })} />
           <LabeledInput label="Email de" type="date" value={filtros.ultimoEmailDe ?? ""} onChange={(ultimoEmailDe) => update({ ultimoEmailDe })} />
-          <LabeledInput label="Email ate" type="date" value={filtros.ultimoEmailAte ?? ""} onChange={(ultimoEmailAte) => update({ ultimoEmailAte })} />
+          <LabeledInput label="Email até" type="date" value={filtros.ultimoEmailAte ?? ""} onChange={(ultimoEmailAte) => update({ ultimoEmailAte })} />
         </div>
       ) : null}
     </div>
@@ -562,11 +569,13 @@ function UsuariosTabela({
   usuarios,
   selectedUsuarioId,
   isLoading,
+  error,
   onSelect,
 }: {
   usuarios: AdminUsuarioResumoResponse[];
   selectedUsuarioId: string | null;
   isLoading: boolean;
+  error: Error | null;
   onSelect: (id: string) => void;
 }) {
   return (
@@ -586,6 +595,20 @@ function UsuariosTabela({
             <tr>
               <td className="px-4 py-8 text-center text-slate-500" colSpan={5}>
                 Carregando...
+              </td>
+            </tr>
+          ) : null}
+          {!isLoading && error ? (
+            <tr>
+              <td className="px-4 py-8 text-center text-red-700" colSpan={5}>
+                Não foi possível carregar os usuários. {error.message}
+              </td>
+            </tr>
+          ) : null}
+          {!isLoading && !error && usuarios.length === 0 ? (
+            <tr>
+              <td className="px-4 py-8 text-center text-slate-500" colSpan={5}>
+                Nenhum usuário encontrado. Revise os filtros ou atualize o painel.
               </td>
             </tr>
           ) : null}
@@ -618,12 +641,14 @@ function AdminsPanel({
   token,
   adminAtual,
   isLoading,
+  error,
   onDone,
 }: {
   admins: AdminPainelAdminResponse[];
   token: string;
   adminAtual: AdminAtualResponse;
   isLoading: boolean;
+  error: Error | null;
   onDone: () => void;
 }) {
   const [form, setForm] = useState<CriarAdminForm>(initialCriarAdminForm);
@@ -652,7 +677,7 @@ function AdminsPanel({
     }) => {
       const motivo = motivos[admin.id]?.trim() ?? "";
       if (!motivo) {
-        throw new Error("Informe o motivo da acao administrativa.");
+        throw new Error("Informe o motivo da ação administrativa.");
       }
 
       if (acao === "perfil" && perfil) {
@@ -684,14 +709,15 @@ function AdminsPanel({
 
       <form
         className="mb-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4"
+        autoComplete="off"
         onSubmit={(event) => {
           event.preventDefault();
           criarMutation.mutate();
         }}
       >
-        <LabeledInput label="Nome" value={form.nome} onChange={(nome) => setForm({ ...form, nome })} />
-        <LabeledInput label="E-mail" type="email" value={form.email} onChange={(email) => setForm({ ...form, email })} />
-        <LabeledInput label="Senha" type="password" value={form.senha} onChange={(senha) => setForm({ ...form, senha })} />
+        <LabeledInput label="Nome" value={form.nome} onChange={(nome) => setForm({ ...form, nome })} autoComplete="off" name="novo-admin-nome" />
+        <LabeledInput label="E-mail" type="email" value={form.email} onChange={(email) => setForm({ ...form, email })} autoComplete="off" name="novo-admin-email" />
+        <LabeledInput label="Senha" type="password" value={form.senha} onChange={(senha) => setForm({ ...form, senha })} autoComplete="new-password" name="novo-admin-senha" />
         <SelectField
           label="Perfil"
           value={form.perfil}
@@ -722,15 +748,29 @@ function AdminsPanel({
               <th className="px-4 py-3">Admin</th>
               <th className="px-4 py-3">Perfil</th>
               <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Ultimo login</th>
-              <th className="px-4 py-3">Motivo e acoes</th>
+              <th className="px-4 py-3">Último login</th>
+              <th className="px-4 py-3">Motivo e ações</th>
             </tr>
           </thead>
           <tbody>
-            {isLoading ? (
+          {isLoading ? (
+            <tr>
+              <td className="px-4 py-8 text-center text-slate-500" colSpan={5}>
+                Carregando...
+              </td>
+            </tr>
+          ) : null}
+            {!isLoading && error ? (
+              <tr>
+                <td className="px-4 py-8 text-center text-red-700" colSpan={5}>
+                  Não foi possível carregar os administradores. {error.message}
+                </td>
+              </tr>
+            ) : null}
+            {!isLoading && !error && admins.length === 0 ? (
               <tr>
                 <td className="px-4 py-8 text-center text-slate-500" colSpan={5}>
-                  Carregando...
+                  Nenhum administrador encontrado.
                 </td>
               </tr>
             ) : null}
@@ -752,7 +792,9 @@ function AdminsPanel({
                         className="admin-input"
                         value={motivos[admin.id] ?? ""}
                         onChange={(event) => setMotivos({ ...motivos, [admin.id]: event.target.value })}
-                        placeholder="Motivo obrigatorio"
+                        placeholder="Motivo obrigatório"
+                        aria-label={`Motivo obrigatório para ${admin.email}`}
+                        autoComplete="off"
                         disabled={isSelf}
                       />
                       <div className="flex flex-wrap gap-2">
@@ -844,10 +886,12 @@ function AdminEmailsPanel({
           }}
         >
           <LabeledInput
-            label="Email do usuario"
+            label="Email do usuário"
             type="email"
             value={form.email}
-            error={form.email.trim() && !emailValido ? "Digite um e-mail valido." : undefined}
+            error={form.email.trim() && !emailValido ? "Digite um e-mail válido." : undefined}
+            autoComplete="off"
+            name="admin-resend-email"
             onChange={(email) => onChangeForm({ email })}
           />
           {resendError ? (
@@ -872,7 +916,7 @@ function AdminEmailsPanel({
             </p>
           ) : null}
           {isLoading ? (
-            <p className="p-4 text-sm text-slate-500">Carregando historico de emails...</p>
+            <p className="p-4 text-sm text-slate-500">Carregando histórico de emails...</p>
           ) : null}
           {!isLoading && emails.length === 0 ? (
             <p className="p-4 text-sm text-slate-500">Nenhum email encontrado.</p>
@@ -974,8 +1018,8 @@ function UsuarioDetalhePanel({
         <InfoLine label="Status comercial" value={usuario.statusComercial ?? "-"} />
         <InfoLine label="Status conta" value={usuario.statusConta ?? "-"} />
         <InfoLine label="Trial fim" value={usuario.trialEndsAt ? formatDate(usuario.trialEndsAt) : "-"} />
-        <InfoLine label="Dias gratis" value={usuario.diasGratisAtivo ? "Ativo" : "Nao"} />
-        <InfoLine label="Ultimo email" value={usuario.ultimoEmailEnviadoAt ? formatDate(usuario.ultimoEmailEnviadoAt) : "-"} />
+        <InfoLine label="Dias grátis" value={usuario.diasGratisAtivo ? "Ativo" : "Não"} />
+        <InfoLine label="Último email" value={usuario.ultimoEmailEnviadoAt ? formatDate(usuario.ultimoEmailEnviadoAt) : "-"} />
         <InfoLine label="Email confirmado" value={usuario.emailConfirmado ? "Sim" : "Não"} />
       </div>
       <div className="grid gap-2 sm:grid-cols-2">
@@ -1060,7 +1104,7 @@ function ActionModal({
 
       if (action.mode === "criarConta") {
         if (!usuario) {
-          throw new Error("Selecione um usuario.");
+          throw new Error("Selecione um usuário.");
         }
 
         await adminCriarConta(
@@ -1077,7 +1121,7 @@ function ActionModal({
 
       if (action.mode === "diasGratisLote") {
         if (selecionados.length === 0) {
-          throw new Error("Revise e selecione ao menos um usuario com conta.");
+          throw new Error("Revise e selecione ao menos um usuário com conta.");
         }
 
         const contaIds = selecionados
@@ -1085,7 +1129,7 @@ function ActionModal({
           .filter((contaId): contaId is string => Boolean(contaId));
 
         if (contaIds.length === 0) {
-          throw new Error("Selecione ao menos um usuario com conta.");
+          throw new Error("Selecione ao menos um usuário com conta.");
         }
 
         await adminCriarDiasGratisLote(
@@ -1119,7 +1163,7 @@ function ActionModal({
       }
 
       if (!usuario) {
-        throw new Error("Selecione um usuario.");
+        throw new Error("Selecione um usuário.");
       }
 
       if (action.mode === "plano" && usuario.contaId) {
@@ -1165,6 +1209,7 @@ function ActionModal({
         </div>
         <form
           className="space-y-4"
+          autoComplete="off"
           onSubmit={(event) => {
             event.preventDefault();
             if (action.mode === "plano" && !podeExecutarPlano) {
@@ -1240,10 +1285,10 @@ function CriarUsuarioFields({
 
   return (
     <div className="grid gap-3 md:grid-cols-2">
-      <LabeledInput label="Nome" value={form.nome} onChange={(nome) => updateForm({ ...form, nome }, "nome")} error={errors.nome} />
-      <LabeledInput label="E-mail" type="email" value={form.email} onChange={(email) => updateForm({ ...form, email }, "email")} error={errors.email} />
-      <LabeledInput label="Telefone" value={form.telefone} onChange={(telefone) => setForm({ ...form, telefone })} />
-      <LabeledInput label="Senha temporária" type="password" value={form.senhaTemporaria} onChange={(senhaTemporaria) => updateForm({ ...form, senhaTemporaria }, "senhaTemporaria")} error={errors.senhaTemporaria} />
+      <LabeledInput label="Nome" value={form.nome} onChange={(nome) => updateForm({ ...form, nome }, "nome")} error={errors.nome} autoComplete="off" name="novo-usuario-nome" />
+      <LabeledInput label="E-mail" type="email" value={form.email} onChange={(email) => updateForm({ ...form, email }, "email")} error={errors.email} autoComplete="off" name="novo-usuario-email" />
+      <LabeledInput label="Telefone" value={form.telefone} onChange={(telefone) => setForm({ ...form, telefone })} autoComplete="off" name="novo-usuario-telefone" />
+      <LabeledInput label="Senha temporária" type="password" value={form.senhaTemporaria} onChange={(senhaTemporaria) => updateForm({ ...form, senhaTemporaria }, "senhaTemporaria")} error={errors.senhaTemporaria} autoComplete="new-password" name="novo-usuario-senha-temporaria" />
       <ToggleField label="Email confirmado pelo admin" checked={form.emailConfirmadoPeloAdmin} onChange={(emailConfirmadoPeloAdmin) => setForm({ ...form, emailConfirmadoPeloAdmin })} />
       <ToggleField label="Enviar link de confirmação" checked={form.enviarLinkConfirmacao} onChange={(enviarLinkConfirmacao) => setForm({ ...form, enviarLinkConfirmacao })} />
       <ToggleField label="Criar conta junto" checked={form.criarConta} onChange={(criarConta) => setForm({ ...form, criarConta })} />
@@ -1425,25 +1470,34 @@ function LabeledInput({
   onChange,
   type = "text",
   error,
+  autoComplete,
+  name,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   type?: string;
   error?: string;
+  autoComplete?: string;
+  name?: string;
 }) {
+  const inputId = useId();
+
   return (
-    <label className="admin-field">
-      <span>{label}</span>
+    <div className="admin-field">
+      <label htmlFor={inputId}>{label}</label>
       <input
+        id={inputId}
+        name={name}
         className={`admin-input ${error ? "border-red-300 bg-red-50/40" : ""}`}
         type={type}
         value={value}
+        autoComplete={autoComplete}
         aria-invalid={Boolean(error)}
         onChange={(event) => onChange(event.target.value)}
       />
       {error ? <span className="text-xs font-semibold text-red-600">{error}</span> : null}
-    </label>
+    </div>
   );
 }
 
@@ -1575,7 +1629,7 @@ function validateLoginForm(form: LoginForm): FieldErrors {
   const errors: FieldErrors = {};
   addRequiredError(errors, "email", form.email, "Informe o e-mail admin.");
   if (form.email.trim() && !isValidEmail(form.email)) {
-    errors.email = "Digite um e-mail valido.";
+    errors.email = "Digite um e-mail válido.";
   }
 
   addRequiredError(errors, "senha", form.senha, "Informe a senha.");
@@ -1597,10 +1651,10 @@ function validateActionForm(
   const errors: FieldErrors = {};
 
   if (action.mode === "criarUsuario") {
-    addRequiredError(errors, "nome", criarUsuarioForm.nome, "Informe o nome do usuario.");
-    addRequiredError(errors, "email", criarUsuarioForm.email, "Informe o e-mail do usuario.");
+    addRequiredError(errors, "nome", criarUsuarioForm.nome, "Informe o nome do usuário.");
+    addRequiredError(errors, "email", criarUsuarioForm.email, "Informe o e-mail do usuário.");
     if (criarUsuarioForm.email.trim() && !isValidEmail(criarUsuarioForm.email)) {
-      errors.email = "Digite um e-mail valido.";
+      errors.email = "Digite um e-mail válido.";
     }
 
     addRequiredError(errors, "senhaTemporaria", criarUsuarioForm.senhaTemporaria, "Informe a senha temporaria.");
@@ -1632,7 +1686,7 @@ function validateActionForm(
     addMotivoError(errors, diasGratisForm.motivo);
 
     if (action.mode === "diasGratisLote" && getContaIdsSelecionadas(selecionados, usuarios).length === 0) {
-      errors.selecionados = "Selecione ao menos um usuario com conta.";
+      errors.selecionados = "Selecione ao menos um usuário com conta.";
     }
 
     return errors;
@@ -1662,7 +1716,7 @@ function addRequiredError(errors: FieldErrors, field: string, value: string, mes
 function addMotivoError(errors: FieldErrors, motivo: string) {
   const motivoNormalizado = motivo.trim();
   if (!motivoNormalizado) {
-    errors.motivo = "Informe o motivo da acao administrativa.";
+    errors.motivo = "Informe o motivo da ação administrativa.";
     return;
   }
 

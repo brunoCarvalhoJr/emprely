@@ -1,0 +1,3450 @@
+{
+  "startedAt": "2026-06-20T17:37:23.734Z",
+  "baseUrl": "https://app.emprely.com.br",
+  "outputDir": "D:\\Emprely\\Projetos\\Emprely\\docs\\testing\\evidencias\\layout-usabilidade-2026-06-20",
+  "viewports": [
+    {
+      "id": "desktop",
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "id": "tablet",
+      "width": 768,
+      "height": 1024
+    },
+    {
+      "id": "mobile",
+      "width": 390,
+      "height": 844
+    }
+  ],
+  "pages": [
+    {
+      "viewport": "desktop",
+      "name": "login-publico",
+      "screenshot": "desktop-login-publico.png",
+      "metrics": {
+        "url": "https://app.emprely.com.br/",
+        "title": "Emprely Orçamentos",
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document": {
+          "width": 1440,
+          "height": 1000
+        },
+        "horizontalOverflow": 0,
+        "counts": {
+          "visibleElements": 70,
+          "interactive": 8,
+          "offscreen": 0,
+          "clippedText": 0,
+          "smallTargets": 7,
+          "unnamedControls": 1,
+          "lowContrastText": 18
+        },
+        "headings": [
+          {
+            "level": "h2",
+            "text": "Orçamentos profissionais em 2 minutos."
+          },
+          {
+            "level": "h1",
+            "text": "Bem-vindo de volta"
+          }
+        ],
+        "offscreen": [],
+        "clippedText": [],
+        "smallTargets": [
+          {
+            "selector": "button.is-active",
+            "text": "Entrar",
+            "rect": {
+              "x": 753,
+              "y": 399,
+              "width": 187,
+              "height": 34
+            }
+          },
+          {
+            "selector": "button",
+            "text": "Testar 7 dias",
+            "rect": {
+              "x": 941,
+              "y": 399,
+              "width": 187,
+              "height": 34
+            }
+          },
+          {
+            "selector": "input#_r_0_.mt-1.h-11.w-full",
+            "text": "",
+            "rect": {
+              "x": 749,
+              "y": 475,
+              "width": 384,
+              "height": 43
+            }
+          },
+          {
+            "selector": "input#_r_1_",
+            "text": "",
+            "rect": {
+              "x": 749,
+              "y": 552,
+              "width": 384,
+              "height": 43
+            }
+          },
+          {
+            "selector": "button.auth-password-toggle",
+            "text": "Mostrar",
+            "rect": {
+              "x": 1041,
+              "y": 554,
+              "width": 86,
+              "height": 33
+            }
+          },
+          {
+            "selector": "button",
+            "text": "Esqueci minha senha",
+            "rect": {
+              "x": 1001,
+              "y": 600,
+              "width": 131,
+              "height": 20
+            }
+          },
+          {
+            "selector": "button",
+            "text": "Teste por 7 dias",
+            "rect": {
+              "x": 868,
+              "y": 678,
+              "width": 103,
+              "height": 20
+            }
+          }
+        ],
+        "unnamedControls": [
+          {
+            "selector": "input#_r_1_",
+            "rect": {
+              "x": 749,
+              "y": 552,
+              "width": 384,
+              "height": 43
+            }
+          }
+        ],
+        "lowContrastText": [
+          {
+            "selector": "aside.auth-brand-panel.auth-brand-motion",
+            "text": "7 dias para testar EMPRELY ORÇAMENTOS Orçamentos profissionais em 2 minutos. Troque mensagens soltas no WhatsApp por pro",
+            "rect": {
+              "x": 177,
+              "y": 91,
+              "width": 521,
+              "height": 818
+            },
+            "ratio": 1,
+            "color": "rgb(255, 255, 255)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "div.auth-brand-top",
+            "text": "7 dias para testar",
+            "rect": {
+              "x": 214,
+              "y": 128,
+              "width": 448,
+              "height": 34
+            },
+            "ratio": 1,
+            "color": "rgb(255, 255, 255)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "div.auth-brand-mark-group",
+            "text": "EMPRELY ORÇAMENTOS",
+            "rect": {
+              "x": 273,
+              "y": 183,
+              "width": 329,
+              "height": 205
+            },
+            "ratio": 1,
+            "color": "rgb(255, 255, 255)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "p.auth-brand-name-under",
+            "text": "EMPRELY ORÇAMENTOS",
+            "rect": {
+              "x": 273,
+              "y": 361,
+              "width": 329,
+              "height": 27
+            },
+            "ratio": 1,
+            "color": "rgb(255, 255, 255)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "div.auth-brand-copy",
+            "text": "Orçamentos profissionais em 2 minutos. Troque mensagens soltas no WhatsApp por propostas profissionais, claras e com mai",
+            "rect": {
+              "x": 214,
+              "y": 410,
+              "width": 368,
+              "height": 212
+            },
+            "ratio": 1,
+            "color": "rgb(255, 255, 255)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "h2",
+            "text": "Orçamentos profissionais em 2 minutos.",
+            "rect": {
+              "x": 214,
+              "y": 410,
+              "width": 352,
+              "height": 131
+            },
+            "ratio": 1,
+            "color": "rgb(255, 255, 255)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "p",
+            "text": "Troque mensagens soltas no WhatsApp por propostas profissionais, claras e com mais credibilidade.",
+            "rect": {
+              "x": 214,
+              "y": 551,
+              "width": 368,
+              "height": 71
+            },
+            "ratio": 1,
+            "color": "rgba(255, 255, 255, 0.76)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "div.auth-orcamento-preview",
+            "text": "Orçamento Aguardando aprovação Cliente: Ana Martins Proposta: Reforma residencial Total: R$ 4.750,00",
+            "rect": {
+              "x": 214,
+              "y": 643,
+              "width": 368,
+              "height": 175
+            },
+            "ratio": 1,
+            "color": "rgb(255, 255, 255)",
+            "background": "rgba(255, 255, 255, 0.08)"
+          },
+          {
+            "selector": "div.auth-preview-header",
+            "text": "Orçamento Aguardando aprovação",
+            "rect": {
+              "x": 227,
+              "y": 656,
+              "width": 341,
+              "height": 37
+            },
+            "ratio": 1,
+            "color": "rgb(255, 255, 255)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "span",
+            "text": "Orçamento",
+            "rect": {
+              "x": 227,
+              "y": 657,
+              "width": 105,
+              "height": 24
+            },
+            "ratio": 1,
+            "color": "rgb(255, 255, 255)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "p.auth-preview-line",
+            "text": "Cliente: Ana Martins",
+            "rect": {
+              "x": 227,
+              "y": 701,
+              "width": 341,
+              "height": 20
+            },
+            "ratio": 1,
+            "color": "rgba(255, 255, 255, 0.76)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "p.auth-preview-line",
+            "text": "Proposta: Reforma residencial",
+            "rect": {
+              "x": 227,
+              "y": 729,
+              "width": 341,
+              "height": 20
+            },
+            "ratio": 1,
+            "color": "rgba(255, 255, 255, 0.76)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "div.auth-proof-strip",
+            "text": "Clientes organizados Propostas bonitas",
+            "rect": {
+              "x": 214,
+              "y": 840,
+              "width": 448,
+              "height": 33
+            },
+            "ratio": 1,
+            "color": "rgba(255, 255, 255, 0.78)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "span.auth-proof-chip",
+            "text": "Conexão segura",
+            "rect": {
+              "x": 749,
+              "y": 302,
+              "width": 142,
+              "height": 34
+            },
+            "ratio": 2.36,
+            "color": "rgb(8, 125, 120)",
+            "background": "rgba(19, 199, 189, 0.09)"
+          },
+          {
+            "selector": "button.is-active",
+            "text": "Entrar",
+            "rect": {
+              "x": 753,
+              "y": 399,
+              "width": 187,
+              "height": 34
+            },
+            "ratio": 1.06,
+            "color": "rgb(255, 255, 255)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "button.auth-password-toggle",
+            "text": "Mostrar",
+            "rect": {
+              "x": 1041,
+              "y": 554,
+              "width": 86,
+              "height": 33
+            },
+            "ratio": 3.89,
+            "color": "rgb(46, 123, 255)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "span",
+            "text": "Mostrar",
+            "rect": {
+              "x": 1071,
+              "y": 562,
+              "width": 46,
+              "height": 18
+            },
+            "ratio": 3.89,
+            "color": "rgb(46, 123, 255)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "button.inline-flex.h-11.w-full",
+            "text": "Entrar na conta",
+            "rect": {
+              "x": 749,
+              "y": 626,
+              "width": 384,
+              "height": 44
+            },
+            "ratio": 1,
+            "color": "rgb(255, 255, 255)",
+            "background": "rgba(0, 0, 0, 0)"
+          }
+        ]
+      }
+    },
+    {
+      "viewport": "desktop",
+      "name": "dashboard",
+      "screenshot": "desktop-dashboard.png",
+      "metrics": {
+        "url": "https://app.emprely.com.br/",
+        "title": "Emprely Orçamentos",
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document": {
+          "width": 1440,
+          "height": 1000
+        },
+        "horizontalOverflow": 0,
+        "counts": {
+          "visibleElements": 263,
+          "interactive": 30,
+          "offscreen": 0,
+          "clippedText": 2,
+          "smallTargets": 7,
+          "unnamedControls": 0,
+          "lowContrastText": 9
+        },
+        "headings": [
+          {
+            "level": "h2",
+            "text": "Fluxo guiado para sua primeira proposta"
+          },
+          {
+            "level": "h3",
+            "text": "Perfil da conta"
+          },
+          {
+            "level": "h3",
+            "text": "Primeiro cliente"
+          },
+          {
+            "level": "h3",
+            "text": "Primeiro serviço"
+          },
+          {
+            "level": "h3",
+            "text": "Primeira proposta"
+          },
+          {
+            "level": "h2",
+            "text": "Propostas recentes"
+          }
+        ],
+        "offscreen": [],
+        "clippedText": [
+          {
+            "selector": "strong.block.truncate.text-sm",
+            "text": "Conta Teste Codex",
+            "rect": {
+              "x": 81,
+              "y": 33,
+              "width": 113,
+              "height": 20
+            },
+            "scrollWidth": 128,
+            "clientWidth": 113
+          },
+          {
+            "selector": "span.block.truncate.text-xs",
+            "text": "teste.codex.20260620@emprely.com.br",
+            "rect": {
+              "x": 81,
+              "y": 53,
+              "width": 113,
+              "height": 16
+            },
+            "scrollWidth": 229,
+            "clientWidth": 113
+          }
+        ],
+        "smallTargets": [
+          {
+            "selector": "button.sidebar-collapse-toggle.tooltip-icon-button",
+            "text": "Recolher menu lateral",
+            "rect": {
+              "x": 208,
+              "y": 98,
+              "width": 28,
+              "height": 28
+            }
+          },
+          {
+            "selector": "button.inline-flex.h-10.w-fit",
+            "text": "Abrir guia inicial",
+            "rect": {
+              "x": 284,
+              "y": 332,
+              "width": 159,
+              "height": 40
+            }
+          },
+          {
+            "selector": "button.inline-flex.h-10.items-center",
+            "text": "Editar perfil",
+            "rect": {
+              "x": 443,
+              "y": 714,
+              "width": 103,
+              "height": 40
+            }
+          },
+          {
+            "selector": "button.inline-flex.h-10.items-center",
+            "text": "Revisar",
+            "rect": {
+              "x": 739,
+              "y": 694,
+              "width": 76,
+              "height": 40
+            }
+          },
+          {
+            "selector": "button.inline-flex.h-10.items-center",
+            "text": "Revisar",
+            "rect": {
+              "x": 1009,
+              "y": 694,
+              "width": 76,
+              "height": 40
+            }
+          },
+          {
+            "selector": "button.inline-flex.h-10.items-center",
+            "text": "Revisar",
+            "rect": {
+              "x": 1279,
+              "y": 714,
+              "width": 76,
+              "height": 40
+            }
+          },
+          {
+            "selector": "button.inline-flex.h-10.items-center",
+            "text": "Ver todas",
+            "rect": {
+              "x": 1257,
+              "y": 1085,
+              "width": 115,
+              "height": 40
+            }
+          }
+        ],
+        "unnamedControls": [],
+        "lowContrastText": [
+          {
+            "selector": "button.app-nav-item.tooltip-icon-button.flex",
+            "text": "Dashboard",
+            "rect": {
+              "x": 14,
+              "y": 146,
+              "width": 227,
+              "height": 44
+            },
+            "ratio": 1.04,
+            "color": "rgb(255, 255, 255)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "span.app-nav-label.truncate",
+            "text": "Dashboard",
+            "rect": {
+              "x": 56,
+              "y": 158,
+              "width": 73,
+              "height": 20
+            },
+            "ratio": 1.04,
+            "color": "rgb(255, 255, 255)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "p.text-sm.font-semibold.text-accent",
+            "text": "Primeiros passos",
+            "rect": {
+              "x": 305,
+              "y": 413,
+              "width": 672,
+              "height": 20
+            },
+            "ratio": 2.11,
+            "color": "rgb(19, 199, 189)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "th",
+            "text": "CLIENTE",
+            "rect": {
+              "x": 305,
+              "y": 1145,
+              "width": 384,
+              "height": 44
+            },
+            "ratio": 4.45,
+            "color": "rgb(102, 116, 140)",
+            "background": "rgb(246, 248, 252)"
+          },
+          {
+            "selector": "th",
+            "text": "TIPO",
+            "rect": {
+              "x": 689,
+              "y": 1145,
+              "width": 128,
+              "height": 44
+            },
+            "ratio": 4.45,
+            "color": "rgb(102, 116, 140)",
+            "background": "rgb(246, 248, 252)"
+          },
+          {
+            "selector": "th",
+            "text": "TOTAL",
+            "rect": {
+              "x": 817,
+              "y": 1145,
+              "width": 139,
+              "height": 44
+            },
+            "ratio": 4.45,
+            "color": "rgb(102, 116, 140)",
+            "background": "rgb(246, 248, 252)"
+          },
+          {
+            "selector": "th",
+            "text": "STATUS",
+            "rect": {
+              "x": 956,
+              "y": 1145,
+              "width": 128,
+              "height": 44
+            },
+            "ratio": 4.45,
+            "color": "rgb(102, 116, 140)",
+            "background": "rgb(246, 248, 252)"
+          },
+          {
+            "selector": "th",
+            "text": "DATA",
+            "rect": {
+              "x": 1084,
+              "y": 1145,
+              "width": 128,
+              "height": 44
+            },
+            "ratio": 4.45,
+            "color": "rgb(102, 116, 140)",
+            "background": "rgb(246, 248, 252)"
+          },
+          {
+            "selector": "th",
+            "text": "AÇÕES",
+            "rect": {
+              "x": 1212,
+              "y": 1145,
+              "width": 160,
+              "height": 44
+            },
+            "ratio": 4.45,
+            "color": "rgb(102, 116, 140)",
+            "background": "rgb(246, 248, 252)"
+          }
+        ]
+      }
+    },
+    {
+      "viewport": "desktop",
+      "name": "clientes-lista",
+      "screenshot": "desktop-clientes-lista.png",
+      "metrics": {
+        "url": "https://app.emprely.com.br/",
+        "title": "Emprely Orçamentos",
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document": {
+          "width": 1440,
+          "height": 1000
+        },
+        "horizontalOverflow": 0,
+        "counts": {
+          "visibleElements": 228,
+          "interactive": 35,
+          "offscreen": 0,
+          "clippedText": 2,
+          "smallTargets": 1,
+          "unnamedControls": 0,
+          "lowContrastText": 8
+        },
+        "headings": [
+          {
+            "level": "h1",
+            "text": "Clientes"
+          },
+          {
+            "level": "h2",
+            "text": "5 de 5 clientes"
+          }
+        ],
+        "offscreen": [],
+        "clippedText": [
+          {
+            "selector": "strong.block.truncate.text-sm",
+            "text": "Conta Teste Codex",
+            "rect": {
+              "x": 81,
+              "y": 33,
+              "width": 113,
+              "height": 20
+            },
+            "scrollWidth": 128,
+            "clientWidth": 113
+          },
+          {
+            "selector": "span.block.truncate.text-xs",
+            "text": "teste.codex.20260620@emprely.com.br",
+            "rect": {
+              "x": 81,
+              "y": 53,
+              "width": 113,
+              "height": 16
+            },
+            "scrollWidth": 229,
+            "clientWidth": 113
+          }
+        ],
+        "smallTargets": [
+          {
+            "selector": "button.sidebar-collapse-toggle.tooltip-icon-button",
+            "text": "Recolher menu lateral",
+            "rect": {
+              "x": 208,
+              "y": 98,
+              "width": 28,
+              "height": 28
+            }
+          }
+        ],
+        "unnamedControls": [],
+        "lowContrastText": [
+          {
+            "selector": "button.app-nav-item.tooltip-icon-button.flex",
+            "text": "Clientes",
+            "rect": {
+              "x": 14,
+              "y": 194,
+              "width": 179,
+              "height": 44
+            },
+            "ratio": 1.04,
+            "color": "rgb(255, 255, 255)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "span.app-nav-label.truncate",
+            "text": "Clientes",
+            "rect": {
+              "x": 56,
+              "y": 206,
+              "width": 54,
+              "height": 20
+            },
+            "ratio": 1.04,
+            "color": "rgb(255, 255, 255)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "p.text-sm.font-medium.text-accent",
+            "text": "Base ativa",
+            "rect": {
+              "x": 305,
+              "y": 117,
+              "width": 146,
+              "height": 20
+            },
+            "ratio": 2.11,
+            "color": "rgb(19, 199, 189)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "th",
+            "text": "CLIENTE",
+            "rect": {
+              "x": 305,
+              "y": 281,
+              "width": 299,
+              "height": 44
+            },
+            "ratio": 4.45,
+            "color": "rgb(102, 116, 140)",
+            "background": "rgb(246, 248, 252)"
+          },
+          {
+            "selector": "th",
+            "text": "E-MAIL",
+            "rect": {
+              "x": 604,
+              "y": 281,
+              "width": 235,
+              "height": 44
+            },
+            "ratio": 4.45,
+            "color": "rgb(102, 116, 140)",
+            "background": "rgb(246, 248, 252)"
+          },
+          {
+            "selector": "th",
+            "text": "TELEFONE",
+            "rect": {
+              "x": 838,
+              "y": 281,
+              "width": 203,
+              "height": 44
+            },
+            "ratio": 4.45,
+            "color": "rgb(102, 116, 140)",
+            "background": "rgb(246, 248, 252)"
+          },
+          {
+            "selector": "th",
+            "text": "CPF/CNPJ",
+            "rect": {
+              "x": 1041,
+              "y": 281,
+              "width": 139,
+              "height": 44
+            },
+            "ratio": 4.45,
+            "color": "rgb(102, 116, 140)",
+            "background": "rgb(246, 248, 252)"
+          },
+          {
+            "selector": "th",
+            "text": "AÇÕES",
+            "rect": {
+              "x": 1180,
+              "y": 281,
+              "width": 192,
+              "height": 44
+            },
+            "ratio": 4.45,
+            "color": "rgb(102, 116, 140)",
+            "background": "rgb(246, 248, 252)"
+          }
+        ]
+      }
+    },
+    {
+      "viewport": "desktop",
+      "name": "clientes-formulario",
+      "screenshot": "desktop-clientes-formulario.png",
+      "metrics": {
+        "url": "https://app.emprely.com.br/",
+        "title": "Emprely Orçamentos",
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document": {
+          "width": 1440,
+          "height": 1000
+        },
+        "horizontalOverflow": 0,
+        "counts": {
+          "visibleElements": 102,
+          "interactive": 17,
+          "offscreen": 0,
+          "clippedText": 2,
+          "smallTargets": 1,
+          "unnamedControls": 2,
+          "lowContrastText": 2
+        },
+        "headings": [
+          {
+            "level": "h1",
+            "text": "Clientes"
+          },
+          {
+            "level": "h2",
+            "text": "Novo cliente"
+          }
+        ],
+        "offscreen": [],
+        "clippedText": [
+          {
+            "selector": "strong.block.truncate.text-sm",
+            "text": "Conta Teste Codex",
+            "rect": {
+              "x": 81,
+              "y": 33,
+              "width": 113,
+              "height": 20
+            },
+            "scrollWidth": 128,
+            "clientWidth": 113
+          },
+          {
+            "selector": "span.block.truncate.text-xs",
+            "text": "teste.codex.20260620@emprely.com.br",
+            "rect": {
+              "x": 81,
+              "y": 53,
+              "width": 113,
+              "height": 16
+            },
+            "scrollWidth": 229,
+            "clientWidth": 113
+          }
+        ],
+        "smallTargets": [
+          {
+            "selector": "button.sidebar-collapse-toggle.tooltip-icon-button",
+            "text": "Recolher menu lateral",
+            "rect": {
+              "x": 208,
+              "y": 98,
+              "width": 28,
+              "height": 28
+            }
+          }
+        ],
+        "unnamedControls": [
+          {
+            "selector": "input#_r_5_.mt-1.h-11.w-full",
+            "rect": {
+              "x": 305,
+              "y": 265,
+              "width": 731,
+              "height": 44
+            }
+          },
+          {
+            "selector": "textarea#_r_7_.mt-1.w-full.rounded-md",
+            "rect": {
+              "x": 305,
+              "y": 415,
+              "width": 1067,
+              "height": 98
+            }
+          }
+        ],
+        "lowContrastText": [
+          {
+            "selector": "button.app-nav-item.tooltip-icon-button.flex",
+            "text": "Clientes",
+            "rect": {
+              "x": 12,
+              "y": 194,
+              "width": 179,
+              "height": 44
+            },
+            "ratio": 1.04,
+            "color": "rgb(255, 255, 255)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "span.app-nav-label.truncate",
+            "text": "Clientes",
+            "rect": {
+              "x": 54,
+              "y": 206,
+              "width": 54,
+              "height": 20
+            },
+            "ratio": 1.04,
+            "color": "rgb(255, 255, 255)",
+            "background": "rgba(0, 0, 0, 0)"
+          }
+        ]
+      }
+    },
+    {
+      "viewport": "desktop",
+      "name": "servicos-lista",
+      "screenshot": "desktop-servicos-lista.png",
+      "metrics": {
+        "url": "https://app.emprely.com.br/",
+        "title": "Emprely Orçamentos",
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document": {
+          "width": 1440,
+          "height": 1000
+        },
+        "horizontalOverflow": 0,
+        "counts": {
+          "visibleElements": 230,
+          "interactive": 33,
+          "offscreen": 0,
+          "clippedText": 2,
+          "smallTargets": 1,
+          "unnamedControls": 0,
+          "lowContrastText": 8
+        },
+        "headings": [
+          {
+            "level": "h1",
+            "text": "Meus serviços e pacotes"
+          },
+          {
+            "level": "h2",
+            "text": "6 de 6 serviços"
+          }
+        ],
+        "offscreen": [],
+        "clippedText": [
+          {
+            "selector": "strong.block.truncate.text-sm",
+            "text": "Conta Teste Codex",
+            "rect": {
+              "x": 81,
+              "y": 33,
+              "width": 113,
+              "height": 20
+            },
+            "scrollWidth": 128,
+            "clientWidth": 113
+          },
+          {
+            "selector": "span.block.truncate.text-xs",
+            "text": "teste.codex.20260620@emprely.com.br",
+            "rect": {
+              "x": 81,
+              "y": 53,
+              "width": 113,
+              "height": 16
+            },
+            "scrollWidth": 229,
+            "clientWidth": 113
+          }
+        ],
+        "smallTargets": [
+          {
+            "selector": "button.sidebar-collapse-toggle.tooltip-icon-button",
+            "text": "Recolher menu lateral",
+            "rect": {
+              "x": 208,
+              "y": 98,
+              "width": 28,
+              "height": 28
+            }
+          }
+        ],
+        "unnamedControls": [],
+        "lowContrastText": [
+          {
+            "selector": "button.app-nav-item.tooltip-icon-button.flex",
+            "text": "Serviços / Pacotes",
+            "rect": {
+              "x": 14,
+              "y": 242,
+              "width": 179,
+              "height": 44
+            },
+            "ratio": 1.04,
+            "color": "rgb(255, 255, 255)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "span.app-nav-label.truncate",
+            "text": "Serviços / Pacotes",
+            "rect": {
+              "x": 56,
+              "y": 254,
+              "width": 125,
+              "height": 20
+            },
+            "ratio": 1.04,
+            "color": "rgb(255, 255, 255)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "p.text-sm.font-medium.text-accent",
+            "text": "Catálogo ativo",
+            "rect": {
+              "x": 305,
+              "y": 117,
+              "width": 151,
+              "height": 20
+            },
+            "ratio": 2.11,
+            "color": "rgb(19, 199, 189)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "th",
+            "text": "SERVIÇO / PACOTE",
+            "rect": {
+              "x": 305,
+              "y": 281,
+              "width": 384,
+              "height": 44
+            },
+            "ratio": 4.45,
+            "color": "rgb(102, 116, 140)",
+            "background": "rgb(246, 248, 252)"
+          },
+          {
+            "selector": "th",
+            "text": "CATEGORIA",
+            "rect": {
+              "x": 689,
+              "y": 281,
+              "width": 181,
+              "height": 44
+            },
+            "ratio": 4.45,
+            "color": "rgb(102, 116, 140)",
+            "background": "rgb(246, 248, 252)"
+          },
+          {
+            "selector": "th",
+            "text": "TIPO",
+            "rect": {
+              "x": 871,
+              "y": 281,
+              "width": 128,
+              "height": 44
+            },
+            "ratio": 4.45,
+            "color": "rgb(102, 116, 140)",
+            "background": "rgb(246, 248, 252)"
+          },
+          {
+            "selector": "th",
+            "text": "VALOR",
+            "rect": {
+              "x": 999,
+              "y": 281,
+              "width": 181,
+              "height": 44
+            },
+            "ratio": 4.45,
+            "color": "rgb(102, 116, 140)",
+            "background": "rgb(246, 248, 252)"
+          },
+          {
+            "selector": "th",
+            "text": "AÇÕES",
+            "rect": {
+              "x": 1180,
+              "y": 281,
+              "width": 192,
+              "height": 44
+            },
+            "ratio": 4.45,
+            "color": "rgb(102, 116, 140)",
+            "background": "rgb(246, 248, 252)"
+          }
+        ]
+      }
+    },
+    {
+      "viewport": "desktop",
+      "name": "servicos-formulario",
+      "screenshot": "desktop-servicos-formulario.png",
+      "metrics": {
+        "url": "https://app.emprely.com.br/",
+        "title": "Emprely Orçamentos",
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document": {
+          "width": 1440,
+          "height": 1000
+        },
+        "horizontalOverflow": 0,
+        "counts": {
+          "visibleElements": 103,
+          "interactive": 18,
+          "offscreen": 0,
+          "clippedText": 2,
+          "smallTargets": 1,
+          "unnamedControls": 4,
+          "lowContrastText": 2
+        },
+        "headings": [
+          {
+            "level": "h1",
+            "text": "Meus serviços e pacotes"
+          },
+          {
+            "level": "h2",
+            "text": "Novo serviço"
+          }
+        ],
+        "offscreen": [],
+        "clippedText": [
+          {
+            "selector": "strong.block.truncate.text-sm",
+            "text": "Conta Teste Codex",
+            "rect": {
+              "x": 81,
+              "y": 33,
+              "width": 113,
+              "height": 20
+            },
+            "scrollWidth": 128,
+            "clientWidth": 113
+          },
+          {
+            "selector": "span.block.truncate.text-xs",
+            "text": "teste.codex.20260620@emprely.com.br",
+            "rect": {
+              "x": 81,
+              "y": 53,
+              "width": 113,
+              "height": 16
+            },
+            "scrollWidth": 229,
+            "clientWidth": 113
+          }
+        ],
+        "smallTargets": [
+          {
+            "selector": "button.sidebar-collapse-toggle.tooltip-icon-button",
+            "text": "Recolher menu lateral",
+            "rect": {
+              "x": 208,
+              "y": 98,
+              "width": 28,
+              "height": 28
+            }
+          }
+        ],
+        "unnamedControls": [
+          {
+            "selector": "input#_r_9_.mt-1.h-11.w-full",
+            "rect": {
+              "x": 305,
+              "y": 265,
+              "width": 1067,
+              "height": 44
+            }
+          },
+          {
+            "selector": "input#_r_a_.mt-1.h-11.w-full",
+            "rect": {
+              "x": 305,
+              "y": 353,
+              "width": 526,
+              "height": 44
+            }
+          },
+          {
+            "selector": "input#_r_b_.mt-1.h-11.w-full",
+            "rect": {
+              "x": 847,
+              "y": 353,
+              "width": 526,
+              "height": 44
+            }
+          },
+          {
+            "selector": "textarea#_r_e_.mt-1.w-full.rounded-md",
+            "rect": {
+              "x": 305,
+              "y": 529,
+              "width": 1067,
+              "height": 98
+            }
+          }
+        ],
+        "lowContrastText": [
+          {
+            "selector": "button.app-nav-item.tooltip-icon-button.flex",
+            "text": "Serviços / Pacotes",
+            "rect": {
+              "x": 12,
+              "y": 242,
+              "width": 179,
+              "height": 44
+            },
+            "ratio": 1.04,
+            "color": "rgb(255, 255, 255)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "span.app-nav-label.truncate",
+            "text": "Serviços / Pacotes",
+            "rect": {
+              "x": 54,
+              "y": 254,
+              "width": 125,
+              "height": 20
+            },
+            "ratio": 1.04,
+            "color": "rgb(255, 255, 255)",
+            "background": "rgba(0, 0, 0, 0)"
+          }
+        ]
+      }
+    },
+    {
+      "viewport": "desktop",
+      "name": "propostas-lista",
+      "screenshot": "desktop-propostas-lista.png",
+      "metrics": {
+        "url": "https://app.emprely.com.br/",
+        "title": "Emprely Orçamentos",
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document": {
+          "width": 1440,
+          "height": 1000
+        },
+        "horizontalOverflow": 0,
+        "counts": {
+          "visibleElements": 143,
+          "interactive": 23,
+          "offscreen": 0,
+          "clippedText": 2,
+          "smallTargets": 1,
+          "unnamedControls": 0,
+          "lowContrastText": 9
+        },
+        "headings": [
+          {
+            "level": "h1",
+            "text": "Propostas"
+          },
+          {
+            "level": "h2",
+            "text": "2 de 2 propostas"
+          }
+        ],
+        "offscreen": [],
+        "clippedText": [
+          {
+            "selector": "strong.block.truncate.text-sm",
+            "text": "Conta Teste Codex",
+            "rect": {
+              "x": 81,
+              "y": 33,
+              "width": 113,
+              "height": 20
+            },
+            "scrollWidth": 128,
+            "clientWidth": 113
+          },
+          {
+            "selector": "span.block.truncate.text-xs",
+            "text": "teste.codex.20260620@emprely.com.br",
+            "rect": {
+              "x": 81,
+              "y": 53,
+              "width": 113,
+              "height": 16
+            },
+            "scrollWidth": 229,
+            "clientWidth": 113
+          }
+        ],
+        "smallTargets": [
+          {
+            "selector": "button.sidebar-collapse-toggle.tooltip-icon-button",
+            "text": "Recolher menu lateral",
+            "rect": {
+              "x": 208,
+              "y": 98,
+              "width": 28,
+              "height": 28
+            }
+          }
+        ],
+        "unnamedControls": [],
+        "lowContrastText": [
+          {
+            "selector": "button.app-nav-item.tooltip-icon-button.flex",
+            "text": "Propostas",
+            "rect": {
+              "x": 14,
+              "y": 290,
+              "width": 179,
+              "height": 44
+            },
+            "ratio": 1.04,
+            "color": "rgb(255, 255, 255)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "span.app-nav-label.truncate",
+            "text": "Propostas",
+            "rect": {
+              "x": 56,
+              "y": 302,
+              "width": 68,
+              "height": 20
+            },
+            "ratio": 1.04,
+            "color": "rgb(255, 255, 255)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "p.text-sm.font-medium.text-accent",
+            "text": "Histórico ativo",
+            "rect": {
+              "x": 305,
+              "y": 117,
+              "width": 168,
+              "height": 20
+            },
+            "ratio": 2.11,
+            "color": "rgb(19, 199, 189)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "th",
+            "text": "CLIENTE",
+            "rect": {
+              "x": 305,
+              "y": 345,
+              "width": 459,
+              "height": 44
+            },
+            "ratio": 4.45,
+            "color": "rgb(102, 116, 140)",
+            "background": "rgb(246, 248, 252)"
+          },
+          {
+            "selector": "th",
+            "text": "TIPO",
+            "rect": {
+              "x": 764,
+              "y": 345,
+              "width": 117,
+              "height": 44
+            },
+            "ratio": 4.45,
+            "color": "rgb(102, 116, 140)",
+            "background": "rgb(246, 248, 252)"
+          },
+          {
+            "selector": "th",
+            "text": "TOTAL",
+            "rect": {
+              "x": 881,
+              "y": 345,
+              "width": 128,
+              "height": 44
+            },
+            "ratio": 4.45,
+            "color": "rgb(102, 116, 140)",
+            "background": "rgb(246, 248, 252)"
+          },
+          {
+            "selector": "th",
+            "text": "STATUS",
+            "rect": {
+              "x": 1009,
+              "y": 345,
+              "width": 128,
+              "height": 44
+            },
+            "ratio": 4.45,
+            "color": "rgb(102, 116, 140)",
+            "background": "rgb(246, 248, 252)"
+          },
+          {
+            "selector": "th",
+            "text": "DATA",
+            "rect": {
+              "x": 1137,
+              "y": 345,
+              "width": 107,
+              "height": 44
+            },
+            "ratio": 4.45,
+            "color": "rgb(102, 116, 140)",
+            "background": "rgb(246, 248, 252)"
+          },
+          {
+            "selector": "th",
+            "text": "AÇÕES",
+            "rect": {
+              "x": 1244,
+              "y": 345,
+              "width": 128,
+              "height": 44
+            },
+            "ratio": 4.45,
+            "color": "rgb(102, 116, 140)",
+            "background": "rgb(246, 248, 252)"
+          }
+        ]
+      }
+    },
+    {
+      "viewport": "desktop",
+      "name": "proposta-assistente-inicio",
+      "screenshot": "desktop-proposta-assistente-inicio.png",
+      "metrics": {
+        "url": "https://app.emprely.com.br/",
+        "title": "Emprely Orçamentos",
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document": {
+          "width": 1440,
+          "height": 1000
+        },
+        "horizontalOverflow": 0,
+        "counts": {
+          "visibleElements": 104,
+          "interactive": 13,
+          "offscreen": 0,
+          "clippedText": 2,
+          "smallTargets": 1,
+          "unnamedControls": 0,
+          "lowContrastText": 6
+        },
+        "headings": [
+          {
+            "level": "h1",
+            "text": "Nova proposta"
+          }
+        ],
+        "offscreen": [],
+        "clippedText": [
+          {
+            "selector": "strong.block.truncate.text-sm",
+            "text": "Conta Teste Codex",
+            "rect": {
+              "x": 81,
+              "y": 33,
+              "width": 113,
+              "height": 20
+            },
+            "scrollWidth": 128,
+            "clientWidth": 113
+          },
+          {
+            "selector": "span.block.truncate.text-xs",
+            "text": "teste.codex.20260620@emprely.com.br",
+            "rect": {
+              "x": 81,
+              "y": 53,
+              "width": 113,
+              "height": 16
+            },
+            "scrollWidth": 229,
+            "clientWidth": 113
+          }
+        ],
+        "smallTargets": [
+          {
+            "selector": "button.sidebar-collapse-toggle.tooltip-icon-button",
+            "text": "Recolher menu lateral",
+            "rect": {
+              "x": 208,
+              "y": 98,
+              "width": 28,
+              "height": 28
+            }
+          }
+        ],
+        "unnamedControls": [],
+        "lowContrastText": [
+          {
+            "selector": "button.app-nav-item.tooltip-icon-button.flex",
+            "text": "Propostas",
+            "rect": {
+              "x": 12,
+              "y": 290,
+              "width": 179,
+              "height": 44
+            },
+            "ratio": 1.04,
+            "color": "rgb(255, 255, 255)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "span.app-nav-label.truncate",
+            "text": "Propostas",
+            "rect": {
+              "x": 54,
+              "y": 302,
+              "width": 68,
+              "height": 20
+            },
+            "ratio": 1.04,
+            "color": "rgb(255, 255, 255)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "span.is-active",
+            "text": "1 Cliente",
+            "rect": {
+              "x": 293,
+              "y": 151,
+              "width": 271,
+              "height": 49
+            },
+            "ratio": 3.1,
+            "color": "rgb(7, 24, 50)",
+            "background": "rgba(110, 56, 255, 0.08)"
+          },
+          {
+            "selector": "strong",
+            "text": "2",
+            "rect": {
+              "x": 659,
+              "y": 162,
+              "width": 26,
+              "height": 26
+            },
+            "ratio": 4.02,
+            "color": "rgb(102, 116, 140)",
+            "background": "rgb(231, 237, 246)"
+          },
+          {
+            "selector": "strong",
+            "text": "3",
+            "rect": {
+              "x": 951,
+              "y": 162,
+              "width": 26,
+              "height": 26
+            },
+            "ratio": 4.02,
+            "color": "rgb(102, 116, 140)",
+            "background": "rgb(231, 237, 246)"
+          },
+          {
+            "selector": "strong",
+            "text": "4",
+            "rect": {
+              "x": 1220,
+              "y": 162,
+              "width": 26,
+              "height": 26
+            },
+            "ratio": 4.02,
+            "color": "rgb(102, 116, 140)",
+            "background": "rgb(231, 237, 246)"
+          }
+        ]
+      }
+    },
+    {
+      "viewport": "desktop",
+      "name": "suporte",
+      "screenshot": "desktop-suporte.png",
+      "metrics": {
+        "url": "https://app.emprely.com.br/",
+        "title": "Emprely Orçamentos",
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document": {
+          "width": 1440,
+          "height": 1000
+        },
+        "horizontalOverflow": 0,
+        "counts": {
+          "visibleElements": 82,
+          "interactive": 13,
+          "offscreen": 0,
+          "clippedText": 2,
+          "smallTargets": 1,
+          "unnamedControls": 2,
+          "lowContrastText": 2
+        },
+        "headings": [
+          {
+            "level": "h1",
+            "text": "Suporte"
+          },
+          {
+            "level": "h2",
+            "text": "Fale com o suporte Emprely"
+          }
+        ],
+        "offscreen": [],
+        "clippedText": [
+          {
+            "selector": "strong.block.truncate.text-sm",
+            "text": "Conta Teste Codex",
+            "rect": {
+              "x": 81,
+              "y": 33,
+              "width": 113,
+              "height": 20
+            },
+            "scrollWidth": 128,
+            "clientWidth": 113
+          },
+          {
+            "selector": "span.block.truncate.text-xs",
+            "text": "teste.codex.20260620@emprely.com.br",
+            "rect": {
+              "x": 81,
+              "y": 53,
+              "width": 113,
+              "height": 16
+            },
+            "scrollWidth": 229,
+            "clientWidth": 113
+          }
+        ],
+        "smallTargets": [
+          {
+            "selector": "button.sidebar-collapse-toggle.tooltip-icon-button",
+            "text": "Recolher menu lateral",
+            "rect": {
+              "x": 208,
+              "y": 98,
+              "width": 28,
+              "height": 28
+            }
+          }
+        ],
+        "unnamedControls": [
+          {
+            "selector": "input#_r_g_.mt-1.h-11.w-full",
+            "rect": {
+              "x": 305,
+              "y": 201,
+              "width": 1067,
+              "height": 44
+            }
+          },
+          {
+            "selector": "textarea#_r_h_.mt-1.w-full.rounded-md",
+            "rect": {
+              "x": 305,
+              "y": 289,
+              "width": 1067,
+              "height": 138
+            }
+          }
+        ],
+        "lowContrastText": [
+          {
+            "selector": "button.app-nav-item.tooltip-icon-button.flex",
+            "text": "Suporte",
+            "rect": {
+              "x": 14,
+              "y": 338,
+              "width": 227,
+              "height": 44
+            },
+            "ratio": 1.04,
+            "color": "rgb(255, 255, 255)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "span.app-nav-label.truncate",
+            "text": "Suporte",
+            "rect": {
+              "x": 56,
+              "y": 350,
+              "width": 53,
+              "height": 20
+            },
+            "ratio": 1.04,
+            "color": "rgb(255, 255, 255)",
+            "background": "rgba(0, 0, 0, 0)"
+          }
+        ]
+      }
+    },
+    {
+      "viewport": "desktop",
+      "name": "personalizacao",
+      "screenshot": "desktop-personalizacao.png",
+      "metrics": {
+        "url": "https://app.emprely.com.br/",
+        "title": "Emprely Orçamentos",
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document": {
+          "width": 1440,
+          "height": 1000
+        },
+        "horizontalOverflow": 0,
+        "counts": {
+          "visibleElements": 502,
+          "interactive": 37,
+          "offscreen": 0,
+          "clippedText": 2,
+          "smallTargets": 10,
+          "unnamedControls": 2,
+          "lowContrastText": 0
+        },
+        "headings": [
+          {
+            "level": "h1",
+            "text": "Personalização"
+          },
+          {
+            "level": "h2",
+            "text": "Tema e cores"
+          },
+          {
+            "level": "h2",
+            "text": "Cores dos templates"
+          },
+          {
+            "level": "h2",
+            "text": "Templates dos orçamentos"
+          }
+        ],
+        "offscreen": [],
+        "clippedText": [
+          {
+            "selector": "strong.block.truncate.text-sm",
+            "text": "Conta Teste Codex",
+            "rect": {
+              "x": 81,
+              "y": 33,
+              "width": 113,
+              "height": 20
+            },
+            "scrollWidth": 128,
+            "clientWidth": 113
+          },
+          {
+            "selector": "span.block.truncate.text-xs",
+            "text": "teste.codex.20260620@emprely.com.br",
+            "rect": {
+              "x": 81,
+              "y": 53,
+              "width": 113,
+              "height": 16
+            },
+            "scrollWidth": 229,
+            "clientWidth": 113
+          }
+        ],
+        "smallTargets": [
+          {
+            "selector": "button.sidebar-collapse-toggle.tooltip-icon-button",
+            "text": "Recolher menu lateral",
+            "rect": {
+              "x": 208,
+              "y": 98,
+              "width": 28,
+              "height": 28
+            }
+          },
+          {
+            "selector": "button.template-selection-preview-button",
+            "text": "Preview",
+            "rect": {
+              "x": 834,
+              "y": 529,
+              "width": 235,
+              "height": 38
+            }
+          },
+          {
+            "selector": "button.template-selection-preview-button",
+            "text": "Preview",
+            "rect": {
+              "x": 1112,
+              "y": 531,
+              "width": 235,
+              "height": 38
+            }
+          },
+          {
+            "selector": "button.template-selection-preview-button",
+            "text": "Preview",
+            "rect": {
+              "x": 834,
+              "y": 850,
+              "width": 235,
+              "height": 38
+            }
+          },
+          {
+            "selector": "button.template-selection-preview-button",
+            "text": "Preview",
+            "rect": {
+              "x": 1112,
+              "y": 850,
+              "width": 235,
+              "height": 38
+            }
+          },
+          {
+            "selector": "button.template-selection-preview-button",
+            "text": "Preview",
+            "rect": {
+              "x": 834,
+              "y": 1169,
+              "width": 235,
+              "height": 38
+            }
+          },
+          {
+            "selector": "button.template-selection-preview-button",
+            "text": "Preview",
+            "rect": {
+              "x": 1112,
+              "y": 1169,
+              "width": 235,
+              "height": 38
+            }
+          },
+          {
+            "selector": "button.template-selection-preview-button",
+            "text": "Preview",
+            "rect": {
+              "x": 834,
+              "y": 1525,
+              "width": 235,
+              "height": 38
+            }
+          },
+          {
+            "selector": "button.template-selection-preview-button",
+            "text": "Preview",
+            "rect": {
+              "x": 1112,
+              "y": 1525,
+              "width": 235,
+              "height": 38
+            }
+          },
+          {
+            "selector": "button.template-selection-preview-button",
+            "text": "Preview",
+            "rect": {
+              "x": 834,
+              "y": 1862,
+              "width": 235,
+              "height": 38
+            }
+          }
+        ],
+        "unnamedControls": [
+          {
+            "selector": "input#_r_i_.mt-1.h-11.w-full",
+            "rect": {
+              "x": 305,
+              "y": 843,
+              "width": 222,
+              "height": 44
+            }
+          },
+          {
+            "selector": "input#_r_j_.mt-1.h-11.w-full",
+            "rect": {
+              "x": 543,
+              "y": 843,
+              "width": 222,
+              "height": 44
+            }
+          }
+        ],
+        "lowContrastText": []
+      }
+    },
+    {
+      "viewport": "desktop",
+      "name": "configuracoes-conta",
+      "screenshot": "desktop-configuracoes-conta.png",
+      "metrics": {
+        "url": "https://app.emprely.com.br/",
+        "title": "Emprely Orçamentos",
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document": {
+          "width": 1440,
+          "height": 1000
+        },
+        "horizontalOverflow": 0,
+        "counts": {
+          "visibleElements": 152,
+          "interactive": 23,
+          "offscreen": 0,
+          "clippedText": 2,
+          "smallTargets": 1,
+          "unnamedControls": 7,
+          "lowContrastText": 0
+        },
+        "headings": [
+          {
+            "level": "h1",
+            "text": "Configurações"
+          },
+          {
+            "level": "h2",
+            "text": "Dados do negócio"
+          },
+          {
+            "level": "h3",
+            "text": "Identificação"
+          },
+          {
+            "level": "h3",
+            "text": "Contato"
+          },
+          {
+            "level": "h3",
+            "text": "Marca"
+          },
+          {
+            "level": "h3",
+            "text": "Segurança de acesso"
+          }
+        ],
+        "offscreen": [],
+        "clippedText": [
+          {
+            "selector": "strong.block.truncate.text-sm",
+            "text": "Conta Teste Codex",
+            "rect": {
+              "x": 81,
+              "y": 33,
+              "width": 113,
+              "height": 20
+            },
+            "scrollWidth": 128,
+            "clientWidth": 113
+          },
+          {
+            "selector": "span.block.truncate.text-xs",
+            "text": "teste.codex.20260620@emprely.com.br",
+            "rect": {
+              "x": 81,
+              "y": 53,
+              "width": 113,
+              "height": 16
+            },
+            "scrollWidth": 229,
+            "clientWidth": 113
+          }
+        ],
+        "smallTargets": [
+          {
+            "selector": "button.sidebar-collapse-toggle.tooltip-icon-button",
+            "text": "Recolher menu lateral",
+            "rect": {
+              "x": 208,
+              "y": 98,
+              "width": 28,
+              "height": 28
+            }
+          }
+        ],
+        "unnamedControls": [
+          {
+            "selector": "input#_r_k_.mt-1.h-11.w-full",
+            "rect": {
+              "x": 322,
+              "y": 276,
+              "width": 399,
+              "height": 44
+            }
+          },
+          {
+            "selector": "input#_r_n_.mt-1.h-11.w-full",
+            "rect": {
+              "x": 322,
+              "y": 540,
+              "width": 399,
+              "height": 44
+            }
+          },
+          {
+            "selector": "input#_r_p_.mt-1.h-11.w-full",
+            "rect": {
+              "x": 775,
+              "y": 276,
+              "width": 282,
+              "height": 44
+            }
+          },
+          {
+            "selector": "input#_r_q_.mt-1.h-11.w-full",
+            "rect": {
+              "x": 1073,
+              "y": 276,
+              "width": 282,
+              "height": 44
+            }
+          },
+          {
+            "selector": "input#_r_r_.mt-1.h-11.w-full",
+            "rect": {
+              "x": 775,
+              "y": 384,
+              "width": 282,
+              "height": 44
+            }
+          },
+          {
+            "selector": "input#_r_s_.mt-1.h-11.w-full",
+            "rect": {
+              "x": 1073,
+              "y": 384,
+              "width": 282,
+              "height": 44
+            }
+          },
+          {
+            "selector": "input#_r_t_.mt-1.h-11.w-full",
+            "rect": {
+              "x": 322,
+              "y": 1166,
+              "width": 1033,
+              "height": 44
+            }
+          }
+        ],
+        "lowContrastText": []
+      }
+    },
+    {
+      "viewport": "tablet",
+      "name": "login-publico",
+      "screenshot": "tablet-login-publico.png",
+      "metrics": {
+        "url": "https://app.emprely.com.br/",
+        "title": "Emprely Orçamentos",
+        "viewport": {
+          "width": 768,
+          "height": 1024
+        },
+        "document": {
+          "width": 768,
+          "height": 1024
+        },
+        "horizontalOverflow": 0,
+        "counts": {
+          "visibleElements": 43,
+          "interactive": 8,
+          "offscreen": 0,
+          "clippedText": 0,
+          "smallTargets": 7,
+          "unnamedControls": 1,
+          "lowContrastText": 8
+        },
+        "headings": [
+          {
+            "level": "h1",
+            "text": "Bem-vindo de volta"
+          }
+        ],
+        "offscreen": [],
+        "clippedText": [],
+        "smallTargets": [
+          {
+            "selector": "button.is-active",
+            "text": "Entrar",
+            "rect": {
+              "x": 151,
+              "y": 189,
+              "width": 226,
+              "height": 34
+            }
+          },
+          {
+            "selector": "button",
+            "text": "Testar 7 dias",
+            "rect": {
+              "x": 377,
+              "y": 189,
+              "width": 226,
+              "height": 34
+            }
+          },
+          {
+            "selector": "input#_r_0_.mt-1.h-11.w-full",
+            "text": "",
+            "rect": {
+              "x": 146,
+              "y": 265,
+              "width": 461,
+              "height": 43
+            }
+          },
+          {
+            "selector": "input#_r_1_",
+            "text": "",
+            "rect": {
+              "x": 146,
+              "y": 342,
+              "width": 461,
+              "height": 43
+            }
+          },
+          {
+            "selector": "button.auth-password-toggle",
+            "text": "Mostrar",
+            "rect": {
+              "x": 516,
+              "y": 345,
+              "width": 86,
+              "height": 33
+            }
+          },
+          {
+            "selector": "button",
+            "text": "Esqueci minha senha",
+            "rect": {
+              "x": 476,
+              "y": 390,
+              "width": 131,
+              "height": 20
+            }
+          },
+          {
+            "selector": "button",
+            "text": "Teste por 7 dias",
+            "rect": {
+              "x": 265,
+              "y": 468,
+              "width": 103,
+              "height": 20
+            }
+          }
+        ],
+        "unnamedControls": [
+          {
+            "selector": "input#_r_1_",
+            "rect": {
+              "x": 146,
+              "y": 342,
+              "width": 461,
+              "height": 43
+            }
+          }
+        ],
+        "lowContrastText": [
+          {
+            "selector": "aside.auth-brand-panel.auth-brand-motion",
+            "text": "EMPRELY ORÇAMENTOS",
+            "rect": {
+              "x": 129,
+              "y": 9,
+              "width": 510,
+              "height": 79
+            },
+            "ratio": 1,
+            "color": "rgb(255, 255, 255)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "div.auth-brand-mark-group",
+            "text": "EMPRELY ORÇAMENTOS",
+            "rect": {
+              "x": 246,
+              "y": 21,
+              "width": 275,
+              "height": 56
+            },
+            "ratio": 1,
+            "color": "rgb(255, 255, 255)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "p.auth-brand-name-under",
+            "text": "EMPRELY ORÇAMENTOS",
+            "rect": {
+              "x": 314,
+              "y": 40,
+              "width": 208,
+              "height": 17
+            },
+            "ratio": 1,
+            "color": "rgb(255, 255, 255)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "span.auth-proof-chip",
+            "text": "Conexão segura",
+            "rect": {
+              "x": 146,
+              "y": 102,
+              "width": 142,
+              "height": 34
+            },
+            "ratio": 2.36,
+            "color": "rgb(8, 125, 120)",
+            "background": "rgba(19, 199, 189, 0.09)"
+          },
+          {
+            "selector": "button.is-active",
+            "text": "Entrar",
+            "rect": {
+              "x": 151,
+              "y": 189,
+              "width": 226,
+              "height": 34
+            },
+            "ratio": 1.06,
+            "color": "rgb(255, 255, 255)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "button.auth-password-toggle",
+            "text": "Mostrar",
+            "rect": {
+              "x": 516,
+              "y": 345,
+              "width": 86,
+              "height": 33
+            },
+            "ratio": 3.89,
+            "color": "rgb(46, 123, 255)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "span",
+            "text": "Mostrar",
+            "rect": {
+              "x": 546,
+              "y": 353,
+              "width": 46,
+              "height": 18
+            },
+            "ratio": 3.89,
+            "color": "rgb(46, 123, 255)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "button.inline-flex.h-11.w-full",
+            "text": "Entrar na conta",
+            "rect": {
+              "x": 146,
+              "y": 416,
+              "width": 461,
+              "height": 44
+            },
+            "ratio": 1,
+            "color": "rgb(255, 255, 255)",
+            "background": "rgba(0, 0, 0, 0)"
+          }
+        ]
+      }
+    },
+    {
+      "viewport": "tablet",
+      "name": "dashboard",
+      "screenshot": "tablet-dashboard.png",
+      "metrics": {
+        "url": "https://app.emprely.com.br/",
+        "title": "Emprely Orçamentos",
+        "viewport": {
+          "width": 768,
+          "height": 1024
+        },
+        "document": {
+          "width": 768,
+          "height": 2721
+        },
+        "horizontalOverflow": 0,
+        "counts": {
+          "visibleElements": 205,
+          "interactive": 21,
+          "offscreen": 0,
+          "clippedText": 0,
+          "smallTargets": 6,
+          "unnamedControls": 0,
+          "lowContrastText": 1
+        },
+        "headings": [
+          {
+            "level": "h2",
+            "text": "Fluxo guiado para sua primeira proposta"
+          },
+          {
+            "level": "h3",
+            "text": "Perfil da conta"
+          },
+          {
+            "level": "h3",
+            "text": "Primeiro cliente"
+          },
+          {
+            "level": "h3",
+            "text": "Primeiro serviço"
+          },
+          {
+            "level": "h3",
+            "text": "Primeira proposta"
+          },
+          {
+            "level": "h2",
+            "text": "Propostas recentes"
+          }
+        ],
+        "offscreen": [],
+        "clippedText": [],
+        "smallTargets": [
+          {
+            "selector": "button.inline-flex.h-10.w-fit",
+            "text": "Abrir guia inicial",
+            "rect": {
+              "x": 14,
+              "y": 439,
+              "width": 159,
+              "height": 40
+            }
+          },
+          {
+            "selector": "button.inline-flex.h-10.items-center",
+            "text": "Editar perfil",
+            "rect": {
+              "x": 599,
+              "y": 845,
+              "width": 103,
+              "height": 40
+            }
+          },
+          {
+            "selector": "button.inline-flex.h-10.items-center",
+            "text": "Revisar",
+            "rect": {
+              "x": 625,
+              "y": 1023,
+              "width": 76,
+              "height": 40
+            }
+          },
+          {
+            "selector": "button.inline-flex.h-10.items-center",
+            "text": "Revisar",
+            "rect": {
+              "x": 625,
+              "y": 1201,
+              "width": 76,
+              "height": 40
+            }
+          },
+          {
+            "selector": "button.inline-flex.h-10.items-center",
+            "text": "Revisar",
+            "rect": {
+              "x": 625,
+              "y": 1379,
+              "width": 76,
+              "height": 40
+            }
+          },
+          {
+            "selector": "button.inline-flex.h-10.items-center",
+            "text": "Ver todas",
+            "rect": {
+              "x": 604,
+              "y": 1998,
+              "width": 115,
+              "height": 40
+            }
+          }
+        ],
+        "unnamedControls": [],
+        "lowContrastText": [
+          {
+            "selector": "p.text-sm.font-semibold.text-accent",
+            "text": "Primeiros passos",
+            "rect": {
+              "x": 35,
+              "y": 520,
+              "width": 684,
+              "height": 20
+            },
+            "ratio": 2.11,
+            "color": "rgb(19, 199, 189)",
+            "background": "rgba(0, 0, 0, 0)"
+          }
+        ]
+      }
+    },
+    {
+      "viewport": "tablet",
+      "name": "clientes-lista",
+      "screenshot": "tablet-clientes-lista.png",
+      "metrics": {
+        "url": "https://app.emprely.com.br/",
+        "title": "Emprely Orçamentos",
+        "viewport": {
+          "width": 768,
+          "height": 1024
+        },
+        "document": {
+          "width": 768,
+          "height": 2088
+        },
+        "horizontalOverflow": 0,
+        "counts": {
+          "visibleElements": 171,
+          "interactive": 26,
+          "offscreen": 0,
+          "clippedText": 0,
+          "smallTargets": 0,
+          "unnamedControls": 0,
+          "lowContrastText": 1
+        },
+        "headings": [
+          {
+            "level": "h1",
+            "text": "Clientes"
+          },
+          {
+            "level": "h2",
+            "text": "5 de 5 clientes"
+          }
+        ],
+        "offscreen": [],
+        "clippedText": [],
+        "smallTargets": [],
+        "unnamedControls": [],
+        "lowContrastText": [
+          {
+            "selector": "p.text-sm.font-medium.text-accent",
+            "text": "Base ativa",
+            "rect": {
+              "x": 35,
+              "y": 165,
+              "width": 146,
+              "height": 20
+            },
+            "ratio": 2.11,
+            "color": "rgb(19, 199, 189)",
+            "background": "rgba(0, 0, 0, 0)"
+          }
+        ]
+      }
+    },
+    {
+      "viewport": "tablet",
+      "name": "clientes-formulario",
+      "screenshot": "tablet-clientes-formulario.png",
+      "metrics": {
+        "url": "https://app.emprely.com.br/",
+        "title": "Emprely Orçamentos",
+        "viewport": {
+          "width": 768,
+          "height": 1024
+        },
+        "document": {
+          "width": 768,
+          "height": 1024
+        },
+        "horizontalOverflow": 0,
+        "counts": {
+          "visibleElements": 52,
+          "interactive": 8,
+          "offscreen": 0,
+          "clippedText": 0,
+          "smallTargets": 0,
+          "unnamedControls": 2,
+          "lowContrastText": 0
+        },
+        "headings": [
+          {
+            "level": "h1",
+            "text": "Clientes"
+          },
+          {
+            "level": "h2",
+            "text": "Novo cliente"
+          }
+        ],
+        "offscreen": [],
+        "clippedText": [],
+        "smallTargets": [],
+        "unnamedControls": [
+          {
+            "selector": "input#_r_5_.mt-1.h-11.w-full",
+            "rect": {
+              "x": 35,
+              "y": 313,
+              "width": 348,
+              "height": 44
+            }
+          },
+          {
+            "selector": "textarea#_r_7_.mt-1.w-full.rounded-md",
+            "rect": {
+              "x": 35,
+              "y": 463,
+              "width": 684,
+              "height": 98
+            }
+          }
+        ],
+        "lowContrastText": []
+      }
+    },
+    {
+      "viewport": "tablet",
+      "name": "servicos-lista",
+      "screenshot": "tablet-servicos-lista.png",
+      "metrics": {
+        "url": "https://app.emprely.com.br/",
+        "title": "Emprely Orçamentos",
+        "viewport": {
+          "width": 768,
+          "height": 1024
+        },
+        "document": {
+          "width": 768,
+          "height": 1024
+        },
+        "horizontalOverflow": 0,
+        "counts": {
+          "visibleElements": 53,
+          "interactive": 9,
+          "offscreen": 0,
+          "clippedText": 0,
+          "smallTargets": 0,
+          "unnamedControls": 4,
+          "lowContrastText": 0
+        },
+        "headings": [
+          {
+            "level": "h1",
+            "text": "Meus serviços e pacotes"
+          },
+          {
+            "level": "h2",
+            "text": "Novo serviço"
+          }
+        ],
+        "offscreen": [],
+        "clippedText": [],
+        "smallTargets": [],
+        "unnamedControls": [
+          {
+            "selector": "input#_r_8_.mt-1.h-11.w-full",
+            "rect": {
+              "x": 35,
+              "y": 313,
+              "width": 684,
+              "height": 44
+            }
+          },
+          {
+            "selector": "input#_r_9_.mt-1.h-11.w-full",
+            "rect": {
+              "x": 35,
+              "y": 401,
+              "width": 334,
+              "height": 44
+            }
+          },
+          {
+            "selector": "input#_r_a_.mt-1.h-11.w-full",
+            "rect": {
+              "x": 385,
+              "y": 401,
+              "width": 334,
+              "height": 44
+            }
+          },
+          {
+            "selector": "textarea#_r_d_.mt-1.w-full.rounded-md",
+            "rect": {
+              "x": 35,
+              "y": 577,
+              "width": 684,
+              "height": 98
+            }
+          }
+        ],
+        "lowContrastText": []
+      }
+    },
+    {
+      "viewport": "tablet",
+      "name": "propostas-lista",
+      "screenshot": "tablet-propostas-lista.png",
+      "metrics": {
+        "url": "https://app.emprely.com.br/",
+        "title": "Emprely Orçamentos",
+        "viewport": {
+          "width": 768,
+          "height": 1024
+        },
+        "document": {
+          "width": 768,
+          "height": 1212
+        },
+        "horizontalOverflow": 0,
+        "counts": {
+          "visibleElements": 85,
+          "interactive": 14,
+          "offscreen": 0,
+          "clippedText": 0,
+          "smallTargets": 0,
+          "unnamedControls": 0,
+          "lowContrastText": 4
+        },
+        "headings": [
+          {
+            "level": "h1",
+            "text": "Propostas"
+          },
+          {
+            "level": "h2",
+            "text": "2 de 2 propostas"
+          }
+        ],
+        "offscreen": [],
+        "clippedText": [],
+        "smallTargets": [],
+        "unnamedControls": [],
+        "lowContrastText": [
+          {
+            "selector": "p.text-sm.font-medium.text-accent",
+            "text": "Histórico ativo",
+            "rect": {
+              "x": 35,
+              "y": 165,
+              "width": 168,
+              "height": 20
+            },
+            "ratio": 2.11,
+            "color": "rgb(19, 199, 189)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "span",
+            "text": "#0002 - Proposta QA 20260620134506",
+            "rect": {
+              "x": 310,
+              "y": 431,
+              "width": 241,
+              "height": 18
+            },
+            "ratio": 4.4,
+            "color": "rgb(102, 116, 140)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "span",
+            "text": "1 item",
+            "rect": {
+              "x": 310,
+              "y": 535,
+              "width": 394,
+              "height": 18
+            },
+            "ratio": 4.4,
+            "color": "rgb(102, 116, 140)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "span.rounded-md.px-2.py-1",
+            "text": "Gerada",
+            "rect": {
+              "x": 310,
+              "y": 572,
+              "width": 394,
+              "height": 25
+            },
+            "ratio": 4.4,
+            "color": "rgb(102, 116, 140)",
+            "background": "oklch(0.979 0.021 166.113)"
+          }
+        ]
+      }
+    },
+    {
+      "viewport": "mobile",
+      "name": "login-publico",
+      "screenshot": "mobile-login-publico.png",
+      "metrics": {
+        "url": "https://app.emprely.com.br/",
+        "title": "Emprely Orçamentos",
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document": {
+          "width": 390,
+          "height": 844
+        },
+        "horizontalOverflow": 0,
+        "counts": {
+          "visibleElements": 43,
+          "interactive": 8,
+          "offscreen": 0,
+          "clippedText": 0,
+          "smallTargets": 4,
+          "unnamedControls": 1,
+          "lowContrastText": 8
+        },
+        "headings": [
+          {
+            "level": "h1",
+            "text": "Bem-vindo de volta"
+          }
+        ],
+        "offscreen": [],
+        "clippedText": [],
+        "smallTargets": [
+          {
+            "selector": "button.is-active",
+            "text": "Entrar",
+            "rect": {
+              "x": 31,
+              "y": 189,
+              "width": 164,
+              "height": 34
+            }
+          },
+          {
+            "selector": "button",
+            "text": "Testar 7 dias",
+            "rect": {
+              "x": 195,
+              "y": 189,
+              "width": 164,
+              "height": 34
+            }
+          },
+          {
+            "selector": "input#_r_1_",
+            "text": "",
+            "rect": {
+              "x": 26,
+              "y": 341,
+              "width": 338,
+              "height": 43
+            }
+          },
+          {
+            "selector": "button",
+            "text": "Teste por 7 dias",
+            "rect": {
+              "x": 145,
+              "y": 498,
+              "width": 103,
+              "height": 20
+            }
+          }
+        ],
+        "unnamedControls": [
+          {
+            "selector": "input#_r_1_",
+            "rect": {
+              "x": 26,
+              "y": 341,
+              "width": 338,
+              "height": 43
+            }
+          }
+        ],
+        "lowContrastText": [
+          {
+            "selector": "aside.auth-brand-panel.auth-brand-motion",
+            "text": "EMPRELY ORÇAMENTOS",
+            "rect": {
+              "x": 9,
+              "y": 9,
+              "width": 372,
+              "height": 79
+            },
+            "ratio": 1,
+            "color": "rgb(255, 255, 255)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "div.auth-brand-mark-group",
+            "text": "EMPRELY ORÇAMENTOS",
+            "rect": {
+              "x": 57,
+              "y": 21,
+              "width": 275,
+              "height": 56
+            },
+            "ratio": 1,
+            "color": "rgb(255, 255, 255)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "p.auth-brand-name-under",
+            "text": "EMPRELY ORÇAMENTOS",
+            "rect": {
+              "x": 125,
+              "y": 40,
+              "width": 208,
+              "height": 17
+            },
+            "ratio": 1,
+            "color": "rgb(255, 255, 255)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "span.auth-proof-chip",
+            "text": "Conexão segura",
+            "rect": {
+              "x": 26,
+              "y": 102,
+              "width": 142,
+              "height": 34
+            },
+            "ratio": 2.36,
+            "color": "rgb(8, 125, 120)",
+            "background": "rgba(19, 199, 189, 0.09)"
+          },
+          {
+            "selector": "button.is-active",
+            "text": "Entrar",
+            "rect": {
+              "x": 31,
+              "y": 189,
+              "width": 164,
+              "height": 34
+            },
+            "ratio": 1.06,
+            "color": "rgb(255, 255, 255)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "button.auth-password-toggle",
+            "text": "Mostrar",
+            "rect": {
+              "x": 273,
+              "y": 336,
+              "width": 86,
+              "height": 48
+            },
+            "ratio": 3.89,
+            "color": "rgb(46, 123, 255)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "span",
+            "text": "Mostrar",
+            "rect": {
+              "x": 303,
+              "y": 351,
+              "width": 46,
+              "height": 18
+            },
+            "ratio": 3.89,
+            "color": "rgb(46, 123, 255)",
+            "background": "rgba(0, 0, 0, 0)"
+          },
+          {
+            "selector": "button.inline-flex.h-11.w-full",
+            "text": "Entrar na conta",
+            "rect": {
+              "x": 26,
+              "y": 443,
+              "width": 338,
+              "height": 48
+            },
+            "ratio": 1,
+            "color": "rgb(255, 255, 255)",
+            "background": "rgba(0, 0, 0, 0)"
+          }
+        ]
+      }
+    },
+    {
+      "viewport": "mobile",
+      "name": "dashboard",
+      "screenshot": "mobile-dashboard.png",
+      "metrics": {
+        "url": "https://app.emprely.com.br/",
+        "title": "Emprely Orçamentos",
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document": {
+          "width": 390,
+          "height": 3214
+        },
+        "horizontalOverflow": 0,
+        "counts": {
+          "visibleElements": 255,
+          "interactive": 26,
+          "offscreen": 0,
+          "clippedText": 0,
+          "smallTargets": 7,
+          "unnamedControls": 0,
+          "lowContrastText": 1
+        },
+        "headings": [
+          {
+            "level": "h2",
+            "text": "Fluxo guiado para sua primeira proposta"
+          },
+          {
+            "level": "h3",
+            "text": "Perfil da conta"
+          },
+          {
+            "level": "h3",
+            "text": "Primeiro cliente"
+          },
+          {
+            "level": "h3",
+            "text": "Primeiro serviço"
+          },
+          {
+            "level": "h3",
+            "text": "Primeira proposta"
+          },
+          {
+            "level": "h2",
+            "text": "Propostas recentes"
+          }
+        ],
+        "offscreen": [],
+        "clippedText": [],
+        "smallTargets": [
+          {
+            "selector": "button.mobile-topbar-icon-button",
+            "text": "Abrir menu",
+            "rect": {
+              "x": 14,
+              "y": 8,
+              "width": 41,
+              "height": 41
+            }
+          },
+          {
+            "selector": "button.inline-flex.h-10.w-fit",
+            "text": "Abrir guia inicial",
+            "rect": {
+              "x": 14,
+              "y": 599,
+              "width": 159,
+              "height": 40
+            }
+          },
+          {
+            "selector": "button.inline-flex.h-10.items-center",
+            "text": "Editar perfil",
+            "rect": {
+              "x": 240,
+              "y": 1073,
+              "width": 103,
+              "height": 40
+            }
+          },
+          {
+            "selector": "button.inline-flex.h-10.items-center",
+            "text": "Revisar",
+            "rect": {
+              "x": 266,
+              "y": 1271,
+              "width": 76,
+              "height": 40
+            }
+          },
+          {
+            "selector": "button.inline-flex.h-10.items-center",
+            "text": "Revisar",
+            "rect": {
+              "x": 266,
+              "y": 1469,
+              "width": 76,
+              "height": 40
+            }
+          },
+          {
+            "selector": "button.inline-flex.h-10.items-center",
+            "text": "Revisar",
+            "rect": {
+              "x": 266,
+              "y": 1667,
+              "width": 76,
+              "height": 40
+            }
+          },
+          {
+            "selector": "button.inline-flex.h-10.items-center",
+            "text": "Ver todas",
+            "rect": {
+              "x": 35,
+              "y": 2240,
+              "width": 321,
+              "height": 40
+            }
+          }
+        ],
+        "unnamedControls": [],
+        "lowContrastText": [
+          {
+            "selector": "p.text-sm.font-semibold.text-accent",
+            "text": "Primeiros passos",
+            "rect": {
+              "x": 31,
+              "y": 676,
+              "width": 329,
+              "height": 20
+            },
+            "ratio": 2.11,
+            "color": "rgb(19, 199, 189)",
+            "background": "rgba(0, 0, 0, 0)"
+          }
+        ]
+      }
+    },
+    {
+      "viewport": "mobile",
+      "name": "clientes-lista",
+      "screenshot": "mobile-clientes-lista.png",
+      "metrics": {
+        "url": "https://app.emprely.com.br/",
+        "title": "Emprely Orçamentos",
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document": {
+          "width": 390,
+          "height": 2746
+        },
+        "horizontalOverflow": 0,
+        "counts": {
+          "visibleElements": 200,
+          "interactive": 31,
+          "offscreen": 0,
+          "clippedText": 0,
+          "smallTargets": 1,
+          "unnamedControls": 0,
+          "lowContrastText": 1
+        },
+        "headings": [
+          {
+            "level": "h1",
+            "text": "Clientes"
+          },
+          {
+            "level": "h2",
+            "text": "5 de 5 clientes"
+          }
+        ],
+        "offscreen": [],
+        "clippedText": [],
+        "smallTargets": [
+          {
+            "selector": "button.mobile-topbar-icon-button",
+            "text": "Abrir menu",
+            "rect": {
+              "x": 14,
+              "y": 8,
+              "width": 41,
+              "height": 41
+            }
+          }
+        ],
+        "unnamedControls": [],
+        "lowContrastText": [
+          {
+            "selector": "p.text-sm.font-medium.text-accent",
+            "text": "Base ativa",
+            "rect": {
+              "x": 35,
+              "y": 208,
+              "width": 321,
+              "height": 20
+            },
+            "ratio": 2.11,
+            "color": "rgb(19, 199, 189)",
+            "background": "rgba(0, 0, 0, 0)"
+          }
+        ]
+      }
+    },
+    {
+      "viewport": "mobile",
+      "name": "clientes-formulario",
+      "screenshot": "mobile-clientes-formulario.png",
+      "metrics": {
+        "url": "https://app.emprely.com.br/",
+        "title": "Emprely Orçamentos",
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document": {
+          "width": 390,
+          "height": 901
+        },
+        "horizontalOverflow": 0,
+        "counts": {
+          "visibleElements": 81,
+          "interactive": 13,
+          "offscreen": 0,
+          "clippedText": 0,
+          "smallTargets": 1,
+          "unnamedControls": 2,
+          "lowContrastText": 0
+        },
+        "headings": [
+          {
+            "level": "h1",
+            "text": "Clientes"
+          },
+          {
+            "level": "h2",
+            "text": "Novo cliente"
+          }
+        ],
+        "offscreen": [],
+        "clippedText": [],
+        "smallTargets": [
+          {
+            "selector": "button.mobile-topbar-icon-button",
+            "text": "Abrir menu",
+            "rect": {
+              "x": 14,
+              "y": 8,
+              "width": 41,
+              "height": 41
+            }
+          }
+        ],
+        "unnamedControls": [
+          {
+            "selector": "input#_r_5_.mt-1.h-11.w-full",
+            "rect": {
+              "x": 35,
+              "y": 313,
+              "width": 321,
+              "height": 48
+            }
+          },
+          {
+            "selector": "textarea#_r_7_.mt-1.w-full.rounded-md",
+            "rect": {
+              "x": 35,
+              "y": 605,
+              "width": 321,
+              "height": 113
+            }
+          }
+        ],
+        "lowContrastText": []
+      }
+    },
+    {
+      "viewport": "mobile",
+      "name": "servicos-lista",
+      "screenshot": "mobile-servicos-lista.png",
+      "metrics": {
+        "url": "https://app.emprely.com.br/",
+        "title": "Emprely Orçamentos",
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document": {
+          "width": 390,
+          "height": 1069
+        },
+        "horizontalOverflow": 0,
+        "counts": {
+          "visibleElements": 82,
+          "interactive": 14,
+          "offscreen": 0,
+          "clippedText": 0,
+          "smallTargets": 1,
+          "unnamedControls": 4,
+          "lowContrastText": 0
+        },
+        "headings": [
+          {
+            "level": "h1",
+            "text": "Meus serviços e pacotes"
+          },
+          {
+            "level": "h2",
+            "text": "Novo serviço"
+          }
+        ],
+        "offscreen": [],
+        "clippedText": [],
+        "smallTargets": [
+          {
+            "selector": "button.mobile-topbar-icon-button",
+            "text": "Abrir menu",
+            "rect": {
+              "x": 14,
+              "y": 8,
+              "width": 41,
+              "height": 41
+            }
+          }
+        ],
+        "unnamedControls": [
+          {
+            "selector": "input#_r_8_.mt-1.h-11.w-full",
+            "rect": {
+              "x": 35,
+              "y": 347,
+              "width": 321,
+              "height": 48
+            }
+          },
+          {
+            "selector": "input#_r_9_.mt-1.h-11.w-full",
+            "rect": {
+              "x": 35,
+              "y": 432,
+              "width": 321,
+              "height": 48
+            }
+          },
+          {
+            "selector": "input#_r_a_.mt-1.h-11.w-full",
+            "rect": {
+              "x": 35,
+              "y": 518,
+              "width": 321,
+              "height": 48
+            }
+          },
+          {
+            "selector": "textarea#_r_d_.mt-1.w-full.rounded-md",
+            "rect": {
+              "x": 35,
+              "y": 773,
+              "width": 321,
+              "height": 113
+            }
+          }
+        ],
+        "lowContrastText": []
+      }
+    },
+    {
+      "viewport": "mobile",
+      "name": "propostas-lista",
+      "screenshot": "mobile-propostas-lista.png",
+      "metrics": {
+        "url": "https://app.emprely.com.br/",
+        "title": "Emprely Orçamentos",
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document": {
+          "width": 390,
+          "height": 1607
+        },
+        "horizontalOverflow": 0,
+        "counts": {
+          "visibleElements": 114,
+          "interactive": 19,
+          "offscreen": 0,
+          "clippedText": 0,
+          "smallTargets": 1,
+          "unnamedControls": 0,
+          "lowContrastText": 1
+        },
+        "headings": [
+          {
+            "level": "h1",
+            "text": "Propostas"
+          },
+          {
+            "level": "h2",
+            "text": "2 de 2 propostas"
+          }
+        ],
+        "offscreen": [],
+        "clippedText": [],
+        "smallTargets": [
+          {
+            "selector": "button.mobile-topbar-icon-button",
+            "text": "Abrir menu",
+            "rect": {
+              "x": 14,
+              "y": 8,
+              "width": 41,
+              "height": 41
+            }
+          }
+        ],
+        "unnamedControls": [],
+        "lowContrastText": [
+          {
+            "selector": "p.text-sm.font-medium.text-accent",
+            "text": "Histórico ativo",
+            "rect": {
+              "x": 35,
+              "y": 208,
+              "width": 321,
+              "height": 20
+            },
+            "ratio": 2.11,
+            "color": "rgb(19, 199, 189)",
+            "background": "rgba(0, 0, 0, 0)"
+          }
+        ]
+      }
+    }
+  ],
+  "errors": [
+    {
+      "viewport": "tablet",
+      "page": "servicos-formulario",
+      "error": "locator.click: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: /^Novo servi/i }).first()\u001b[22m\n\n    at D:\\Emprely\\Projetos\\Emprely\\scripts\\run-layout-usability-audit.mjs:418:70\n    at async safeAudit (D:\\Emprely\\Projetos\\Emprely\\scripts\\run-layout-usability-audit.mjs:376:5)\n    at async runUserAuditForViewport (D:\\Emprely\\Projetos\\Emprely\\scripts\\run-layout-usability-audit.mjs:416:3)\n    at async file:///D:/Emprely/Projetos/Emprely/scripts/run-layout-usability-audit.mjs:455:5"
+    },
+    {
+      "viewport": "tablet",
+      "page": "proposta-assistente-inicio",
+      "error": "locator.click: Error: strict mode violation: getByRole('button', { name: 'Abrir menu' }) resolved to 3 elements:\n    1) <button type=\"button\" aria-expanded=\"false\" aria-label=\"Abrir menu\" class=\"mobile-topbar-icon-button\" aria-controls=\"mobile-navigation-drawer\">…</button> aka getByRole('button', { name: 'Abrir menu', exact: true })\n    2) <button type=\"button\" title=\"Mais ações\" aria-haspopup=\"menu\" aria-expanded=\"false\" data-tooltip=\"Mais ações\" aria-label=\"Abrir menu de ações\" class=\"table-action-icon tooltip-icon-button\" data-testid=\"proposal-actions-019ee54a-b0ad-77d9-b76c-28ccd17b4680-menu\">…</button> aka getByTestId('proposal-actions-019ee54a-b0ad-77d9-b76c-28ccd17b4680-menu')\n    3) <button type=\"button\" title=\"Mais ações\" aria-haspopup=\"menu\" aria-expanded=\"false\" data-tooltip=\"Mais ações\" aria-label=\"Abrir menu de ações\" class=\"table-action-icon tooltip-icon-button\" data-testid=\"proposal-actions-019ee352-9084-7d23-93b3-1a6e9f0fa462-menu\">…</button> aka getByTestId('proposal-actions-019ee352-9084-7d23-93b3-1a6e9f0fa462-menu')\n\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Abrir menu' })\u001b[22m\n\n    at nav (D:\\Emprely\\Projetos\\Emprely\\scripts\\run-layout-usability-audit.mjs:128:60)\n    at async file:///D:/Emprely/Projetos/Emprely/scripts/run-layout-usability-audit.mjs:424:5\n    at async safeAudit (D:\\Emprely\\Projetos\\Emprely\\scripts\\run-layout-usability-audit.mjs:376:5)\n    at async runUserAuditForViewport (D:\\Emprely\\Projetos\\Emprely\\scripts\\run-layout-usability-audit.mjs:423:3)\n    at async file:///D:/Emprely/Projetos/Emprely/scripts/run-layout-usability-audit.mjs:455:5"
+    },
+    {
+      "viewport": "tablet",
+      "page": "suporte",
+      "error": "locator.click: Error: strict mode violation: getByRole('button', { name: 'Abrir menu' }) resolved to 3 elements:\n    1) <button type=\"button\" aria-expanded=\"false\" aria-label=\"Abrir menu\" class=\"mobile-topbar-icon-button\" aria-controls=\"mobile-navigation-drawer\">…</button> aka getByRole('button', { name: 'Abrir menu', exact: true })\n    2) <button type=\"button\" title=\"Mais ações\" aria-haspopup=\"menu\" aria-expanded=\"false\" data-tooltip=\"Mais ações\" aria-label=\"Abrir menu de ações\" class=\"table-action-icon tooltip-icon-button\" data-testid=\"proposal-actions-019ee54a-b0ad-77d9-b76c-28ccd17b4680-menu\">…</button> aka getByTestId('proposal-actions-019ee54a-b0ad-77d9-b76c-28ccd17b4680-menu')\n    3) <button type=\"button\" title=\"Mais ações\" aria-haspopup=\"menu\" aria-expanded=\"false\" data-tooltip=\"Mais ações\" aria-label=\"Abrir menu de ações\" class=\"table-action-icon tooltip-icon-button\" data-testid=\"proposal-actions-019ee352-9084-7d23-93b3-1a6e9f0fa462-menu\">…</button> aka getByTestId('proposal-actions-019ee352-9084-7d23-93b3-1a6e9f0fa462-menu')\n\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Abrir menu' })\u001b[22m\n\n    at nav (D:\\Emprely\\Projetos\\Emprely\\scripts\\run-layout-usability-audit.mjs:128:60)\n    at async file:///D:/Emprely/Projetos/Emprely/scripts/run-layout-usability-audit.mjs:428:5\n    at async safeAudit (D:\\Emprely\\Projetos\\Emprely\\scripts\\run-layout-usability-audit.mjs:376:5)\n    at async runUserAuditForViewport (D:\\Emprely\\Projetos\\Emprely\\scripts\\run-layout-usability-audit.mjs:427:3)\n    at async file:///D:/Emprely/Projetos/Emprely/scripts/run-layout-usability-audit.mjs:455:5"
+    },
+    {
+      "viewport": "tablet",
+      "page": "personalizacao",
+      "error": "locator.click: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.sidebar-account-button')\u001b[22m\n\u001b[2m    - locator resolved to <button type=\"button\" aria-haspopup=\"menu\" aria-expanded=\"false\" data-tooltip=\"Conta Teste Codex\" class=\"sidebar-account-button tooltip-icon-button flex w-full items-center gap-3 rounded-md p-2 text-left\">…</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is not visible\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is not visible\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    19 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is not visible\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n\n    at openAccountMenu (D:\\Emprely\\Projetos\\Emprely\\scripts\\run-layout-usability-audit.mjs:150:49)\n    at async file:///D:/Emprely/Projetos/Emprely/scripts/run-layout-usability-audit.mjs:431:5\n    at async safeAudit (D:\\Emprely\\Projetos\\Emprely\\scripts\\run-layout-usability-audit.mjs:376:5)\n    at async runUserAuditForViewport (D:\\Emprely\\Projetos\\Emprely\\scripts\\run-layout-usability-audit.mjs:430:3)\n    at async file:///D:/Emprely/Projetos/Emprely/scripts/run-layout-usability-audit.mjs:455:5"
+    },
+    {
+      "viewport": "tablet",
+      "page": "configuracoes-conta",
+      "error": "locator.click: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.sidebar-account-button')\u001b[22m\n\u001b[2m    - locator resolved to <button type=\"button\" aria-haspopup=\"menu\" aria-expanded=\"false\" data-tooltip=\"Conta Teste Codex\" class=\"sidebar-account-button tooltip-icon-button flex w-full items-center gap-3 rounded-md p-2 text-left\">…</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is not visible\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is not visible\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    19 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is not visible\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n\n    at openAccountMenu (D:\\Emprely\\Projetos\\Emprely\\scripts\\run-layout-usability-audit.mjs:150:49)\n    at async file:///D:/Emprely/Projetos/Emprely/scripts/run-layout-usability-audit.mjs:434:5\n    at async safeAudit (D:\\Emprely\\Projetos\\Emprely\\scripts\\run-layout-usability-audit.mjs:376:5)\n    at async runUserAuditForViewport (D:\\Emprely\\Projetos\\Emprely\\scripts\\run-layout-usability-audit.mjs:433:3)\n    at async file:///D:/Emprely/Projetos/Emprely/scripts/run-layout-usability-audit.mjs:455:5"
+    },
+    {
+      "viewport": "mobile",
+      "page": "servicos-formulario",
+      "error": "locator.click: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: /^Novo servi/i }).first()\u001b[22m\n\n    at D:\\Emprely\\Projetos\\Emprely\\scripts\\run-layout-usability-audit.mjs:418:70\n    at async safeAudit (D:\\Emprely\\Projetos\\Emprely\\scripts\\run-layout-usability-audit.mjs:376:5)\n    at async runUserAuditForViewport (D:\\Emprely\\Projetos\\Emprely\\scripts\\run-layout-usability-audit.mjs:416:3)\n    at async file:///D:/Emprely/Projetos/Emprely/scripts/run-layout-usability-audit.mjs:455:5"
+    },
+    {
+      "viewport": "mobile",
+      "page": "proposta-assistente-inicio",
+      "error": "locator.click: Error: strict mode violation: getByRole('button', { name: 'Abrir menu' }) resolved to 3 elements:\n    1) <button type=\"button\" aria-expanded=\"false\" aria-label=\"Abrir menu\" class=\"mobile-topbar-icon-button\" aria-controls=\"mobile-navigation-drawer\">…</button> aka getByRole('button', { name: 'Abrir menu', exact: true })\n    2) <button type=\"button\" title=\"Mais ações\" aria-haspopup=\"menu\" aria-expanded=\"false\" data-tooltip=\"Mais ações\" aria-label=\"Abrir menu de ações\" class=\"table-action-icon tooltip-icon-button\" data-testid=\"proposal-actions-019ee54a-b0ad-77d9-b76c-28ccd17b4680-menu\">…</button> aka getByTestId('proposal-actions-019ee54a-b0ad-77d9-b76c-28ccd17b4680-menu')\n    3) <button type=\"button\" title=\"Mais ações\" aria-haspopup=\"menu\" aria-expanded=\"false\" data-tooltip=\"Mais ações\" aria-label=\"Abrir menu de ações\" class=\"table-action-icon tooltip-icon-button\" data-testid=\"proposal-actions-019ee352-9084-7d23-93b3-1a6e9f0fa462-menu\">…</button> aka getByTestId('proposal-actions-019ee352-9084-7d23-93b3-1a6e9f0fa462-menu')\n\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Abrir menu' })\u001b[22m\n\n    at nav (D:\\Emprely\\Projetos\\Emprely\\scripts\\run-layout-usability-audit.mjs:128:60)\n    at async file:///D:/Emprely/Projetos/Emprely/scripts/run-layout-usability-audit.mjs:424:5\n    at async safeAudit (D:\\Emprely\\Projetos\\Emprely\\scripts\\run-layout-usability-audit.mjs:376:5)\n    at async runUserAuditForViewport (D:\\Emprely\\Projetos\\Emprely\\scripts\\run-layout-usability-audit.mjs:423:3)\n    at async file:///D:/Emprely/Projetos/Emprely/scripts/run-layout-usability-audit.mjs:455:5"
+    },
+    {
+      "viewport": "mobile",
+      "page": "suporte",
+      "error": "locator.click: Error: strict mode violation: getByRole('button', { name: 'Abrir menu' }) resolved to 3 elements:\n    1) <button type=\"button\" aria-expanded=\"false\" aria-label=\"Abrir menu\" class=\"mobile-topbar-icon-button\" aria-controls=\"mobile-navigation-drawer\">…</button> aka getByRole('button', { name: 'Abrir menu', exact: true })\n    2) <button type=\"button\" title=\"Mais ações\" aria-haspopup=\"menu\" aria-expanded=\"false\" data-tooltip=\"Mais ações\" aria-label=\"Abrir menu de ações\" class=\"table-action-icon tooltip-icon-button\" data-testid=\"proposal-actions-019ee54a-b0ad-77d9-b76c-28ccd17b4680-menu\">…</button> aka getByTestId('proposal-actions-019ee54a-b0ad-77d9-b76c-28ccd17b4680-menu')\n    3) <button type=\"button\" title=\"Mais ações\" aria-haspopup=\"menu\" aria-expanded=\"false\" data-tooltip=\"Mais ações\" aria-label=\"Abrir menu de ações\" class=\"table-action-icon tooltip-icon-button\" data-testid=\"proposal-actions-019ee352-9084-7d23-93b3-1a6e9f0fa462-menu\">…</button> aka getByTestId('proposal-actions-019ee352-9084-7d23-93b3-1a6e9f0fa462-menu')\n\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Abrir menu' })\u001b[22m\n\n    at nav (D:\\Emprely\\Projetos\\Emprely\\scripts\\run-layout-usability-audit.mjs:128:60)\n    at async file:///D:/Emprely/Projetos/Emprely/scripts/run-layout-usability-audit.mjs:428:5\n    at async safeAudit (D:\\Emprely\\Projetos\\Emprely\\scripts\\run-layout-usability-audit.mjs:376:5)\n    at async runUserAuditForViewport (D:\\Emprely\\Projetos\\Emprely\\scripts\\run-layout-usability-audit.mjs:427:3)\n    at async file:///D:/Emprely/Projetos/Emprely/scripts/run-layout-usability-audit.mjs:455:5"
+    },
+    {
+      "viewport": "mobile",
+      "page": "personalizacao",
+      "error": "locator.click: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.sidebar-account-button')\u001b[22m\n\u001b[2m    - locator resolved to <button type=\"button\" aria-haspopup=\"menu\" aria-expanded=\"false\" data-tooltip=\"Conta Teste Codex\" class=\"sidebar-account-button tooltip-icon-button flex w-full items-center gap-3 rounded-md p-2 text-left\">…</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is not visible\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is not visible\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    19 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is not visible\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n\n    at openAccountMenu (D:\\Emprely\\Projetos\\Emprely\\scripts\\run-layout-usability-audit.mjs:150:49)\n    at async file:///D:/Emprely/Projetos/Emprely/scripts/run-layout-usability-audit.mjs:431:5\n    at async safeAudit (D:\\Emprely\\Projetos\\Emprely\\scripts\\run-layout-usability-audit.mjs:376:5)\n    at async runUserAuditForViewport (D:\\Emprely\\Projetos\\Emprely\\scripts\\run-layout-usability-audit.mjs:430:3)\n    at async file:///D:/Emprely/Projetos/Emprely/scripts/run-layout-usability-audit.mjs:455:5"
+    },
+    {
+      "viewport": "mobile",
+      "page": "configuracoes-conta",
+      "error": "locator.click: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.sidebar-account-button')\u001b[22m\n\u001b[2m    - locator resolved to <button type=\"button\" aria-haspopup=\"menu\" aria-expanded=\"false\" data-tooltip=\"Conta Teste Codex\" class=\"sidebar-account-button tooltip-icon-button flex w-full items-center gap-3 rounded-md p-2 text-left\">…</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is not visible\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is not visible\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    19 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is not visible\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n\n    at openAccountMenu (D:\\Emprely\\Projetos\\Emprely\\scripts\\run-layout-usability-audit.mjs:150:49)\n    at async file:///D:/Emprely/Projetos/Emprely/scripts/run-layout-usability-audit.mjs:434:5\n    at async safeAudit (D:\\Emprely\\Projetos\\Emprely\\scripts\\run-layout-usability-audit.mjs:376:5)\n    at async runUserAuditForViewport (D:\\Emprely\\Projetos\\Emprely\\scripts\\run-layout-usability-audit.mjs:433:3)\n    at async file:///D:/Emprely/Projetos/Emprely/scripts/run-layout-usability-audit.mjs:455:5"
+    },
+    {
+      "viewport": "desktop-admin",
+      "page": "admin-login-dashboard",
+      "error": "locator.fill: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByLabel('Senha admin')\u001b[22m\n\n    at loginAdmin (D:\\Emprely\\Projetos\\Emprely\\scripts\\run-layout-usability-audit.mjs:101:42)\n    at async file:///D:/Emprely/Projetos/Emprely/scripts/run-layout-usability-audit.mjs:446:5\n    at async safeAudit (D:\\Emprely\\Projetos\\Emprely\\scripts\\run-layout-usability-audit.mjs:376:5)\n    at async runAdminAudit (D:\\Emprely\\Projetos\\Emprely\\scripts\\run-layout-usability-audit.mjs:445:3)\n    at async file:///D:/Emprely/Projetos/Emprely/scripts/run-layout-usability-audit.mjs:457:3"
+    }
+  ]
+}

@@ -146,7 +146,7 @@ test("fluxo principal do MVP no web", async ({ page }) => {
   await expect(page.locator(".sidebar-account-button")).toBeVisible();
   await expect(page.getByText("Primeiros passos")).toBeVisible();
   await expect(
-    page.getByText("Crie orçamentos profissionais em minutos"),
+    page.getByText("Crie sua primeira proposta profissional em minutos"),
   ).toBeVisible();
 
   await page.getByRole("button", { name: "Clientes", exact: true }).click();
@@ -183,11 +183,12 @@ test("fluxo principal do MVP no web", async ({ page }) => {
   await page.getByRole("button", { name: /Cliente já cadastrado/ }).click();
   await page.getByRole("button", { name: /Cliente E2E/ }).click();
   await page.getByLabel("Título").fill("Proposta MVP E2E");
-  await page.getByRole("button", { name: "Próximo" }).click();
+  await page.getByRole("button", { name: /^Pr.*ximo$/ }).click();
   await page.getByLabel("Selecionar do catálogo").selectOption("servico-1");
   await page.getByRole("button", { name: "Adicionar" }).click();
-  await page.getByRole("button", { name: "Próximo" }).click();
-  await page.getByRole("button", { name: "Próximo" }).click();
+  await page.getByRole("button", { name: /^Pr.*ximo$/ }).click();
+  await page.getByRole("button", { name: /^Pr.*ximo$/ }).click();
+  await page.getByRole("button", { name: /^Pr.*ximo$/ }).click();
   await page.getByRole("button", { name: "Salvar rascunho" }).click();
   await expect(page.getByRole("heading", { name: "Editar proposta" })).toBeVisible();
   await expect(
@@ -201,6 +202,22 @@ test("fluxo principal do MVP no web", async ({ page }) => {
   await expect(
     page.getByRole("button", { name: /WhatsApp/ }).first(),
   ).toBeVisible();
+  await expect(page.getByTestId("proposal-view-modal-dialog")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("proposal-view-modal-dialog")).toBeHidden();
+
+  await page.getByTestId("proposal-actions-proposta-1-menu").click();
+  await page.getByTestId("proposal-action-view-proposta-1").click();
+  await expect(page.getByTestId("proposal-view-modal-dialog")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("proposal-view-modal-dialog")).toBeHidden();
+
+  await page.getByTestId("proposal-actions-proposta-1-menu").click();
+  await page.getByTestId("proposal-action-duplicate-proposta-1").click();
+  await expect(page.getByTestId("system-confirm-dialog")).toBeVisible();
+  await page.getByTestId("system-confirm-confirm").click();
+  await expect(page.getByText("Proposta duplicada como rascunho.")).toBeVisible();
+  await expect(page.getByText("Proposta MVP E2E (cópia)")).toBeVisible();
 });
 
 test("exibe configuracoes do perfil sem plano e seguranca", async ({ page }) => {
@@ -518,6 +535,36 @@ async function configurarApiMockada(page: Page) {
         200,
         propostas.find((proposta) => proposta.id === propostaId),
       );
+      return;
+    }
+
+    const duplicateMatch = path.match(/^\/api\/proposals\/([^/]+)\/duplicate$/);
+    if (method === "POST" && duplicateMatch) {
+      const propostaId = duplicateMatch[1];
+      const propostaOriginal = propostas.find((proposta) => proposta.id === propostaId);
+
+      if (!propostaOriginal) {
+        await fulfillJson(route, 404, { message: "Proposta nao encontrada." });
+        return;
+      }
+
+      const propostaDuplicada: PropostaMock = {
+        ...propostaOriginal,
+        id: `proposta-${propostas.length + 1}`,
+        numero: proximoNumeroProposta,
+        titulo: `${propostaOriginal.titulo} (cópia)`,
+        status: "Rascunho",
+        createdAt: agora,
+        updatedAt: null,
+        itens: propostaOriginal.itens.map((item, index) => ({
+          ...item,
+          id: `item-duplicado-${index + 1}`,
+        })),
+      };
+
+      proximoNumeroProposta++;
+      propostas = [propostaDuplicada, ...propostas];
+      await fulfillJson(route, 201, propostaDuplicada);
       return;
     }
 

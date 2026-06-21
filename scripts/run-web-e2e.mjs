@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 const repoRoot = fileURLToPath(new URL("..", import.meta.url));
 let finalizado = false;
 let passou = false;
+let falhou = false;
 let outputBuffer = "";
 let totalTestesEsperados = null;
 let ultimoTesteOk = 0;
@@ -16,10 +17,18 @@ const child = spawn(comando.command, comando.args, {
   shell: comando.shell,
 });
 
-function handleOutput(chunk) {
+function handleOutput(chunk, stream = process.stdout) {
   const texto = chunk.toString();
-  process.stdout.write(texto);
+  stream.write(texto);
   outputBuffer = `${outputBuffer}${texto}`.slice(-4000);
+
+  if (
+    /^\s*x\s+\d+\s+\[/gim.test(outputBuffer) ||
+    /\b\d+\s+failed\b/i.test(outputBuffer) ||
+    /\bfailed\b/i.test(outputBuffer)
+  ) {
+    falhou = true;
+  }
 
   const totalMatch = outputBuffer.match(/Running\s+(\d+)\s+tests?\s+using/i);
   if (totalMatch) {
@@ -31,20 +40,20 @@ function handleOutput(chunk) {
     ultimoTesteOk = Math.max(ultimoTesteOk, Number.parseInt(match[1], 10));
   }
 
-  if (/\b\d+\s+passed\b/.test(outputBuffer)) {
+  if (!falhou && /\b\d+\s+passed\b/.test(outputBuffer)) {
     passou = true;
     setTimeout(() => finalizar(0), 500);
     return;
   }
 
-  if (totalTestesEsperados && ultimoTesteOk >= totalTestesEsperados) {
+  if (!falhou && totalTestesEsperados && ultimoTesteOk >= totalTestesEsperados) {
     passou = true;
     setTimeout(() => finalizar(0), 500);
   }
 }
 
 child.stdout.on("data", handleOutput);
-child.stderr.on("data", (chunk) => process.stderr.write(chunk));
+child.stderr.on("data", (chunk) => handleOutput(chunk, process.stderr));
 
 child.on("exit", (code, signal) => {
   if (signal) {
@@ -53,7 +62,7 @@ child.on("exit", (code, signal) => {
     return;
   }
 
-  finalizar(passou ? 0 : code ?? 1);
+  finalizar(passou && !falhou ? 0 : code ?? 1);
 });
 
 child.on("error", (error) => {
