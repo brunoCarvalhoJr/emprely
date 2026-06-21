@@ -6860,20 +6860,6 @@ export default function App() {
                           perfilMutation.mutate(input),
                         )}
                       >
-                        <input type="hidden" {...perfilForm.register("corPrimaria")} />
-                        <input type="hidden" {...perfilForm.register("corSecundaria")} />
-                        <input
-                          type="hidden"
-                          {...perfilForm.register("corSistemaPrimaria")}
-                        />
-                        <input
-                          type="hidden"
-                          {...perfilForm.register("corSistemaSecundaria")}
-                        />
-                        <input
-                          type="hidden"
-                          {...perfilForm.register("templateVisualPadrao")}
-                        />
                         <div
                           className="account-settings-section account-identity-section"
                           data-tour="configurar-dados-conta"
@@ -6931,6 +6917,12 @@ export default function App() {
                               type="email"
                               readOnly
                               helperText="Este e-mail não pode ser editado aqui."
+                              value={usuario.email}
+                            />
+                            <CampoTexto
+                              label="E-mail de contato"
+                              type="email"
+                              helperText="Aparece nos documentos e mensagens enviados aos clientes."
                               error={perfilForm.formState.errors.emailContato?.message}
                               {...perfilForm.register("emailContato")}
                             />
@@ -7137,21 +7129,6 @@ export default function App() {
                         perfilMutation.mutate(input),
                       )}
                     >
-                      <input type="hidden" {...perfilForm.register("nomeComercial")} />
-                      <input type="hidden" {...perfilForm.register("segmento")} />
-                      <input type="hidden" {...perfilForm.register("cidadeUf")} />
-                      <input type="hidden" {...perfilForm.register("emailContato")} />
-                      <input
-                        type="hidden"
-                        {...perfilForm.register(
-                          "telefoneContato",
-                          telefoneInputRegisterOptions,
-                        )}
-                      />
-                      <input type="hidden" {...perfilForm.register("siteUrl")} />
-                      <input type="hidden" {...perfilForm.register("instagram")} />
-                      <input type="hidden" {...perfilForm.register("documento")} />
-                      <input type="hidden" {...perfilForm.register("logoUrl")} />
                       <input
                         type="hidden"
                         {...perfilForm.register("corSistemaPrimaria")}

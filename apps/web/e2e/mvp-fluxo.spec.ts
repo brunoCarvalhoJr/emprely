@@ -249,6 +249,7 @@ test("exibe perfil da conta unificado sem plano e seguranca", async ({ page }) =
   await expect(page.getByLabel("Responsável")).toHaveValue("Bruno Carvalho");
   await expect(page.getByLabel("E-mail de acesso")).toHaveValue("bruno@emprely.dev");
   await expect(page.getByLabel("E-mail de acesso")).toHaveAttribute("readonly", "");
+  await expect(page.getByLabel("E-mail de contato")).toHaveValue("bruno@emprely.dev");
   await expect(page.getByLabel("Telefone").first()).toHaveValue("(11) 99999-9999");
   await expect(page.getByText("Logomarca do negócio")).toBeVisible();
   await expect(
@@ -275,6 +276,22 @@ test("exibe perfil da conta unificado no drawer mobile", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Perfil da conta" })).toBeVisible();
   await expect(page.getByText("Passo Perfil da conta")).toBeVisible();
   await expect(page.getByText("Template, cores e formatos de envio")).toBeVisible();
+  await expect(page.getByLabel("E-mail de acesso")).toHaveAttribute("readonly", "");
+
+  await page.getByLabel("Nome comercial").fill("Conta Mobile Codex");
+  await page.getByLabel("Segmento").fill("Consultoria mobile");
+  await page.getByLabel("Cidade/UF").fill("Itajubá/MG");
+  await page.getByLabel("E-mail de contato").fill("mobile.codex@emprely.dev");
+  await page.getByRole("textbox", { name: "Telefone" }).fill("(35) 99738-9755");
+  await page.getByLabel("Site").fill("https://emprely.com.br");
+  await page.getByLabel("Instagram").fill("@emprely");
+
+  await expect(page.getByLabel("Nome comercial")).toHaveValue("Conta Mobile Codex");
+  await expect(page.getByLabel("E-mail de contato")).toHaveValue(
+    "mobile.codex@emprely.dev",
+  );
+  await page.getByRole("button", { name: "Salvar perfil", exact: true }).click();
+  await expect(page.getByText("Perfil salvo.")).toBeVisible();
 
   const possuiOverflowHorizontal = await page.evaluate(() => {
     const larguraDocumento = document.documentElement.scrollWidth;
@@ -435,6 +452,17 @@ async function configurarApiMockada(page: Page) {
     }
 
     if (method === "GET" && path === "/api/account/profile") {
+      await fulfillJson(route, 200, perfil);
+      return;
+    }
+
+    if (method === "PUT" && path === "/api/account/profile") {
+      const input = request.postDataJSON() as Partial<typeof perfil>;
+      perfil = {
+        ...perfil,
+        ...input,
+        updatedAt: agora,
+      };
       await fulfillJson(route, 200, perfil);
       return;
     }
