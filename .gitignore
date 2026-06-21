@@ -4,6 +4,9 @@ Thumbs.db
 .idea/
 .vscode/
 .vs/
+.codex/
+.codex-remote-attachments/
+debug.log
 
 # Environment
 .env
@@ -32,8 +35,10 @@ TestResults/
 apps/api/src/Emprely.Api/wwwroot/uploads/
 
 # Infra/local
+.artifacts/
 *.tfstate
 *.tfstate.*
 .terraform/
 docker-data/
 tmp/
+.tmp/

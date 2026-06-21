@@ -57,6 +57,11 @@ import type {
   PropostaResponse,
   UpdatePropostaInput,
 } from "@/types/proposal";
+import type {
+  CreateOnboardingEventoInput,
+  OnboardingResponse,
+  UpdateOnboardingInput,
+} from "@/types/onboarding";
 
 export const sessaoInvalidaEventName = "emprely:sessao-invalida";
 
@@ -238,6 +243,32 @@ export async function adminResendConfirmacaoEmail(
     },
     body: JSON.stringify(input),
   });
+}
+
+export async function getAdminEmailsHistoricoPainel(
+  token: string,
+): Promise<AdminEmailHistoricoResponse[]> {
+  return apiFetch<AdminEmailHistoricoResponse[]>(
+    "/api/admin/emails",
+    {
+      method: "GET",
+    },
+    { token },
+  );
+}
+
+export async function adminResendConfirmacaoEmailPainel(
+  input: AdminResendConfirmacaoEmailInput,
+  token: string,
+): Promise<void> {
+  return apiFetch<void>(
+    "/api/admin/emails/resend-confirmation",
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+    { token },
+  );
 }
 
 export async function adminLogin(
@@ -529,6 +560,44 @@ export async function getPerfilContaAtual(
     "/api/account/profile",
     {
       method: "GET",
+    },
+    { token },
+  );
+}
+
+export async function getOnboarding(token: string): Promise<OnboardingResponse> {
+  return apiFetch<OnboardingResponse>(
+    "/api/onboarding",
+    {
+      method: "GET",
+    },
+    { token },
+  );
+}
+
+export async function updateOnboarding(
+  input: UpdateOnboardingInput,
+  token: string,
+): Promise<OnboardingResponse> {
+  return apiFetch<OnboardingResponse>(
+    "/api/onboarding",
+    {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    },
+    { token },
+  );
+}
+
+export async function createOnboardingEvento(
+  input: CreateOnboardingEventoInput,
+  token: string,
+): Promise<OnboardingResponse> {
+  return apiFetch<OnboardingResponse>(
+    "/api/onboarding/events",
+    {
+      method: "POST",
+      body: JSON.stringify(input),
     },
     { token },
   );

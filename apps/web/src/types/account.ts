@@ -7,12 +7,15 @@ export type PerfilContaResponse = {
   siteUrl: string | null;
   instagram: string | null;
   documento: string | null;
+  segmento: string | null;
+  cidadeUf: string | null;
   corPrimaria: string;
   corSecundaria: string;
   corSistemaPrimaria: string;
   corSistemaSecundaria: string;
   logoUrl: string | null;
   templateVisualPadrao: string;
+  formatoArquivoPreferido: string;
   updatedAt: string | null;
 };
 
@@ -30,10 +33,13 @@ export type UpdatePerfilContaInput = {
   siteUrl: string | null;
   instagram: string | null;
   documento: string | null;
+  segmento: string | null;
+  cidadeUf: string | null;
   corPrimaria: string;
   corSecundaria: string;
   corSistemaPrimaria: string;
   corSistemaSecundaria: string;
   logoUrl: string | null;
   templateVisualPadrao: string;
+  formatoArquivoPreferido: string;
 };

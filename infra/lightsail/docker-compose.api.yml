@@ -1,0 +1,76 @@
+name: emprely-lightsail
+
+services:
+  api:
+    image: ${EMPRELY_API_IMAGE:-emprely-api:lightsail}
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Staging
+      ASPNETCORE_URLS: http://0.0.0.0:8080
+      AllowedHosts: ${ALLOWED_HOSTS:-api.emprely.com.br}
+      ConnectionStrings__EmprelyDb: ${EMPRELY_DB_CONNECTION_STRING:?defina EMPRELY_DB_CONNECTION_STRING}
+      Jwt__Issuer: ${Jwt__Issuer:-Emprely}
+      Jwt__Audience: ${Jwt__Audience:-Emprely.Web}
+      Jwt__SigningKey: ${Jwt__SigningKey:?defina Jwt__SigningKey}
+      Jwt__ExpirationMinutes: ${Jwt__ExpirationMinutes:-120}
+      Cors__OrigensPermitidas__0: ${Cors__OrigensPermitidas__0:-https://app.emprely.com.br}
+      Cors__OrigensPermitidas__1: ${Cors__OrigensPermitidas__1:-https://www.emprely.com.br}
+      Cors__OrigensPermitidas__2: ${Cors__OrigensPermitidas__2:-https://emprely.com.br}
+      App__PublicWebUrl: ${App__PublicWebUrl:-https://app.emprely.com.br}
+      AdminOperacoes__OperationsKey: ${AdminOperacoes__OperationsKey:?defina AdminOperacoes__OperationsKey}
+      AdminPainel__OwnerEmail: ${AdminPainel__OwnerEmail:?defina AdminPainel__OwnerEmail}
+      RateLimit__AuthPermitLimit: ${RateLimit__AuthPermitLimit:-30}
+      RateLimit__AdminPermitLimit: ${RateLimit__AdminPermitLimit:-10}
+      RateLimit__PublicSupportPermitLimit: ${RateLimit__PublicSupportPermitLimit:-10}
+      RateLimit__WindowSeconds: ${RateLimit__WindowSeconds:-60}
+      EmailTransacional__Provider: ${EmailTransacional__Provider:-SES}
+      EmailTransacional__FromEmail: ${EmailTransacional__FromEmail:-contato@emprely.com.br}
+      EmailTransacional__FromName: ${EmailTransacional__FromName:-Emprely}
+      EmailTransacional__SesRegion: ${EmailTransacional__SesRegion:-us-east-1}
+      EmailTransacional__SuporteDestinoEmail: ${EmailTransacional__SuporteDestinoEmail:-contato@emprely.com.br}
+      LogoPerfilStorage__Provider: ${LogoPerfilStorage__Provider:-S3}
+      LogoPerfilStorage__S3BucketName: ${LogoPerfilStorage__S3BucketName:?defina LogoPerfilStorage__S3BucketName}
+      LogoPerfilStorage__S3KeyPrefix: ${LogoPerfilStorage__S3KeyPrefix:-uploads/account-logos}
+      LogoPerfilStorage__S3PublicBaseUrl: ${LogoPerfilStorage__S3PublicBaseUrl:?defina LogoPerfilStorage__S3PublicBaseUrl}
+      LogoPerfilStorage__S3Region: ${LogoPerfilStorage__S3Region:-us-east-1}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health/live || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  caddy:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      EMPRELY_API_DOMAIN: ${EMPRELY_API_DOMAIN:-api.emprely.com.br}
+      CADDY_ACME_EMAIL: ${CADDY_ACME_EMAIL:-contato@emprely.com.br}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  caddy-data:
+  caddy-config:

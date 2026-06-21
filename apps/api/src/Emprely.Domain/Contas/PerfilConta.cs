@@ -9,6 +9,9 @@ public sealed class PerfilConta : EntidadeBase
     public const string CorSecundariaPadrao = "#13C7BD";
     public const string CorSistemaPrimariaPadrao = "#6E38FF";
     public const string CorSistemaSecundariaPadrao = "#13C7BD";
+    public const string FormatoArquivoPreferidoPadrao = "Pdf";
+    public const string FormatoArquivoPreferidoImagem = "Imagem";
+    public const string FormatoArquivoPreferidoPdfImagem = "PdfImagem";
 
     private PerfilConta()
     {
@@ -18,6 +21,7 @@ public sealed class PerfilConta : EntidadeBase
         CorSistemaPrimaria = CorSistemaPrimariaPadrao;
         CorSistemaSecundaria = CorSistemaSecundariaPadrao;
         TemplateVisualPadrao = TemplateVisualProposta.ComercialMinimalista;
+        FormatoArquivoPreferido = FormatoArquivoPreferidoPadrao;
     }
 
     private PerfilConta(
@@ -33,7 +37,10 @@ public sealed class PerfilConta : EntidadeBase
         string? logoUrl,
         TemplateVisualProposta templateVisualPadrao,
         string corSistemaPrimaria,
-        string corSistemaSecundaria)
+        string corSistemaSecundaria,
+        string formatoArquivoPreferido,
+        string? segmento,
+        string? cidadeUf)
     {
         ContaId = contaId;
         NomeComercial = nomeComercial;
@@ -42,12 +49,15 @@ public sealed class PerfilConta : EntidadeBase
         SiteUrl = siteUrl;
         Instagram = instagram;
         Documento = documento;
+        Segmento = segmento;
+        CidadeUf = cidadeUf;
         CorPrimaria = corPrimaria;
         CorSecundaria = corSecundaria;
         CorSistemaPrimaria = corSistemaPrimaria;
         CorSistemaSecundaria = corSistemaSecundaria;
         LogoUrl = logoUrl;
         TemplateVisualPadrao = templateVisualPadrao;
+        FormatoArquivoPreferido = formatoArquivoPreferido;
     }
 
     public Guid ContaId { get; private set; }
@@ -64,6 +74,10 @@ public sealed class PerfilConta : EntidadeBase
 
     public string? Documento { get; private set; }
 
+    public string? Segmento { get; private set; }
+
+    public string? CidadeUf { get; private set; }
+
     public string CorPrimaria { get; private set; }
 
     public string CorSecundaria { get; private set; }
@@ -75,6 +89,8 @@ public sealed class PerfilConta : EntidadeBase
     public string? LogoUrl { get; private set; }
 
     public TemplateVisualProposta TemplateVisualPadrao { get; private set; }
+
+    public string FormatoArquivoPreferido { get; private set; }
 
     public Conta? Conta { get; private set; }
 
@@ -91,7 +107,10 @@ public sealed class PerfilConta : EntidadeBase
         string? logoUrl,
         TemplateVisualProposta templateVisualPadrao = TemplateVisualProposta.ComercialMinimalista,
         string? corSistemaPrimaria = null,
-        string? corSistemaSecundaria = null)
+        string? corSistemaSecundaria = null,
+        string? formatoArquivoPreferido = null,
+        string? segmento = null,
+        string? cidadeUf = null)
     {
         var perfilConta = new PerfilConta();
         perfilConta.ContaId = contaId;
@@ -107,7 +126,10 @@ public sealed class PerfilConta : EntidadeBase
             logoUrl,
             templateVisualPadrao,
             corSistemaPrimaria,
-            corSistemaSecundaria);
+            corSistemaSecundaria,
+            formatoArquivoPreferido,
+            segmento,
+            cidadeUf);
 
         return perfilConta;
     }
@@ -124,7 +146,10 @@ public sealed class PerfilConta : EntidadeBase
         string? logoUrl,
         TemplateVisualProposta templateVisualPadrao = TemplateVisualProposta.ComercialMinimalista,
         string? corSistemaPrimaria = null,
-        string? corSistemaSecundaria = null)
+        string? corSistemaSecundaria = null,
+        string? formatoArquivoPreferido = null,
+        string? segmento = null,
+        string? cidadeUf = null)
     {
         NomeComercial = NormalizarObrigatorio(nomeComercial, nameof(nomeComercial));
         EmailContato = NormalizarOpcional(emailContato);
@@ -132,6 +157,8 @@ public sealed class PerfilConta : EntidadeBase
         SiteUrl = NormalizarOpcional(siteUrl);
         Instagram = NormalizarInstagram(instagram);
         Documento = NormalizarOpcional(documento);
+        Segmento = NormalizarOpcional(segmento);
+        CidadeUf = NormalizarOpcional(cidadeUf);
         CorPrimaria = NormalizarCor(corPrimaria, nameof(corPrimaria));
         CorSecundaria = NormalizarCor(corSecundaria, nameof(corSecundaria));
         CorSistemaPrimaria = NormalizarCor(
@@ -142,6 +169,7 @@ public sealed class PerfilConta : EntidadeBase
             nameof(corSistemaSecundaria));
         LogoUrl = NormalizarOpcional(logoUrl);
         TemplateVisualPadrao = templateVisualPadrao;
+        FormatoArquivoPreferido = NormalizarFormatoArquivoPreferido(formatoArquivoPreferido);
         UpdatedAt = DateTimeOffset.UtcNow;
     }
 
@@ -185,5 +213,27 @@ public sealed class PerfilConta : EntidadeBase
         }
 
         return cor;
+    }
+
+    private static string NormalizarFormatoArquivoPreferido(string? valor)
+    {
+        var formato = NormalizarOpcional(valor) ?? FormatoArquivoPreferidoPadrao;
+
+        if (formato.Equals(FormatoArquivoPreferidoPadrao, StringComparison.OrdinalIgnoreCase))
+        {
+            return FormatoArquivoPreferidoPadrao;
+        }
+
+        if (formato.Equals(FormatoArquivoPreferidoImagem, StringComparison.OrdinalIgnoreCase))
+        {
+            return FormatoArquivoPreferidoImagem;
+        }
+
+        if (formato.Equals(FormatoArquivoPreferidoPdfImagem, StringComparison.OrdinalIgnoreCase))
+        {
+            return FormatoArquivoPreferidoPdfImagem;
+        }
+
+        throw new ArgumentException("Formato de arquivo preferido invalido.", nameof(valor));
     }
 }

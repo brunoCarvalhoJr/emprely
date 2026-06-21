@@ -20,7 +20,7 @@ namespace Emprely.Api.Controllers;
 [ApiController]
 [EnableRateLimiting(RateLimitAplicacaoOptions.AdminPolicyName)]
 [Route("api/admin/emails")]
-public sealed class AdminEmailsController : ControllerBase
+public sealed class AdminEmailsController : AdminControllerBase
 {
     private readonly AdminOperacoesOptions adminOperacoesOptions;
     private readonly EmprelyDbContext dbContext;
@@ -46,10 +46,10 @@ public sealed class AdminEmailsController : ControllerBase
     public async Task<ActionResult<IReadOnlyList<AdminEmailHistoricoResponse>>> GetHistoricoEmails(
         CancellationToken cancellationToken)
     {
-        var validarAdminKeyResult = ValidarAdminKey();
-        if (validarAdminKeyResult is not null)
+        var validarAcessoResult = ValidarAcessoAdmin(out _);
+        if (validarAcessoResult is not null)
         {
-            return validarAdminKeyResult;
+            return validarAcessoResult;
         }
 
         var emails = await dbContext.EmailsTransacionais
@@ -75,10 +75,10 @@ public sealed class AdminEmailsController : ControllerBase
         AdminResendConfirmacaoEmailRequest request,
         CancellationToken cancellationToken)
     {
-        var validarAdminKeyResult = ValidarAdminKey();
-        if (validarAdminKeyResult is not null)
+        var validarAcessoResult = ValidarAcessoAdmin(out var adminAtual);
+        if (validarAcessoResult is not null)
         {
-            return validarAdminKeyResult;
+            return validarAcessoResult;
         }
 
         var email = request.Email.Trim().ToLowerInvariant();
@@ -103,7 +103,41 @@ public sealed class AdminEmailsController : ControllerBase
                 cancellationToken);
         }
 
+        if (adminAtual is not null)
+        {
+            await RegistrarAuditoriaAsync(
+                dbContext,
+                adminAtual,
+                "AdminReenviarConfirmacaoEmail",
+                "Usuario",
+                usuario?.Id,
+                "Reenvio de confirmacao solicitado pelo painel administrativo.",
+                $"Destinatario: {MascararEmail(email)}",
+                cancellationToken);
+        }
+
         return NoContent();
+    }
+
+    private ActionResult? ValidarAcessoAdmin(out AdminAtualContext? adminAtual)
+    {
+        adminAtual = null;
+
+        if (User.Identity?.IsAuthenticated == true)
+        {
+            try
+            {
+                adminAtual = GetAdminAtual();
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Unauthorized(new { message = "Sessao administrativa invalida." });
+            }
+
+            return ExigirSuperAdmin(adminAtual);
+        }
+
+        return ValidarAdminKey();
     }
 
     private ActionResult? ValidarAdminKey()

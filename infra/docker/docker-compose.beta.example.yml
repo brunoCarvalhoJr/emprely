@@ -33,6 +33,7 @@ services:
       Jwt__ExpirationMinutes: ${JWT_EXPIRATION_MINUTES:-120}
       Cors__OrigensPermitidas__0: ${WEB_PUBLIC_URL:?defina WEB_PUBLIC_URL}
       AdminOperacoes__OperationsKey: ${ADMIN_OPERACOES_KEY:?defina ADMIN_OPERACOES_KEY}
+      AdminPainel__OwnerEmail: ${ADMIN_PAINEL_OWNER_EMAIL:?defina ADMIN_PAINEL_OWNER_EMAIL}
       RateLimit__AuthPermitLimit: ${RATE_LIMIT_AUTH_PERMIT_LIMIT:-30}
       RateLimit__AdminPermitLimit: ${RATE_LIMIT_ADMIN_PERMIT_LIMIT:-10}
       RateLimit__WindowSeconds: ${RATE_LIMIT_WINDOW_SECONDS:-60}

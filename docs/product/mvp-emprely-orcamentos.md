@@ -28,11 +28,15 @@ Criar uma primeira versão funcional capaz de gerar propostas profissionais, pri
 - Histórico simples.
 - Busca simples em clientes, servicos e propostas.
 - Exportação PDF/imagem.
-- Trial com marca d'água.
+- Trial ativo com marca d'água discreta.
+- Trial expirado com marca d'água grande na visualização interna.
 - Plano Fundador sem marca d'água.
 - Trial tecnico inicial de 7 dias para contas novas.
 - Ativacao manual administrativa do Plano Fundador no MVP, antes de billing real.
 - Mensagem pronta para WhatsApp.
+- Regras de ciclo de vida de proposta aplicadas no frontend e na API.
+- Bloqueio de edicao direta para propostas enviadas, aceitas ou recusadas.
+- Duplicacao de propostas travadas para criar nova versao como rascunho.
 
 ## Fora do MVP
 
@@ -47,6 +51,16 @@ Criar uma primeira versão funcional capaz de gerar propostas profissionais, pri
 
 ## Regra central
 
-Grátis = ilimitado com marca d'água. Pago = ilimitado sem marca d'água.
+Trial ativo = ilimitado com marca d'água discreta. Plano ativo = ilimitado sem marca d'água.
 
-Trial expirado bloqueia gerar, imprimir/PDF, WhatsApp e marcar proposta como enviada, mas mantém leitura de histórico, edição e decisão de propostas já enviadas.
+Trial expirado bloqueia gerar, imprimir/PDF, exportar imagem, WhatsApp e marcar proposta como enviada. Mantem leitura de historico, visualizacao interna com marca d'água grande, criacao de clientes, servicos e rascunhos, alem de duplicacao de propostas.
+
+## Regras de proposta V1
+
+- `Rascunho`: editavel.
+- `Gerada`: editavel; ao salvar volta para `Rascunho` e precisa ser gerada novamente.
+- `Enviada`, `Aceita` e `Recusada`: nao sao editaveis diretamente; usuario deve duplicar para criar nova versao.
+- `Aceita` e `Recusada`: decisoes finais na V1.
+- `Arquivada`: sai da listagem principal e nao aceita novas acoes comerciais.
+- A API retorna `409 Conflict` para acoes bloqueadas por regra de status.
+- O CTA publico de upgrade deve usar “Ativar plano”; o nome interno `Fundador` pode permanecer no dominio/API nesta etapa.

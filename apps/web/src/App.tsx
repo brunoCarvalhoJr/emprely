@@ -19,7 +19,6 @@ import {
   Edit3,
   Eye,
   EyeOff,
-  ExternalLink,
   FileText,
   FolderOpen,
   Globe2,
@@ -79,6 +78,7 @@ import {
   type TextareaHTMLAttributes,
 } from "react";
 import { createPortal, flushSync } from "react-dom";
+import { Joyride, type EventData, type Step } from "react-joyride";
 import {
   Controller,
   useFieldArray,
@@ -95,7 +95,6 @@ import type {
 import {
   createCliente,
   createContatoPublico,
-  adminResendConfirmacaoEmail,
   changeEmailUsuario,
   confirmChangeEmailUsuario,
   confirmEmailUsuario,
@@ -104,8 +103,8 @@ import {
   deleteCliente,
   deleteServico,
   forgotSenhaUsuario,
-  getAdminEmailsHistorico,
   getClientesConta,
+  getOnboarding,
   getPerfilContaAtual,
   getServicosConta,
   getUsuarioAtual,
@@ -115,6 +114,7 @@ import {
   resetSenhaUsuario,
   resolveApiAssetUrl,
   updateCliente,
+  updateOnboarding,
   updatePerfilConta,
   createProposta,
   deleteProposta,
@@ -128,6 +128,7 @@ import {
   uploadLogoPerfilConta,
   updateProposta,
   updateServico,
+  createOnboardingEvento,
 } from "@/lib/api";
 import type {
   AuthUsuarioResponse,
@@ -140,10 +141,6 @@ import type {
   ResetSenhaUsuarioInput,
   UsuarioAtualResponse,
 } from "@/types/auth";
-import type {
-  AdminEmailHistoricoResponse,
-  AdminResendConfirmacaoEmailInput,
-} from "@/types/admin";
 import type {
   ContatoPublicoResponse,
   CreateContatoPublicoInput,
@@ -168,6 +165,7 @@ import type {
   PropostaTemplateVisual,
   UpdatePropostaInput,
 } from "@/types/proposal";
+import type { OnboardingResponse } from "@/types/onboarding";
 
 const propostaTemplateVisualValores = [
   "ComercialMinimalista",
@@ -184,6 +182,10 @@ const propostaTemplateVisualValores = [
 ] as const satisfies readonly PropostaTemplateVisual[];
 
 type PropostaTemplateVisualAtivo = (typeof propostaTemplateVisualValores)[number];
+const formatoArquivoPreferidoValores = ["Pdf", "Imagem", "PdfImagem"] as const;
+type FormatoArquivoPreferido = (typeof formatoArquivoPreferidoValores)[number];
+const formatoArquivoPreferidoDefault: FormatoArquivoPreferido = "Pdf";
+const onboardingTourScrollDelayMs = 140;
 const telefoneDigitosFixoNacionais = 10;
 const telefoneDigitosCelularNacionais = 11;
 const telefoneDigitosMaximosNacionais = telefoneDigitosCelularNacionais;
@@ -217,60 +219,116 @@ const propostaTemplateVisualOpcoes: Array<{
 }> = [
   {
     value: "ComercialMinimalista",
-    label: "Comercial minimalista",
-    detalhe: "Layout limpo com tabela e investimento em destaque.",
+    label: "Orçamento rápido WhatsApp",
+    detalhe: "Escopo, preço, prazo e próximos passos para responder no chat.",
   },
   {
     value: "OrcamentoSimplificado",
-    label: "Orçamento simplificado",
-    detalhe: "Resumo objetivo para aprovação rápida.",
+    label: "Mídia kit e rate card",
+    detalhe: "Bio, audiência, formatos vendidos, bundles e condições para creators.",
   },
   {
     value: "PropostaCompleta",
-    label: "Proposta completa",
-    detalhe: "Seções comerciais completas para proposta detalhada.",
+    label: "Proposta comercial completa",
+    detalhe: "Documento modular com escopo, entregas, investimento, termos e aceite.",
   },
   {
     value: "LunaSocialStudio",
-    label: "Luna social studio",
-    detalhe: "Hero escuro com acentos vibrantes para social media.",
+    label: "Social media mensal",
+    detalhe: "Pacotes recorrentes com posts, calendário, aprovação e relatório.",
   },
   {
     value: "DarkGrowth",
-    label: "Dark growth",
-    detalhe: "Cabeçalho escuro com visual mais comercial.",
+    label: "Tráfego pago e campanhas",
+    detalhe: "Setup, verba de mídia, campanhas, otimização e KPIs de resultado.",
   },
   {
     value: "InstagramPremium",
-    label: "Instagram premium",
-    detalhe: "Template denso para social media e conteúdo.",
+    label: "Reels, vídeos curtos e UGC",
+    detalhe: "Peças de vídeo, captação, edição, legenda, direitos de uso e exclusividade.",
   },
   {
     value: "Claymorphism",
     label: "Claymorphism",
-    detalhe: "Visual moderno com cards clay, volume suave e cores sólidas.",
+    detalhe: "Template legado fora da curadoria atual.",
   },
   {
     value: "Emprely",
     label: "Emprely",
-    detalhe: "Layout alinhado à identidade visual do sistema Emprely.",
+    detalhe: "Template legado fora da curadoria atual.",
   },
   {
     value: "ExecutivoEditorial",
-    label: "Executivo editorial",
-    detalhe: "Documento sóbrio, editorial e imponente para propostas premium.",
+    label: "Consultoria e diagnóstico",
+    detalhe: "Situação atual, problema, sessões, plano de ação e credenciais.",
     coresEstaticas: true,
   },
   {
     value: "CorporativoBoard",
-    label: "Corporativo board",
-    detalhe: "Composição executiva com bloco escuro, métricas e leitura direta.",
+    label: "Agência growth board",
+    detalhe: "Frentes de marketing, roadmap, KPIs e recorrência para agência enxuta.",
     coresEstaticas: true,
   },
   {
     value: "InstitucionalClean",
-    label: "Institucional clean",
-    detalhe: "Layout discreto, técnico e muito limpo para contextos gerais.",
+    label: "Design e identidade visual",
+    detalhe: "Entregáveis, conceitos, revisões, arquivos finais, mockups e direitos.",
+    coresEstaticas: true,
+  },
+];
+
+const propostaTemplateVisualOpcoesGaleria: Array<{
+  value: PropostaTemplateVisualAtivo;
+  label: string;
+  detalhe: string;
+  coresEstaticas?: boolean;
+}> = [
+  {
+    value: "ComercialMinimalista",
+    label: "Orçamento rápido WhatsApp",
+    detalhe: "Preço, escopo, prazo e CTA para responder sem perder o timing.",
+  },
+  {
+    value: "OrcamentoSimplificado",
+    label: "Mídia kit e rate card",
+    detalhe: "Creator, audiência, métricas, formatos vendidos, bundles e direitos.",
+  },
+  {
+    value: "PropostaCompleta",
+    label: "Proposta comercial completa",
+    detalhe: "Documento comercial com escopo, valor, condições, termos e aceite.",
+  },
+  {
+    value: "LunaSocialStudio",
+    label: "Social media mensal",
+    detalhe: "Posts, reels, stories, calendário, aprovações, reuniões e relatório.",
+  },
+  {
+    value: "InstagramPremium",
+    label: "Reels, vídeos curtos e UGC",
+    detalhe: "Vídeos, roteiro, edição, legenda, prazo, licença de uso e exclusividade.",
+  },
+  {
+    value: "DarkGrowth",
+    label: "Tráfego pago e campanhas",
+    detalhe: "Setup, campanhas, verba separada, otimização, KPIs e relatórios.",
+  },
+  {
+    value: "InstitucionalClean",
+    label: "Design e identidade visual",
+    detalhe: "Conceitos, revisões, arquivos finais, aplicações, mockups e direitos.",
+    coresEstaticas: true,
+  },
+  {
+    value: "ExecutivoEditorial",
+    label: "Consultoria e diagnóstico",
+    detalhe: "Diagnóstico, sessões, entregáveis, plano de ação e próximos passos.",
+    coresEstaticas: true,
+  },
+  {
+    value: "CorporativoBoard",
+    label: "Agência growth board",
+    detalhe: "Pacotes completos de marketing com frentes, roadmap, KPIs e cadência.",
     coresEstaticas: true,
   },
 ];
@@ -318,7 +376,7 @@ const suporteSchema = z.object({
 
 const contatoPublicoSchema = z.object({
   nome: z.string().trim().min(2, "Informe seu nome.").max(120),
-  email: z.string().trim().email("Digite um e-mail valido.").max(200),
+  email: z.string().trim().email("Digite um e-mail válido.").max(200),
   telefone: z
     .string()
     .trim()
@@ -327,10 +385,6 @@ const contatoPublicoSchema = z.object({
   empresa: z.string().trim().max(120),
   interesse: z.enum(["duvida", "compra", "plano-fundador", "suporte", "outro"]),
   mensagem: z.string().trim().min(10, "Escreva uma mensagem com mais detalhes.").max(2000),
-});
-
-const adminResendConfirmacaoEmailSchema = z.object({
-  email: z.string().trim().email("Digite um e-mail válido."),
 });
 
 const perfilContaSchema = z.object({
@@ -358,6 +412,8 @@ const perfilContaSchema = z.object({
     .string()
     .max(cpfCnpjMascaraMaxLength)
     .refine((valor) => isCpfCnpjCampoValido(valor), cpfCnpjMensagemFormato),
+  segmento: z.string().trim().max(80),
+  cidadeUf: z.string().trim().max(120),
   corPrimaria: z
     .string()
     .regex(/^#[0-9A-Fa-f]{6}$/, "Use uma cor no formato #RRGGBB."),
@@ -378,6 +434,7 @@ const perfilContaSchema = z.object({
       "Envie a imagem pelo upload ou use uma URL válida.",
     ),
   templateVisualPadrao: z.enum(propostaTemplateVisualValores),
+  formatoArquivoPreferido: z.enum(formatoArquivoPreferidoValores),
 });
 
 const clienteSchema = z.object({
@@ -481,8 +538,7 @@ type AppView =
   | "propostas"
   | "conta"
   | "personalizacao"
-  | "suporte"
-  | "adminEmails";
+  | "suporte";
 type CrudModo = "lista" | "novo" | "editar" | "visualizar" | "assistente";
 type PropostaAssistenteEtapa = "inicio" | "existente" | "novo";
 type PropostaWizardEtapaId =
@@ -502,7 +558,6 @@ type ResetSenhaUsuarioFormInput = z.infer<typeof resetSenhaSchema>;
 type ChangeEmailUsuarioFormInput = z.infer<typeof changeEmailSchema>;
 type SuporteFormInput = z.infer<typeof suporteSchema>;
 type ContatoPublicoFormInput = z.infer<typeof contatoPublicoSchema>;
-type AdminResendConfirmacaoEmailFormInput = z.infer<typeof adminResendConfirmacaoEmailSchema>;
 type PropostaPreviewInput = Partial<Omit<PropostaFormInput, "itens">> & {
   itens?: Array<Partial<PropostaFormInput["itens"][number]>>;
 };
@@ -512,7 +567,8 @@ type DashboardMetrica = {
   label: string;
   value: string;
   icon: typeof BarChart3;
-  tone: "purple" | "teal" | "blue" | "red";
+  tone: "purple" | "teal" | "blue" | "red" | "green" | "amber" | "slate";
+  onClick: () => void;
 };
 type PassoPrimeirosPassosDashboard = {
   id: string;
@@ -569,16 +625,18 @@ type NavegacaoPrincipalItem = {
   label: string;
   view: AppView;
   icon: typeof LayoutDashboard;
+  tourKey?: string;
   quickAction?: "novoCliente" | "novoServico" | "novaProposta";
   quickLabel?: string;
 };
 
 const navegacaoPrincipal: NavegacaoPrincipalItem[] = [
-  { label: "Dashboard", view: "dashboard", icon: LayoutDashboard },
+  { label: "Dashboard", view: "dashboard", icon: LayoutDashboard, tourKey: "dashboard" },
   {
     label: "Clientes",
     view: "clientes",
     icon: UsersRound,
+    tourKey: "clientes",
     quickAction: "novoCliente",
     quickLabel: "Novo cliente",
   },
@@ -586,6 +644,7 @@ const navegacaoPrincipal: NavegacaoPrincipalItem[] = [
     label: "Serviços / Pacotes",
     view: "servicos",
     icon: BriefcaseBusiness,
+    tourKey: "servicos",
     quickAction: "novoServico",
     quickLabel: "Novo serviço",
   },
@@ -593,11 +652,11 @@ const navegacaoPrincipal: NavegacaoPrincipalItem[] = [
     label: "Propostas",
     view: "propostas",
     icon: ReceiptText,
+    tourKey: "propostas",
     quickAction: "novaProposta",
     quickLabel: "Nova proposta",
   },
-  { label: "Suporte", view: "suporte", icon: HeartHandshake },
-  { label: "Admin emails", view: "adminEmails", icon: ShieldCheck },
+  { label: "Suporte", view: "suporte", icon: HeartHandshake, tourKey: "suporte" },
 ];
 
 const filtrosStatusProposta: Array<{
@@ -622,12 +681,15 @@ const perfilContaDefaultValues: PerfilContaFormInput = {
   siteUrl: "",
   instagram: "",
   documento: "",
+  segmento: "",
+  cidadeUf: "",
   corPrimaria: "#6E38FF",
   corSecundaria: "#13C7BD",
   corSistemaPrimaria: "#6E38FF",
   corSistemaSecundaria: "#13C7BD",
   logoUrl: "",
   templateVisualPadrao: propostaTemplateVisualDefault,
+  formatoArquivoPreferido: formatoArquivoPreferidoDefault,
 };
 
 const clienteDefaultValues: ClienteFormInput = {
@@ -673,6 +735,13 @@ const propostaDefaultValues: PropostaFormInput = {
   beneficiosTexto: "",
 };
 
+function isViewportDesktopInicial() {
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia("(min-width: 1024px)").matches
+  );
+}
+
 type ConfirmacaoSistemaVariante = "danger" | "warning" | "info" | "success";
 
 type ConfirmacaoSistemaConfig = {
@@ -696,7 +765,6 @@ type ToastSistemaOrigem =
   | "perfil"
   | "seguranca"
   | "suporte"
-  | "admin"
   | "cliente"
   | "servico"
   | "proposta"
@@ -733,8 +801,6 @@ export default function App() {
   const [perfilMensagem, setPerfilMensagem] = useState<string | null>(null);
   const [segurancaMensagem, setSegurancaMensagem] = useState<string | null>(null);
   const [suporteMensagem, setSuporteMensagem] = useState<string | null>(null);
-  const [adminEmailMensagem, setAdminEmailMensagem] = useState<string | null>(null);
-  const [adminEmailKey, setAdminEmailKey] = useState("");
   const [clienteMensagem, setClienteMensagem] = useState<string | null>(null);
   const [clienteModo, setClienteModo] = useState<CrudModo>("lista");
   const [clienteSelecionadoId, setClienteSelecionadoId] = useState<string | null>(
@@ -802,6 +868,14 @@ export default function App() {
     useState(false);
   const [propostaCompartilharModalAberto, setPropostaCompartilharModalAberto] =
     useState(false);
+  const [
+    propostaDescontoPagamentoAberto,
+    setPropostaDescontoPagamentoAberto,
+  ] = useState(isViewportDesktopInicial);
+  const [
+    propostaEscopoCronogramaAberto,
+    setPropostaEscopoCronogramaAberto,
+  ] = useState(isViewportDesktopInicial);
   const [propostaCompartilhamentoId, setPropostaCompartilhamentoId] = useState<
     string | null
   >(null);
@@ -809,6 +883,15 @@ export default function App() {
     useState<PropostaAssistenteEtapa>("inicio");
   const [propostaWizardEtapaAtiva, setPropostaWizardEtapaAtiva] =
     useState<PropostaWizardEtapaId>("cliente");
+  const [onboardingModalAberto, setOnboardingModalAberto] = useState(false);
+  const [onboardingJornadaAtiva, setOnboardingJornadaAtiva] = useState<
+    "conta" | "proposta"
+  >("conta");
+  const [onboardingTourRodando, setOnboardingTourRodando] = useState(false);
+  const [onboardingTourStepIndex, setOnboardingTourStepIndex] = useState(0);
+  const [onboardingTourKey, setOnboardingTourKey] = useState(0);
+  const onboardingTourAutoInicioRef = useRef<string | null>(null);
+  const onboardingTourEncerradoSessaoRef = useRef<string | null>(null);
   const [
     personalizacaoPreviewTemplateAberto,
     setPersonalizacaoPreviewTemplateAberto,
@@ -828,12 +911,25 @@ export default function App() {
   const [temaVisual, setTemaVisual] = useState<TemaVisual>(getTemaVisualInicial);
   const [toastsSistema, setToastsSistema] = useState<ToastSistemaItem[]>([]);
   const toastSistemaIdRef = useRef(0);
+  const suprimirProximoToastRascunhoRef = useRef(false);
   const [confirmacaoSistema, setConfirmacaoSistema] =
     useState<ConfirmacaoSistemaState | null>(null);
   const confirmacaoSistemaResolverRef = useRef<
     ((confirmado: boolean) => void) | null
   >(null);
   const confirmacaoSistemaIdRef = useRef(0);
+
+  const fecharPropostaVisualizacaoModal = useCallback(() => {
+    setPropostaVisualizacaoModalId(null);
+  }, []);
+
+  const fecharPropostaPreviewModal = useCallback(() => {
+    setPropostaPreviewModalAberto(false);
+  }, []);
+
+  const fecharPersonalizacaoPreviewTemplate = useCallback(() => {
+    setPersonalizacaoPreviewTemplateAberto(null);
+  }, []);
 
   const fecharToastSistema = useCallback((id: number) => {
     setToastsSistema((toastsAtuais) =>
@@ -935,10 +1031,6 @@ export default function App() {
   }, [exibirMensagemSistema, suporteMensagem]);
 
   useEffect(() => {
-    exibirMensagemSistema(adminEmailMensagem, "admin");
-  }, [adminEmailMensagem, exibirMensagemSistema]);
-
-  useEffect(() => {
     exibirMensagemSistema(clienteMensagem, "cliente");
   }, [clienteMensagem, exibirMensagemSistema]);
 
@@ -953,6 +1045,48 @@ export default function App() {
   useEffect(() => {
     exibirMensagemSistema(propostaExportacaoMensagem, "exportacao");
   }, [exibirMensagemSistema, propostaExportacaoMensagem]);
+
+  useEffect(() => {
+    const modalAberto =
+      propostaVisualizacaoModalId ||
+      propostaPreviewModalAberto ||
+      personalizacaoPreviewTemplateAberto;
+
+    if (!modalAberto) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") {
+        return;
+      }
+
+      if (propostaVisualizacaoModalId) {
+        fecharPropostaVisualizacaoModal();
+        return;
+      }
+
+      if (propostaPreviewModalAberto) {
+        fecharPropostaPreviewModal();
+        return;
+      }
+
+      fecharPersonalizacaoPreviewTemplate();
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [
+    fecharPersonalizacaoPreviewTemplate,
+    fecharPropostaPreviewModal,
+    fecharPropostaVisualizacaoModal,
+    personalizacaoPreviewTemplateAberto,
+    propostaPreviewModalAberto,
+    propostaVisualizacaoModalId,
+  ]);
 
   const usuarioAtualQuery = useQuery({
     queryKey: ["usuario-atual", accessToken],
@@ -989,10 +1123,10 @@ export default function App() {
     retry: false,
   });
 
-  const adminEmailsQuery = useQuery({
-    queryKey: ["admin-emails", adminEmailKey],
-    queryFn: () => getAdminEmailsHistorico(adminEmailKey),
-    enabled: Boolean(adminEmailKey) && appView === "adminEmails",
+  const onboardingQuery = useQuery({
+    queryKey: ["onboarding", accessToken],
+    queryFn: () => getOnboarding(accessToken!),
+    enabled: Boolean(accessToken),
     retry: false,
   });
 
@@ -1056,13 +1190,6 @@ export default function App() {
       empresa: "",
       interesse: "duvida",
       mensagem: "",
-    },
-  });
-
-  const adminResendConfirmacaoEmailForm = useForm<AdminResendConfirmacaoEmailFormInput>({
-    resolver: zodResolver(adminResendConfirmacaoEmailSchema),
-    defaultValues: {
-      email: "",
     },
   });
 
@@ -1290,6 +1417,11 @@ export default function App() {
     ? getStatusComercialContaEfetivo(conta)
     : "TrialExpirado";
   const perfilConta = perfilContaQuery.data;
+  const onboarding = onboardingQuery.data;
+  const perfilContaMinimoCompleto = isPerfilContaOnboardingCompleto(perfilConta);
+  const perfilTemplateVisualPadrao = normalizarTemplateVisual(
+    perfilConta?.templateVisualPadrao,
+  );
   const nomeMarcaTopo =
     perfilConta?.nomeComercial?.trim() || conta?.nome || "Emprely";
   const subtituloMarcaTopo =
@@ -1306,6 +1438,9 @@ export default function App() {
     (servico) => servico.id === servicoSelecionadoId,
   );
   const propostas = propostasQuery.data ?? [];
+  const primeiraPropostaGerada = propostas.some(
+    (proposta) => proposta.status !== "Rascunho" && proposta.status !== "Arquivada",
+  );
   const clientesFiltrados = clientes.filter((cliente) =>
     matchBuscaTexto(buscaClientes, [
       cliente.nome,
@@ -1414,9 +1549,7 @@ export default function App() {
     propostaModo === "novo" || propostaModo === "editar";
   const mensagemBloqueioPlano = getMensagemBloqueioPlano(conta);
   const propostaProntaParaGerar = Boolean(
-    propostaSelecionadaRascunho &&
-      !propostaTemAlteracoes &&
-      contaPodeExportarProposta,
+    propostaEditorAtivo && contaPodeExportarProposta,
   );
   const propostaWizardClienteConcluido = Boolean(
     propostaPreview.clienteId && valorSeguro(propostaPreview.validadeDias) >= 1,
@@ -1610,6 +1743,36 @@ export default function App() {
   }, [perfilContaQuery.data, resetPerfilForm, usuario]);
 
   useEffect(() => {
+    if (
+      !perfilConta ||
+      propostaSelecionadaId ||
+      (propostaModo !== "novo" && propostaModo !== "assistente") ||
+      propostaForm.formState.isDirty
+    ) {
+      return;
+    }
+
+    const templateAtual = normalizarTemplateVisual(
+      propostaForm.getValues("templateVisual"),
+    );
+
+    if (templateAtual === perfilTemplateVisualPadrao) {
+      return;
+    }
+
+    propostaForm.setValue("templateVisual", perfilTemplateVisualPadrao, {
+      shouldDirty: false,
+      shouldValidate: true,
+    });
+  }, [
+    perfilConta,
+    perfilTemplateVisualPadrao,
+    propostaForm,
+    propostaModo,
+    propostaSelecionadaId,
+  ]);
+
+  useEffect(() => {
     if (clienteSelecionado) {
       resetClienteForm(mapClienteForm(clienteSelecionado), {
         keepDirty: false,
@@ -1736,16 +1899,6 @@ export default function App() {
     },
   });
 
-  const adminResendConfirmacaoMutation = useMutation({
-    mutationFn: (input: AdminResendConfirmacaoEmailInput) =>
-      adminResendConfirmacaoEmail(input, adminEmailKey),
-    onSuccess: async () => {
-      setAdminEmailMensagem("Reenvio solicitado.");
-      adminResendConfirmacaoEmailForm.reset({ email: "" });
-      await adminEmailsQuery.refetch();
-    },
-  });
-
   const perfilMutation = useMutation({
     mutationFn: async (input: PerfilContaFormInput) => {
       let inputComLogo = input;
@@ -1775,6 +1928,84 @@ export default function App() {
       setPerfilMensagem("Perfil salvo.");
     },
   });
+
+  const onboardingMutation = useMutation({
+    mutationFn: (input: Parameters<typeof updateOnboarding>[0]) =>
+      updateOnboarding(input, accessToken!),
+    onSuccess: (response) => {
+      queryClient.setQueryData(["onboarding", accessToken], response);
+    },
+  });
+
+  const onboardingEventoMutation = useMutation({
+    mutationFn: (input: Parameters<typeof createOnboardingEvento>[0]) =>
+      createOnboardingEvento(input, accessToken!),
+    onSuccess: (response) => {
+      queryClient.setQueryData(["onboarding", accessToken], response);
+    },
+  });
+
+  useEffect(() => {
+    if (!usuario || !conta || !onboarding || onboardingTourRodando) {
+      return;
+    }
+
+    if (onboarding.tour.status === "NaoIniciado" || onboarding.tour.status === "EmAndamento") {
+      const chaveUsuarioTour = `${conta.id}:${usuario.id}`;
+      const chaveTour = `${conta.id}:${usuario.id}:${onboarding.tour.status}:${onboarding.updatedAt ?? "inicial"}`;
+
+      if (onboardingTourEncerradoSessaoRef.current === chaveUsuarioTour) {
+        return;
+      }
+
+      if (onboardingTourAutoInicioRef.current === chaveTour) {
+        return;
+      }
+
+      onboardingTourAutoInicioRef.current = chaveTour;
+      const timeoutId = window.setTimeout(() => {
+        setOnboardingTourStepIndex(0);
+        setAppView(getOnboardingTourView(0));
+        setMobileMenuAberto(false);
+        setContaMenuAberto(false);
+        setSidebarRecolhida(false);
+        setOnboardingModalAberto(false);
+        setOnboardingTourRodando(true);
+        if (onboarding.tour.status === "NaoIniciado") {
+          onboardingEventoMutation.mutate({ tipo: "TourExibido", etapa: "dashboard" });
+        }
+      }, 250);
+
+      return () => window.clearTimeout(timeoutId);
+    }
+  }, [conta, onboarding, onboardingEventoMutation, onboardingTourRodando, usuario]);
+
+  useEffect(() => {
+    if (!onboardingTourRodando) {
+      return;
+    }
+
+    const target = getOnboardingTourTarget(onboardingTourStepIndex);
+    if (!target) {
+      return;
+    }
+
+    const scrollParaAlvo = () => {
+      const elemento = document.querySelector(target);
+      if (elemento instanceof HTMLElement) {
+        elemento.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+          inline: "nearest",
+        });
+      }
+    };
+
+    scrollParaAlvo();
+    const timeoutId = window.setTimeout(scrollParaAlvo, onboardingTourScrollDelayMs);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [appView, onboardingTourRodando, onboardingTourStepIndex]);
 
   const salvarClienteMutation = useMutation({
     mutationFn: (input: ClienteFormInput) => {
@@ -1943,11 +2174,16 @@ export default function App() {
       setServicoParaAdicionarId("");
       setPropostaPagina(1);
       setPropostaWizardEtapaAtiva("revisao");
-      setPropostaMensagem(
-        eraEdicao
-          ? "Alteracoes salvas."
-          : "Rascunho salvo. Revise o preview e gere a proposta quando estiver pronto.",
-      );
+      if (suprimirProximoToastRascunhoRef.current) {
+        suprimirProximoToastRascunhoRef.current = false;
+        setPropostaMensagem(null);
+      } else {
+        setPropostaMensagem(
+          eraEdicao
+            ? "Alteracoes salvas."
+            : "Rascunho salvo. Revise o preview e gere a proposta quando estiver pronto.",
+        );
+      }
       await queryClient.invalidateQueries({ queryKey: ["propostas", accessToken] });
     },
   });
@@ -2211,16 +2447,13 @@ export default function App() {
     setPropostaWizardEtapaAtiva(clienteId ? "proposta" : "cliente");
     const cliente = findClienteProposta(clienteId);
     const titulo = buildTituloAutomaticoProposta(cliente, null);
-    const templateVisualPadrao = normalizarTemplateVisual(
-      perfilConta?.templateVisualPadrao,
-    );
 
     resetPropostaForm(
       {
         ...propostaDefaultValues,
         clienteId,
         titulo,
-        templateVisual: templateVisualPadrao,
+        templateVisual: perfilTemplateVisualPadrao,
       },
       { keepDirty: false },
     );
@@ -2245,7 +2478,7 @@ export default function App() {
     resetPropostaForm(
       {
         ...propostaDefaultValues,
-        templateVisual: normalizarTemplateVisual(perfilConta?.templateVisualPadrao),
+        templateVisual: perfilTemplateVisualPadrao,
       },
       { keepDirty: false },
     );
@@ -2313,6 +2546,116 @@ export default function App() {
       }
       setAppView("propostas");
     });
+  }
+
+  function abrirOnboarding(jornada: "conta" | "proposta") {
+    setOnboardingJornadaAtiva(jornada);
+    setOnboardingModalAberto(true);
+  }
+
+  function pularOnboarding() {
+    onboardingEventoMutation.mutate({
+      tipo: "Pulou",
+      etapa: onboardingJornadaAtiva === "conta" ? "configuracao-conta" : "primeira-proposta",
+    });
+    setOnboardingModalAberto(false);
+  }
+
+  function iniciarConfiguracaoContaOnboarding() {
+    onboardingMutation.mutate({
+      statusConfiguracaoConta: "EmAndamento",
+      etapaConfiguracaoConta: perfilContaMinimoCompleto ? "personalizacao" : "dados-marca",
+    });
+    setOnboardingModalAberto(false);
+    navegarParaView(perfilContaMinimoCompleto ? "personalizacao" : "conta");
+  }
+
+  function iniciarPrimeiraPropostaOnboarding() {
+    onboardingMutation.mutate({
+      statusPrimeiraProposta: "EmAndamento",
+      etapaPrimeiraProposta: clientes.length > 0 ? "proposta" : "cliente",
+    });
+    setOnboardingModalAberto(false);
+    abrirNovaProposta();
+  }
+
+  function iniciarTourOnboarding() {
+    onboardingTourEncerradoSessaoRef.current = null;
+    limparArtefatosOnboardingTour();
+    setOnboardingModalAberto(false);
+    setAppView(getOnboardingTourView(0));
+    setMobileMenuAberto(false);
+    setContaMenuAberto(false);
+    setSidebarRecolhida(false);
+    setOnboardingTourStepIndex(0);
+    setOnboardingTourKey((key) => key + 1);
+    setOnboardingTourRodando(true);
+    onboardingEventoMutation.mutate({ tipo: "TourExibido", etapa: "dashboard" });
+  }
+
+  function navegarParaOnboardingTourStep(stepIndex: number) {
+    const totalSteps = buildOnboardingTourSteps().length;
+    const proximoIndice = Math.max(0, Math.min(stepIndex, totalSteps - 1));
+    const proximaView = getOnboardingTourView(proximoIndice);
+
+    flushSync(() => {
+      setAppView(proximaView);
+      setMobileMenuAberto(false);
+      setContaMenuAberto(false);
+      setSidebarRecolhida(false);
+      setOnboardingTourStepIndex(proximoIndice);
+    });
+  }
+
+  function encerrarOnboardingTour(data: EventData, statusFinal: "finished" | "skipped") {
+    const chaveUsuarioTour = conta && usuario ? `${conta.id}:${usuario.id}` : null;
+    onboardingTourEncerradoSessaoRef.current = chaveUsuarioTour;
+    flushSync(() => {
+      setOnboardingTourRodando(false);
+      setOnboardingTourStepIndex(0);
+      setOnboardingTourKey((key) => key + 1);
+      setMobileMenuAberto(false);
+      setContaMenuAberto(false);
+    });
+    limparArtefatosOnboardingTour();
+    window.requestAnimationFrame(limparArtefatosOnboardingTour);
+    window.setTimeout(limparArtefatosOnboardingTour, 80);
+    window.setTimeout(limparArtefatosOnboardingTour, 300);
+    onboardingEventoMutation.mutate({
+      tipo: statusFinal === "finished" ? "TourConcluiu" : "TourPulou",
+      etapa: typeof data.step?.target === "string" ? data.step.target : "dashboard",
+    });
+  }
+
+  function handleOnboardingTourCallback(data: EventData) {
+    if (data.status === "finished" || data.status === "skipped") {
+      encerrarOnboardingTour(data, data.status);
+      return;
+    }
+
+    if (data.type === "tour:end") {
+      encerrarOnboardingTour(
+        data,
+        data.action === "skip" ? "skipped" : "finished",
+      );
+      return;
+    }
+
+    if (data.type === "step:after" || data.type === "error:target_not_found") {
+      const indiceAtual = typeof data.index === "number" ? data.index : onboardingTourStepIndex;
+      const totalSteps = buildOnboardingTourSteps().length;
+
+      if (data.action !== "prev" && indiceAtual >= totalSteps - 1) {
+        encerrarOnboardingTour(data, "finished");
+        return;
+      }
+
+      navegarParaOnboardingTourStep(
+        data.action === "prev"
+          ? indiceAtual - 1
+          : indiceAtual + 1,
+      );
+    }
   }
 
   function selecionarClienteAssistente(clienteId: string) {
@@ -2414,29 +2757,34 @@ export default function App() {
       return;
     }
 
-    if (!propostaSelecionada) {
-      navegarParaEtapaProposta("revisao");
-      setPropostaMensagem(
-        "Salve o rascunho antes de gerar a proposta final.",
-      );
-      return;
-    }
-
-    if (propostaTemAlteracoes) {
-      navegarParaEtapaProposta("revisao");
-      setPropostaMensagem(
-        "Salve as alterações antes de gerar a proposta final.",
-      );
-      return;
-    }
-
     if (!contaPodeExportarProposta) {
       navegarParaEtapaProposta("revisao");
       setPropostaMensagem(mensagemBloqueioPlano);
       return;
     }
 
-    gerarPropostaMutation.mutate(propostaSelecionada.id);
+    navegarParaEtapaProposta("revisao");
+
+    try {
+      const precisaSalvarAntesDeGerar = !propostaSelecionada || propostaTemAlteracoes;
+
+      if (precisaSalvarAntesDeGerar) {
+        suprimirProximoToastRascunhoRef.current = true;
+      }
+
+      const propostaBase = precisaSalvarAntesDeGerar
+        ? await salvarPropostaMutation.mutateAsync(propostaForm.getValues())
+        : propostaSelecionada;
+
+      if (!propostaBase) {
+        return;
+      }
+
+      await gerarPropostaMutation.mutateAsync(propostaBase.id);
+    } catch {
+      suprimirProximoToastRascunhoRef.current = false;
+      // As mutations ja exibem os erros nos componentes de mensagem.
+    }
   }
 
   function executarAcaoRapidaMenu(
@@ -2742,6 +3090,66 @@ export default function App() {
     });
   }
 
+  async function enviarMensagemInicialComAnexoProposta(
+    proposta: PropostaResponse,
+    node: HTMLDivElement | null,
+  ) {
+    if (
+      !isStatusPropostaComDocumentoFinal(proposta.status) ||
+      !contaPodeExportarProposta
+    ) {
+      return;
+    }
+
+    await executarExportacaoProposta(async () => {
+      const nodeExportacao = await aguardarNodeExportacaoProposta(
+        () =>
+          node ??
+          propostaCompartilhamentoDocumentoRef.current ??
+          propostaVisualizacaoExportDocumentoRef.current ??
+          propostaVisualizacaoDocumentoRef.current,
+      );
+      const blob = await gerarPdfPropostaBlob(nodeExportacao);
+      const nomeArquivo = `${buildNomeArquivoProposta(proposta)}.pdf`;
+      const mensagem = buildMensagemWhatsappProposta(
+        proposta,
+        clienteCompartilhamentoAtivo,
+        perfilConta,
+        conta?.nome ?? "Emprely",
+        "arquivo",
+      );
+      const arquivoPdf = new File([blob], nomeArquivo, {
+        type: "application/pdf",
+      });
+      const podeCompartilharArquivo =
+        !isViewportDesktopInicial() &&
+        typeof navigator !== "undefined" &&
+        typeof navigator.share === "function" &&
+        (!navigator.canShare ||
+          navigator.canShare({
+            files: [arquivoPdf],
+          }));
+
+      if (podeCompartilharArquivo) {
+        await navigator.share({
+          title: proposta.titulo,
+          text: mensagem,
+          files: [arquivoPdf],
+        });
+        setPropostaExportacaoMensagem("PDF e mensagem enviados para compartilhamento.");
+        fecharModalCompartilharProposta();
+        return;
+      }
+
+      baixarBlobArquivo(blob, nomeArquivo);
+      window.open(whatsappPropostaArquivoUrl, "_blank", "noopener,noreferrer");
+      setPropostaExportacaoMensagem(
+        "PDF baixado e WhatsApp aberto com a mensagem inicial.",
+      );
+      fecharModalCompartilharProposta();
+    });
+  }
+
   async function executarExportacaoProposta(
     exportar: () => Promise<void>,
   ): Promise<void> {
@@ -2816,27 +3224,21 @@ export default function App() {
     const margem = 24;
     const larguraDisponivel = larguraPagina - margem * 2;
     const alturaDisponivel = alturaPagina - margem * 2;
-    const escala = larguraDisponivel / tamanhoImagem.width;
-    const larguraImagem = larguraDisponivel;
+    const escalaLargura = larguraDisponivel / tamanhoImagem.width;
+    const escalaAltura = alturaDisponivel / tamanhoImagem.height;
+    const escala = Math.min(escalaLargura, escalaAltura);
+    const larguraImagem = tamanhoImagem.width * escala;
     const alturaImagem = tamanhoImagem.height * escala;
-    let deslocamentoImagem = 0;
+    const posicaoX = (larguraPagina - larguraImagem) / 2;
 
-    do {
-      if (deslocamentoImagem > 0) {
-        pdf.addPage();
-      }
-
-      pdf.addImage(
-        pngDataUrl,
-        "PNG",
-        margem,
-        margem - deslocamentoImagem,
-        larguraImagem,
-        alturaImagem,
-      );
-
-      deslocamentoImagem += alturaDisponivel;
-    } while (deslocamentoImagem < alturaImagem);
+    pdf.addImage(
+      pngDataUrl,
+      "PNG",
+      posicaoX,
+      margem,
+      larguraImagem,
+      alturaImagem,
+    );
 
     return pdf.output("blob");
   }
@@ -3128,6 +3530,14 @@ export default function App() {
           perfilPersonalizacaoPreview.nomeComercial?.trim() ||
           perfilConta?.nomeComercial ||
           conta.nome,
+        segmento:
+          perfilPersonalizacaoPreview.segmento?.trim() ||
+          perfilConta?.segmento ||
+          null,
+        cidadeUf:
+          perfilPersonalizacaoPreview.cidadeUf?.trim() ||
+          perfilConta?.cidadeUf ||
+          null,
         emailContato:
           perfilPersonalizacaoPreview.emailContato?.trim() ||
           perfilConta?.emailContato ||
@@ -3166,6 +3576,9 @@ export default function App() {
         ),
         logoUrl: logoPreviewAtualUrl,
         templateVisualPadrao: templateVisualPersonalizacaoPreview,
+        formatoArquivoPreferido: normalizarFormatoArquivoPreferido(
+          perfilPersonalizacaoPreview.formatoArquivoPreferido,
+        ),
         updatedAt: perfilConta?.updatedAt ?? null,
       }
     : perfilConta;
@@ -3232,6 +3645,58 @@ export default function App() {
 
   return (
     <div className="app-shell min-h-screen bg-background text-foreground">
+      {usuario && conta && onboardingTourRodando ? (
+        <Joyride
+          key={onboardingTourKey}
+          continuous
+          onEvent={handleOnboardingTourCallback}
+          locale={{
+            back: "Voltar",
+            close: "Fechar",
+            last: "Concluir",
+            next: "Próximo",
+            nextWithProgress: "Próximo ({current} de {total})",
+            open: "Abrir",
+            skip: "Pular",
+          }}
+          options={{
+            blockTargetInteraction: true,
+            buttons: ["skip", "back", "primary"],
+            closeButtonAction: "skip",
+            overlayClickAction: false,
+            overlayColor: "rgba(2, 6, 23, 0.78)",
+            primaryColor: "#2563eb",
+            scrollOffset: 88,
+            showProgress: true,
+            spotlightPadding: 6,
+            spotlightRadius: 10,
+          }}
+          run={onboardingTourRodando}
+          scrollToFirstStep
+          stepIndex={onboardingTourStepIndex}
+          steps={buildOnboardingTourSteps()}
+          styles={{
+            tooltip: {
+              borderRadius: 8,
+              boxShadow: "0 24px 70px rgba(2, 6, 23, 0.28)",
+              maxWidth: 360,
+              width: "min(360px, calc(100vw - 32px))",
+            },
+            tooltipTitle: {
+              color: "#0f172a",
+              fontSize: 18,
+              fontWeight: 800,
+              lineHeight: 1.25,
+            },
+            tooltipContent: {
+              color: "#475569",
+              fontSize: 14,
+              lineHeight: 1.55,
+              padding: "12px 0",
+            },
+          }}
+        />
+      ) : null}
       <div
         className={`app-frame mx-auto min-h-screen w-full ${
           usuario && conta
@@ -3358,24 +3823,26 @@ export default function App() {
                       <button
                         type="button"
                         className="mobile-drawer-secondary-button"
+                        data-testid="mobile-drawer-action-new-client"
                         onClick={() => {
                           setMobileMenuAberto(false);
                           abrirNovoCliente();
                         }}
                       >
                         <UsersRound size={17} aria-hidden="true" />
-                        Cliente
+                        Novo cliente
                       </button>
                       <button
                         type="button"
                         className="mobile-drawer-secondary-button"
+                        data-testid="mobile-drawer-action-new-service"
                         onClick={() => {
                           setMobileMenuAberto(false);
                           abrirNovoServico();
                         }}
                       >
                         <PackageCheck size={17} aria-hidden="true" />
-                        Servico
+                        Novo servico
                       </button>
                     </div>
 
@@ -3391,6 +3858,7 @@ export default function App() {
                             className={`mobile-drawer-nav-item ${
                               itemAtivo ? "is-active" : ""
                             }`}
+                            data-testid={`mobile-drawer-nav-${item.view}`}
                             aria-current={itemAtivo ? "page" : undefined}
                             onClick={() => navegarParaView(item.view)}
                           >
@@ -3525,7 +3993,9 @@ export default function App() {
                   className="sidebar-account-button tooltip-icon-button flex w-full items-center gap-3 rounded-md p-2 text-left"
                   aria-haspopup="menu"
                   aria-expanded={contaMenuAberto}
+                  data-tour="menu-conta"
                   data-tooltip={nomeMarcaTopo}
+                  title={`${nomeMarcaTopo} - ${subtituloMarcaTopo}`}
                   onClick={() => setContaMenuAberto((aberto) => !aberto)}
                 >
                   {logoMarcaTopo ? (
@@ -3637,6 +4107,7 @@ export default function App() {
                               : item.label
                         }
                         aria-current={itemAtivo ? "page" : undefined}
+                        data-tour={item.tourKey ? `menu-${item.tourKey}` : undefined}
                         data-tooltip={item.label}
                         className={`app-nav-item tooltip-icon-button flex h-11 min-w-0 flex-1 items-center gap-3 rounded-md px-3 text-left text-sm font-medium transition ${
                           itemAtivo
@@ -3974,6 +4445,7 @@ export default function App() {
                                           clienteSelecionado.instagram,
                                         )}
                                         label="Instagram"
+                                        rede="instagram"
                                       />
                                     </div>
                                     <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
@@ -3990,6 +4462,7 @@ export default function App() {
                                           clienteSelecionado.facebook,
                                         )}
                                         label="Facebook"
+                                        rede="facebook"
                                       />
                                     </div>
                                     <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
@@ -4006,6 +4479,7 @@ export default function App() {
                                           clienteSelecionado.tiktok,
                                         )}
                                         label="TikTok"
+                                        rede="tiktok"
                                       />
                                     </div>
                                   </div>
@@ -4085,6 +4559,8 @@ export default function App() {
                         <ClienteFormularioCampos
                           form={clienteForm}
                           complementaresAberto={clienteComplementaresAberto}
+                          logoMarcaAssinaturaUrl={logoMarcaTopo}
+                          nomeMarcaAssinatura={nomeMarcaTopo}
                           onToggleComplementares={() =>
                             setClienteComplementaresAberto((aberto) => !aberto)
                           }
@@ -4527,18 +5003,13 @@ export default function App() {
                     {propostaModo === "assistente" ? (
                       <div className="proposal-wizard-panel rounded-md border border-border bg-surface p-5">
                         <div className="proposal-assistant-steps" aria-label="Etapas da nova proposta">
-                          {[
-                            "Cliente",
-                            "Proposta",
-                            "Itens",
-                            "Revisão",
-                          ].map((step, index) => (
+                          {propostaWizardEtapas.map((step, index) => (
                             <span
-                              key={step}
+                              key={step.id}
                               className={index === 0 ? "is-active" : ""}
                             >
                               <strong>{index + 1}</strong>
-                              {step}
+                              {step.label}
                             </span>
                           ))}
                         </div>
@@ -4706,6 +5177,8 @@ export default function App() {
                                 complementaresAberto={
                                   clienteRapidoComplementaresAberto
                                 }
+                                logoMarcaAssinaturaUrl={logoMarcaTopo}
+                                nomeMarcaAssinatura={nomeMarcaTopo}
                                 onToggleComplementares={() =>
                                   setClienteRapidoComplementaresAberto(
                                     (aberto) => !aberto,
@@ -5067,7 +5540,7 @@ export default function App() {
                                   </div>
                                   <div className="proposal-item-fields">
                                     <CampoTexto
-                                      label="Item"
+                                      label={`Item ${index + 1}`}
                                       error={
                                         propostaForm.formState.errors.itens?.[index]
                                           ?.nome?.message
@@ -5077,7 +5550,7 @@ export default function App() {
                                       )}
                                     />
                                     <CampoTexto
-                                      label="Qtd"
+                                      label={`Quantidade do item ${index + 1}`}
                                       type="number"
                                       min="1"
                                       step="1"
@@ -5098,7 +5571,7 @@ export default function App() {
                                       name={`itens.${index}.valorUnitario` as const}
                                       render={({ field }) => (
                                         <CampoMoedaReal
-                                          label="Valor"
+                                          label={`Valor do item ${index + 1}`}
                                           name={field.name}
                                           ref={field.ref}
                                           value={field.value}
@@ -5114,7 +5587,7 @@ export default function App() {
                                   </div>
                                   <div className="proposal-item-description">
                                     <CampoTextarea
-                                      label="Descrição"
+                                      label={`Descrição do item ${index + 1}`}
                                       rows={1}
                                       error={
                                         propostaForm.formState.errors.itens?.[index]
@@ -5182,7 +5655,7 @@ export default function App() {
                               PDF, imagem e WhatsApp.
                             </p>
                             <div className="proposal-template-step-grid">
-                              {propostaTemplateVisualOpcoes.map((template) => {
+                              {propostaTemplateVisualOpcoesGaleria.map((template) => {
                                 const templateSelecionado =
                                   normalizarTemplateVisual(
                                     propostaPreview.templateVisual,
@@ -5223,7 +5696,6 @@ export default function App() {
                                       type="button"
                                       onClick={() => {
                                         setTemplatePreviewAberto(template.value);
-                                        setPropostaTemplateModalAberto(true);
                                       }}
                                       className="proposal-template-step-preview"
                                     >
@@ -5277,7 +5749,15 @@ export default function App() {
                           <p className="proposal-template-step-copy">
                             Esta etapa e opcional. Use apenas se quiser enriquecer a proposta.
                           </p>
-                          <details className="proposal-optional-section mt-4">
+                          <details
+                            className="proposal-optional-section mt-4"
+                            open={propostaDescontoPagamentoAberto}
+                            onToggle={(event) =>
+                              setPropostaDescontoPagamentoAberto(
+                                event.currentTarget.open,
+                              )
+                            }
+                          >
                             <summary>
                               <span>
                                 Desconto e pagamento
@@ -5315,7 +5795,15 @@ export default function App() {
                             />
                             </div>
                           </details>
-                          <details className="proposal-optional-section mt-4">
+                          <details
+                            className="proposal-optional-section mt-4"
+                            open={propostaEscopoCronogramaAberto}
+                            onToggle={(event) =>
+                              setPropostaEscopoCronogramaAberto(
+                                event.currentTarget.open,
+                              )
+                            }
+                          >
                             <summary>
                               <span>
                                 Escopo, cronograma e beneficios
@@ -5571,7 +6059,7 @@ export default function App() {
                                   >
                                     <div className="proposal-review-card-header">
                                       <div>
-                                        <span>{grupo.itens.length} item{grupo.itens.length === 1 ? "" : "s"}</span>
+                                        <span>{formatQuantidadeItens(grupo.itens.length)}</span>
                                         <h4>{grupo.titulo}</h4>
                                       </div>
                                     </div>
@@ -5592,10 +6080,10 @@ export default function App() {
                                 ))}
                               </div>
 
-                              {propostaTemAlteracoes || !propostaSelecionada ? (
+                              {propostaSelecionada && propostaTemAlteracoes ? (
                                 <p className="proposal-review-warning">
-                                  Salve o rascunho para liberar a geração da
-                                  proposta final.
+                                  As alterações serão salvas automaticamente antes
+                                  de gerar a proposta final.
                                 </p>
                               ) : null}
                               <div className="proposal-review-actions">
@@ -5636,23 +6124,24 @@ export default function App() {
                                   <button
                                     type="button"
                                     disabled={
+                                      salvarPropostaMutation.isPending ||
                                       gerarPropostaMutation.isPending ||
                                       !propostaProntaParaGerar
                                     }
                                     onClick={gerarPropostaDoFluxo}
                                     className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-accent bg-white px-4 text-sm font-semibold text-accent transition hover:bg-cyan-50 disabled:cursor-not-allowed disabled:border-border disabled:text-muted disabled:opacity-70"
                                     title={
-                                      propostaTemAlteracoes || !propostaSelecionada
-                                        ? "Salve o rascunho antes de gerar."
-                                        : !contaPodeExportarProposta
-                                          ? mensagemBloqueioPlano
-                                          : "Gerar proposta final"
+                                      !contaPodeExportarProposta
+                                        ? mensagemBloqueioPlano
+                                        : "Salvar e gerar proposta final"
                                     }
                                   >
                                     <CheckCircle2 size={17} aria-hidden="true" />
-                                    {gerarPropostaMutation.isPending
-                                      ? "Gerando..."
-                                      : "Gerar proposta"}
+                                    {salvarPropostaMutation.isPending
+                                      ? "Salvando..."
+                                      : gerarPropostaMutation.isPending
+                                        ? "Gerando..."
+                                        : "Gerar proposta"}
                                   </button>
                                 </div>
                               </div>
@@ -5783,25 +6272,26 @@ export default function App() {
                             <button
                               type="button"
                               disabled={
+                                salvarPropostaMutation.isPending ||
                                 gerarPropostaMutation.isPending ||
                                 !propostaProntaParaGerar
                               }
                               onClick={gerarPropostaDoFluxo}
                               className="proposal-rail-action is-accent"
                               title={
-                                  propostaTemAlteracoes
-                                    ? "Salve as alterações antes de gerar."
-                                  : !contaPodeExportarProposta
+                                  !contaPodeExportarProposta
                                     ? mensagemBloqueioPlano
-                                    : "Gerar proposta"
+                                    : "Salvar e gerar proposta"
                               }
                               aria-label="Gerar proposta"
                             >
                               <CheckCircle2 size={18} aria-hidden="true" />
                               <span className="proposal-action-label">
-                                {gerarPropostaMutation.isPending
-                                  ? "Gerando"
-                                  : "Gerar"}
+                                {salvarPropostaMutation.isPending
+                                  ? "Salvando"
+                                  : gerarPropostaMutation.isPending
+                                    ? "Gerando"
+                                    : "Gerar"}
                               </span>
                             </button>
                           ) : null}
@@ -6093,8 +6583,7 @@ export default function App() {
                                       <td data-label="Total">
                                         <strong>{formatMoney(proposta.total)}</strong>
                                         <span>
-                                          {proposta.itens.length} item
-                                          {proposta.itens.length === 1 ? "" : "s"}
+                                          {formatQuantidadeItens(proposta.itens.length)}
                                         </span>
                                       </td>
                                       <td data-label="Status">
@@ -6110,10 +6599,12 @@ export default function App() {
                                       <td data-label="Ações">
                                         <ListagemAcoes
                                           ariaLabel={`Ações da proposta ${proposta.titulo}`}
+                                          dataTestId={`proposal-actions-${proposta.id}`}
                                           acoes={[
                                             {
                                               label: "Visualizar",
                                               icon: <Eye size={16} />,
+                                              testId: `proposal-action-view-${proposta.id}`,
                                               onClick: () =>
                                                 visualizarProposta(proposta.id),
                                             },
@@ -6127,6 +6618,7 @@ export default function App() {
                                                       ? mensagemBloqueioPlano
                                                       : "Gerar proposta",
                                                     accent: true,
+                                                    testId: `proposal-action-generate-${proposta.id}`,
                                                     onClick: () =>
                                                       gerarPropostaMutation.mutate(
                                                         proposta.id,
@@ -6144,6 +6636,7 @@ export default function App() {
                                                     tooltip: propostaPodeExportar
                                                       ? "Imprimir ou salvar em PDF"
                                                       : mensagemBloqueioPlano,
+                                                    testId: `proposal-action-pdf-${proposta.id}`,
                                                     onClick: () =>
                                                       imprimirPropostaSalva(
                                                         proposta,
@@ -6164,6 +6657,7 @@ export default function App() {
                                                       ? "Escolher mensagem"
                                                       : mensagemBloqueioPlano,
                                                     accent: true,
+                                                    testId: `proposal-action-whatsapp-${proposta.id}`,
                                                   },
                                                 ] satisfies ListagemAcao[]
                                               : []),
@@ -6173,6 +6667,7 @@ export default function App() {
                                                     label: "Enviar",
                                                     icon: <Send size={16} />,
                                                     disabled: envioBloqueado,
+                                                    testId: `proposal-action-send-${proposta.id}`,
                                                     onClick: () =>
                                                       marcarPropostaEnviada(
                                                         proposta,
@@ -6189,6 +6684,7 @@ export default function App() {
                                                     ),
                                                     disabled: decisaoBloqueada,
                                                     accent: true,
+                                                    testId: `proposal-action-accept-${proposta.id}`,
                                                     onClick: () =>
                                                       marcarPropostaAceita(
                                                         proposta,
@@ -6199,6 +6695,7 @@ export default function App() {
                                                     icon: <XCircle size={16} />,
                                                     destructive: true,
                                                     disabled: decisaoBloqueada,
+                                                    testId: `proposal-action-reject-${proposta.id}`,
                                                     onClick: () =>
                                                       marcarPropostaRecusada(
                                                         proposta,
@@ -6213,6 +6710,7 @@ export default function App() {
                                               tooltip: propostaEditavel
                                                 ? "Editar proposta"
                                                 : "Duplique para alterar esta proposta",
+                                              testId: `proposal-action-edit-${proposta.id}`,
                                               onClick: () =>
                                                 selecionarProposta(proposta.id),
                                             },
@@ -6221,6 +6719,7 @@ export default function App() {
                                               icon: <RefreshCw size={16} />,
                                               disabled:
                                                 duplicarPropostaMutation.isPending,
+                                              testId: `proposal-action-duplicate-${proposta.id}`,
                                               onClick: () =>
                                                 duplicarPropostaComConfirmacao(
                                                   proposta,
@@ -6232,6 +6731,7 @@ export default function App() {
                                               destructive: true,
                                               disabled:
                                                 arquivarPropostaMutation.isPending,
+                                              testId: `proposal-action-delete-${proposta.id}`,
                                               onClick: () =>
                                                 arquivarPropostaComConfirmacao(
                                                   proposta,
@@ -6324,7 +6824,10 @@ export default function App() {
                           type="hidden"
                           {...perfilForm.register("templateVisualPadrao")}
                         />
-                        <div className="account-settings-section account-identity-section">
+                        <div
+                          className="account-settings-section account-identity-section"
+                          data-tour="configurar-dados-conta"
+                        >
                           <div className="account-settings-section-heading">
                             <h3>Identificação</h3>
                             <p>Dados principais exibidos nos documentos e propostas.</p>
@@ -6334,6 +6837,18 @@ export default function App() {
                               label="Nome comercial"
                               error={perfilForm.formState.errors.nomeComercial?.message}
                               {...perfilForm.register("nomeComercial")}
+                            />
+                            <CampoTexto
+                              label="Segmento"
+                              placeholder="Ex.: social media, fotografia, consultoria"
+                              error={perfilForm.formState.errors.segmento?.message}
+                              {...perfilForm.register("segmento")}
+                            />
+                            <CampoTexto
+                              label="Cidade/UF"
+                              placeholder="Ex.: Belo Horizonte/MG"
+                              error={perfilForm.formState.errors.cidadeUf?.message}
+                              {...perfilForm.register("cidadeUf")}
                             />
                             <CampoTexto
                               label="Responsável"
@@ -6393,7 +6908,10 @@ export default function App() {
                           </div>
                         </div>
 
-                        <div className="account-settings-section account-logo-section">
+                        <div
+                          className="account-settings-section account-logo-section"
+                          data-tour="configurar-logo"
+                        >
                           <div className="account-settings-section-heading">
                             <h3>Marca</h3>
                             <p>Use a logomarca que aparecerá nos materiais gerados pela Emprely.</p>
@@ -6568,6 +7086,8 @@ export default function App() {
                       )}
                     >
                       <input type="hidden" {...perfilForm.register("nomeComercial")} />
+                      <input type="hidden" {...perfilForm.register("segmento")} />
+                      <input type="hidden" {...perfilForm.register("cidadeUf")} />
                       <input type="hidden" {...perfilForm.register("emailContato")} />
                       <input
                         type="hidden"
@@ -6589,6 +7109,7 @@ export default function App() {
                         {...perfilForm.register("corSistemaSecundaria")}
                       />
                       <input type="hidden" {...perfilForm.register("templateVisualPadrao")} />
+                      <input type="hidden" {...perfilForm.register("formatoArquivoPreferido")} />
 
                       <div className="personalization-main-card rounded-md border border-border bg-surface p-5">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -6644,7 +7165,10 @@ export default function App() {
                           </div>
                         </div>
 
-                        <div className="personalization-section mt-6 border-t border-border pt-5">
+                        <div
+                          className="personalization-section mt-6 border-t border-border pt-5"
+                          data-tour="configurar-cores-formato"
+                        >
                           <div>
                             <p className="text-sm font-medium text-primary">
                               Orçamentos
@@ -6668,6 +7192,106 @@ export default function App() {
                               </div>
                             </div>
                           </div>
+                          <div className="mt-4">
+                            <span className="text-sm font-medium text-foreground">
+                              Formato preferido para envio
+                            </span>
+                            <p className="mt-1 text-sm text-muted">
+                              Usado no card de mensagem inicial com anexo.
+                            </p>
+                            <div className="mt-3 grid gap-2 lg:grid-cols-3">
+                              <button
+                                type="button"
+                                aria-pressed={
+                                  perfilPersonalizacaoPreview.formatoArquivoPreferido ===
+                                  "Pdf"
+                                }
+                                onClick={() => {
+                                  perfilForm.setValue(
+                                    "formatoArquivoPreferido",
+                                    "Pdf",
+                                    {
+                                      shouldDirty: true,
+                                      shouldValidate: true,
+                                    },
+                                  );
+                                  setPerfilMensagem(null);
+                                }}
+                                className={`personalization-choice ${
+                                  perfilPersonalizacaoPreview.formatoArquivoPreferido ===
+                                  "Pdf"
+                                    ? "is-active"
+                                    : ""
+                                }`}
+                              >
+                                <FileText size={18} aria-hidden="true" />
+                                <span>
+                                  <strong>PDF</strong>
+                                  <small>Arquivo pronto para enviar e arquivar.</small>
+                                </span>
+                              </button>
+                              <button
+                                type="button"
+                                aria-pressed={
+                                  perfilPersonalizacaoPreview.formatoArquivoPreferido ===
+                                  "Imagem"
+                                }
+                                onClick={() => {
+                                  perfilForm.setValue(
+                                    "formatoArquivoPreferido",
+                                    "Imagem",
+                                    {
+                                      shouldDirty: true,
+                                      shouldValidate: true,
+                                    },
+                                  );
+                                  setPerfilMensagem(null);
+                                }}
+                                className={`personalization-choice ${
+                                  perfilPersonalizacaoPreview.formatoArquivoPreferido ===
+                                  "Imagem"
+                                    ? "is-active"
+                                    : ""
+                                }`}
+                              >
+                                <ReceiptText size={18} aria-hidden="true" />
+                                <span>
+                                  <strong>Imagem</strong>
+                                  <small>Visual unico para compartilhar rapidamente.</small>
+                                </span>
+                              </button>
+                              <button
+                                type="button"
+                                aria-pressed={
+                                  perfilPersonalizacaoPreview.formatoArquivoPreferido ===
+                                  "PdfImagem"
+                                }
+                                onClick={() => {
+                                  perfilForm.setValue(
+                                    "formatoArquivoPreferido",
+                                    "PdfImagem",
+                                    {
+                                      shouldDirty: true,
+                                      shouldValidate: true,
+                                    },
+                                  );
+                                  setPerfilMensagem(null);
+                                }}
+                                className={`personalization-choice ${
+                                  perfilPersonalizacaoPreview.formatoArquivoPreferido ===
+                                  "PdfImagem"
+                                    ? "is-active"
+                                    : ""
+                                }`}
+                              >
+                                <Paperclip size={18} aria-hidden="true" />
+                                <span>
+                                  <strong>PDF + imagem</strong>
+                                  <small>Envia os dois formatos quando fizer sentido.</small>
+                                </span>
+                              </button>
+                            </div>
+                          </div>
                           <div className="mt-4 grid gap-4 md:grid-cols-2">
                           <CampoTexto
                             label="Cor primária dos templates"
@@ -6687,7 +7311,10 @@ export default function App() {
                         </div>
                       </div>
 
-                      <aside className="personalization-template-card rounded-md border border-border bg-surface">
+                      <aside
+                        className="personalization-template-card rounded-md border border-border bg-surface"
+                        data-tour="configurar-template"
+                      >
                         <div className="personalization-template-header flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                           <div className="flex min-w-0 items-start gap-2">
                             <FileText
@@ -6704,18 +7331,6 @@ export default function App() {
                               </p>
                             </div>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setPersonalizacaoPreviewTemplateAberto(
-                                templateVisualPersonalizacaoPreview,
-                              )
-                            }
-                            className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-md border border-border px-3 text-sm font-semibold text-foreground transition hover:border-primary hover:text-primary"
-                          >
-                            <Eye size={16} aria-hidden="true" />
-                            Ver preview real
-                          </button>
                         </div>
 
                         <div className="personalization-template-toolbar flex flex-col gap-3 border-t border-border sm:flex-row sm:items-center sm:justify-between">
@@ -6759,14 +7374,15 @@ export default function App() {
                           ) : null}
 
                           <div className="template-selection-grid">
-                            {propostaTemplateVisualOpcoes.map((template) => {
+                            {propostaTemplateVisualOpcoesGaleria.map((template) => {
                               const templateAtivo =
                                 templateVisualPersonalizacaoPreview === template.value;
 
                               return (
-                                <button
+                                <article
                                   key={template.value}
-                                  type="button"
+                                  role="button"
+                                  tabIndex={0}
                                   aria-pressed={templateAtivo}
                                   onClick={() => {
                                     perfilForm.setValue(
@@ -6778,6 +7394,20 @@ export default function App() {
                                       },
                                     );
                                     setPerfilMensagem(null);
+                                  }}
+                                  onKeyDown={(event) => {
+                                    if (event.key === "Enter" || event.key === " ") {
+                                      event.preventDefault();
+                                      perfilForm.setValue(
+                                        "templateVisualPadrao",
+                                        template.value,
+                                        {
+                                          shouldDirty: true,
+                                          shouldValidate: true,
+                                        },
+                                      );
+                                      setPerfilMensagem(null);
+                                    }
                                   }}
                                   className={`template-selection-card ${
                                     templateAtivo ? "is-active" : ""
@@ -6800,7 +7430,18 @@ export default function App() {
                                   <span className="template-selection-preview" aria-hidden="true">
                                     <TemplateMiniatura templateVisual={template.value} />
                                   </span>
-                                </button>
+                                  <button
+                                    type="button"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      setPersonalizacaoPreviewTemplateAberto(template.value);
+                                    }}
+                                    className="template-selection-preview-button"
+                                  >
+                                    <Eye size={14} aria-hidden="true" />
+                                    Preview
+                                  </button>
+                                </article>
                               );
                             })}
                           </div>
@@ -6866,71 +7507,14 @@ export default function App() {
                     </form>
                   </section>
                 ) : null}
-
-                {appView === "adminEmails" ? (
-                  <section className="grid gap-4">
-                    <div className="page-heading">
-                      <div>
-                        <h1 className="font-heading text-3xl font-semibold">Admin emails</h1>
-                      </div>
-                    </div>
-                    <div className="rounded-md border border-border bg-surface p-5 shadow-sm grid gap-4">
-                      <CampoTexto
-                        label="Chave super admin"
-                        type="password"
-                        value={adminEmailKey}
-                        onChange={(event) => setAdminEmailKey(event.target.value)}
-                        helperText="A mesma chave administrativa usada nas operações internas."
-                      />
-                      <form
-                        className="grid gap-3 rounded-md border border-border bg-white p-4"
-                        onSubmit={adminResendConfirmacaoEmailForm.handleSubmit((input) =>
-                          adminResendConfirmacaoMutation.mutate(input),
-                        )}
-                      >
-                        <h2 className="font-heading text-lg font-semibold">Reenviar confirmação</h2>
-                        <CampoTexto
-                          label="Email do usuário"
-                          type="email"
-                          error={adminResendConfirmacaoEmailForm.formState.errors.email?.message}
-                          {...adminResendConfirmacaoEmailForm.register("email")}
-                        />
-                        <MensagemErro error={adminResendConfirmacaoMutation.error} />
-                        <button
-                          type="submit"
-                          disabled={!adminEmailKey || adminResendConfirmacaoMutation.isPending}
-                          className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          <RefreshCw size={18} aria-hidden="true" />
-                          {adminResendConfirmacaoMutation.isPending ? "Reenviando..." : "Reenviar email"}
-                        </button>
-                      </form>
-                      <div className="grid gap-3">
-                        <div className="flex items-center justify-between gap-3">
-                          <h2 className="font-heading text-lg font-semibold">Histórico recente</h2>
-                          <button
-                            type="button"
-                            disabled={!adminEmailKey || adminEmailsQuery.isFetching}
-                            onClick={() => void adminEmailsQuery.refetch()}
-                            className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-border px-3 text-sm font-semibold"
-                          >
-                            Atualizar
-                          </button>
-                        </div>
-                        <MensagemErro error={adminEmailsQuery.error} />
-                        <AdminEmailsTabela emails={adminEmailsQuery.data ?? []} loading={adminEmailsQuery.isLoading} />
-                      </div>
-                    </div>
-                  </section>
-                ) : null}
-
                 {appView === "dashboard" ? (
                   <DashboardContent
                     conta={conta}
                     propostas={propostas}
-                    perfilContaAtualizado={Boolean(perfilConta?.updatedAt)}
+                    perfilContaAtualizado={perfilContaMinimoCompleto}
                     clientesTotal={clientes.length}
                     servicosTotal={servicos.length}
+                    primeiraPropostaGerada={primeiraPropostaGerada}
                     isLoading={
                       clientesQuery.isLoading ||
                       servicosQuery.isLoading ||
@@ -6948,9 +7532,23 @@ export default function App() {
                     }}
                     onEditarPerfil={() => navegarParaView("conta")}
                     onAbrirPropostas={() => navegarParaView("propostas")}
+                    onAbrirClientes={() => {
+                      setClientePagina(1);
+                      navegarParaView("clientes");
+                    }}
+                    onAbrirServicos={() => {
+                      setServicoPagina(1);
+                      navegarParaView("servicos");
+                    }}
+                    onAbrirPropostasPorStatus={(status) => {
+                      setFiltroStatusProposta(status);
+                      setPropostaPagina(1);
+                      navegarParaView("propostas");
+                    }}
                     onNovaProposta={() => abrirNovaProposta()}
                     onCadastrarCliente={abrirNovoCliente}
                     onSalvarServico={abrirNovoServico}
+                    onAbrirOnboarding={() => abrirOnboarding("conta")}
                   />
                 ) : null}
               </>
@@ -6985,18 +7583,21 @@ export default function App() {
       {propostaVisualizacaoModal && propostaVisualizacaoModalForm && conta ? (
         <div
           className="proposal-view-modal-overlay fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/70 p-4"
+          data-testid="proposal-view-modal-overlay"
           role="presentation"
           onMouseDown={(event) => {
             if (isBackdropClick(event)) {
-              setPropostaVisualizacaoModalId(null);
+              fecharPropostaVisualizacaoModal();
             }
           }}
         >
           <section
             className="proposal-view-modal-dialog w-full rounded-md border border-border bg-surface shadow-2xl"
+            data-testid="proposal-view-modal-dialog"
             role="dialog"
             aria-modal="true"
             aria-labelledby="proposal-view-modal-title"
+            onMouseDown={(event) => event.stopPropagation()}
           >
             <header className="proposal-view-modal-header">
               <div>
@@ -7031,6 +7632,7 @@ export default function App() {
                       ? "Editar"
                       : "Duplique para editar"
                   }
+                  data-testid="proposal-view-modal-edit"
                 >
                   <Edit3 size={16} aria-hidden="true" />
                 </button>
@@ -7043,6 +7645,7 @@ export default function App() {
                   className="tooltip-icon-button proposal-modal-icon-action"
                   aria-label="Duplicar proposta"
                   data-tooltip="Duplicar"
+                  data-testid="proposal-view-modal-duplicate"
                 >
                   <RefreshCw size={16} aria-hidden="true" />
                 </button>
@@ -7066,6 +7669,7 @@ export default function App() {
                       ? "Baixar PDF"
                       : "Gere a proposta antes de baixar"
                   }
+                  data-testid="proposal-view-modal-pdf"
                 >
                   <Download size={16} aria-hidden="true" />
                 </button>
@@ -7078,6 +7682,7 @@ export default function App() {
                     className="tooltip-icon-button proposal-modal-icon-action proposal-modal-icon-action-whatsapp"
                     aria-label="Enviar proposta pelo WhatsApp"
                     data-tooltip="WhatsApp"
+                    data-testid="proposal-view-modal-whatsapp"
                   >
                     <WhatsAppIcon size={16} aria-hidden="true" />
                   </button>
@@ -7088,16 +7693,18 @@ export default function App() {
                     className="tooltip-icon-button proposal-modal-icon-action"
                     aria-label="Gere a proposta antes de enviar pelo WhatsApp"
                     data-tooltip="Gere a proposta antes de enviar"
+                    data-testid="proposal-view-modal-whatsapp-disabled"
                   >
                     <WhatsAppIcon size={16} aria-hidden="true" />
                   </button>
                 )}
                 <button
                   type="button"
-                  onClick={() => setPropostaVisualizacaoModalId(null)}
+                  onClick={fecharPropostaVisualizacaoModal}
                   className="tooltip-icon-button proposal-modal-icon-action"
                   aria-label="Fechar visualização da proposta"
                   data-tooltip="Fechar"
+                  data-testid="proposal-view-modal-close"
                 >
                   <X size={18} aria-hidden="true" />
                 </button>
@@ -7143,17 +7750,20 @@ export default function App() {
       {propostaPreviewModalAberto && propostaEditorAtivo && conta ? (
         <div
           className="proposal-view-modal-overlay fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/70 p-4"
+          data-testid="proposal-editor-preview-overlay"
           onMouseDown={(event) => {
             if (isBackdropClick(event)) {
-              setPropostaPreviewModalAberto(false);
+              fecharPropostaPreviewModal();
             }
           }}
         >
           <section
             className="proposal-view-modal-dialog w-full rounded-md border border-border bg-surface shadow-2xl"
+            data-testid="proposal-editor-preview-dialog"
             role="dialog"
             aria-modal="true"
             aria-labelledby="proposal-editor-preview-title"
+            onMouseDown={(event) => event.stopPropagation()}
           >
             <input
               className="preview-zoom-radio"
@@ -7199,10 +7809,11 @@ export default function App() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => setPropostaPreviewModalAberto(false)}
+                  onClick={fecharPropostaPreviewModal}
                   className="tooltip-icon-button"
                   aria-label="Fechar visualização da proposta"
                   title="Fechar"
+                  data-testid="proposal-editor-preview-close"
                 >
                   <X size={18} aria-hidden="true" />
                 </button>
@@ -7229,17 +7840,20 @@ export default function App() {
       {personalizacaoPreviewTemplateAberto && conta ? (
         <div
           className="proposal-view-modal-overlay fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/70 p-4"
+          data-testid="personalization-template-preview-overlay"
           onMouseDown={(event) => {
             if (isBackdropClick(event)) {
-              setPersonalizacaoPreviewTemplateAberto(null);
+              fecharPersonalizacaoPreviewTemplate();
             }
           }}
         >
           <section
             className="proposal-view-modal-dialog w-full rounded-md border border-border bg-surface shadow-2xl"
+            data-testid="personalization-template-preview-dialog"
             role="dialog"
             aria-modal="true"
             aria-labelledby="personalization-template-preview-title"
+            onMouseDown={(event) => event.stopPropagation()}
           >
             <header className="proposal-view-modal-header">
               <div>
@@ -7259,7 +7873,7 @@ export default function App() {
               </div>
               <button
                 type="button"
-                onClick={() => setPersonalizacaoPreviewTemplateAberto(null)}
+                onClick={fecharPersonalizacaoPreviewTemplate}
                 className="tooltip-icon-button"
                 aria-label="Fechar preview do template padrão"
                 title="Fechar"
@@ -7303,6 +7917,7 @@ export default function App() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="proposal-template-selector-title"
+            onMouseDown={(event) => event.stopPropagation()}
           >
             <div className="template-preview-toolbar flex items-center justify-between gap-3">
               <div>
@@ -7329,7 +7944,7 @@ export default function App() {
               </button>
             </div>
             <div className="template-selector-grid">
-              {propostaTemplateVisualOpcoes.map((template) => {
+              {propostaTemplateVisualOpcoesGaleria.map((template) => {
                 const templateSelecionado =
                   normalizarTemplateVisual(propostaPreview.templateVisual) ===
                   template.value;
@@ -7412,20 +8027,18 @@ export default function App() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="proposal-share-title"
+            onMouseDown={(event) => event.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3">
               <div className="share-modal-heading">
-                <span className="share-modal-whatsapp-icon">
-                  <WhatsAppIcon size={20} aria-hidden="true" />
-                </span>
                 <div>
-                <p className="share-modal-kicker">WhatsApp</p>
-                <h2
-                  id="proposal-share-title"
-                  className="font-heading text-xl font-semibold"
-                >
-                  Como deseja enviar?
-                </h2>
+                  <p className="share-modal-kicker">Envio da proposta</p>
+                  <h2
+                    id="proposal-share-title"
+                    className="font-heading text-xl font-semibold"
+                  >
+                    Como deseja enviar?
+                  </h2>
                 </div>
               </div>
               <button
@@ -7439,6 +8052,27 @@ export default function App() {
               </button>
             </div>
             <div className="share-choice-grid mt-5">
+              <button
+                type="button"
+                onClick={() =>
+                  void enviarMensagemInicialComAnexoProposta(
+                    propostaCompartilhamentoAtiva,
+                    propostaCompartilhamentoDocumentoRef.current,
+                  )
+                }
+                className="share-choice-card"
+              >
+                <span className="share-choice-icon is-attachment">
+                  <Send size={21} aria-hidden="true" />
+                  <Paperclip
+                    className="share-choice-icon-badge"
+                    size={14}
+                    aria-hidden="true"
+                  />
+                </span>
+                <strong>Mensagem inicial + anexo</strong>
+                <span>Texto inicial com PDF da proposta anexado quando disponivel.</span>
+              </button>
               <a
                 href={whatsappPropostaCompletaUrl}
                 target="_blank"
@@ -7457,32 +8091,6 @@ export default function App() {
                 <strong>Proposta completa em texto</strong>
                 <span>Itens, valores, condições, listas e observações.</span>
               </a>
-              <a
-                href={whatsappPropostaArquivoUrl}
-                target="_blank"
-                rel="noreferrer"
-                onClick={() => {
-                  setPropostaExportacaoMensagem(
-                    "WhatsApp aberto com mensagem curta. Anexe o PDF ou a imagem em seguida.",
-                  );
-                  fecharModalCompartilharProposta();
-                }}
-                className="share-choice-card"
-              >
-                <span className="share-choice-icon is-attachment">
-                  <Send size={21} aria-hidden="true" />
-                  <Paperclip
-                    className="share-choice-icon-badge"
-                    size={14}
-                    aria-hidden="true"
-                  />
-                </span>
-                <strong>Mensagem curta + anexo</strong>
-                <span>Sem valor no texto. Envie PDF ou imagem em seguida.</span>
-              </a>
-            </div>
-            <div className="share-attachment-actions">
-              <span>Anexos</span>
               <button
                 type="button"
                 onClick={() =>
@@ -7491,9 +8099,13 @@ export default function App() {
                     propostaCompartilhamentoDocumentoRef.current,
                   )
                 }
+                className="share-choice-card"
               >
-                <Download size={16} aria-hidden="true" />
-                PDF
+                <span className="share-choice-icon is-download">
+                  <Download size={21} aria-hidden="true" />
+                </span>
+                <strong>Download PDF</strong>
+                <span>Baixe o arquivo final para enviar ou arquivar.</span>
               </button>
               <button
                 type="button"
@@ -7503,9 +8115,13 @@ export default function App() {
                     propostaCompartilhamentoDocumentoRef.current,
                   )
                 }
+                className="share-choice-card"
               >
-                <ReceiptText size={16} aria-hidden="true" />
-                Imagem
+                <span className="share-choice-icon is-image">
+                  <ReceiptText size={21} aria-hidden="true" />
+                </span>
+                <strong>Download imagem</strong>
+                <span>Gere uma imagem da proposta para compartilhar.</span>
               </button>
             </div>
           </section>
@@ -7546,6 +8162,7 @@ export default function App() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="quick-client-title"
+            onMouseDown={(event) => event.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -7576,6 +8193,8 @@ export default function App() {
               <ClienteFormularioCampos
                 form={clienteRapidoForm}
                 complementaresAberto={clienteRapidoComplementaresAberto}
+                logoMarcaAssinaturaUrl={logoMarcaTopo}
+                nomeMarcaAssinatura={nomeMarcaTopo}
                 onToggleComplementares={() =>
                   setClienteRapidoComplementaresAberto((aberto) => !aberto)
                 }
@@ -7621,6 +8240,7 @@ export default function App() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="template-preview-title"
+            onMouseDown={(event) => event.stopPropagation()}
           >
             <input
               className="preview-zoom-radio"
@@ -7794,6 +8414,20 @@ export default function App() {
           </section>
         </div>
       ) : null}
+      <OnboardingModal
+        aberto={onboardingModalAberto}
+        onboarding={onboarding}
+        jornadaAtiva={onboardingJornadaAtiva}
+        perfilCompleto={perfilContaMinimoCompleto}
+        primeiraPropostaGerada={primeiraPropostaGerada}
+        isPending={onboardingMutation.isPending || onboardingEventoMutation.isPending}
+        onAlterarJornada={setOnboardingJornadaAtiva}
+        onFechar={() => setOnboardingModalAberto(false)}
+        onPular={pularOnboarding}
+        onConfigurarConta={iniciarConfiguracaoContaOnboarding}
+        onPrimeiraProposta={iniciarPrimeiraPropostaOnboarding}
+        onIniciarTour={iniciarTourOnboarding}
+      />
       <ModalConfirmacaoSistema
         confirmacao={confirmacaoSistema}
         onCancelar={() => responderConfirmacaoSistema(false)}
@@ -7804,6 +8438,192 @@ export default function App() {
         onFechar={fecharToastSistema}
       />
     </div>
+  );
+}
+
+function OnboardingModal({
+  aberto,
+  onboarding,
+  jornadaAtiva,
+  perfilCompleto,
+  primeiraPropostaGerada,
+  isPending,
+  onAlterarJornada,
+  onFechar,
+  onPular,
+  onConfigurarConta,
+  onPrimeiraProposta,
+  onIniciarTour,
+}: {
+  aberto: boolean;
+  onboarding?: OnboardingResponse;
+  jornadaAtiva: "conta" | "proposta";
+  perfilCompleto: boolean;
+  primeiraPropostaGerada: boolean;
+  isPending: boolean;
+  onAlterarJornada: (jornada: "conta" | "proposta") => void;
+  onFechar: () => void;
+  onPular: () => void;
+  onConfigurarConta: () => void;
+  onPrimeiraProposta: () => void;
+  onIniciarTour: () => void;
+}) {
+  if (!aberto || typeof document === "undefined") {
+    return null;
+  }
+
+  const configuracaoStatus = onboarding?.configuracaoConta.status ?? "NaoIniciado";
+  const propostaStatus = onboarding?.primeiraProposta.status ?? "NaoIniciado";
+  const configuracaoStatusVisual = perfilCompleto ? "Concluido" : configuracaoStatus;
+  const propostaStatusVisual = primeiraPropostaGerada ? "Concluido" : propostaStatus;
+  const etapaPrincipal =
+    jornadaAtiva === "conta"
+      ? {
+          titulo: "Configure sua conta",
+          detalhe:
+            "Complete dados do negócio, logomarca, template, cores e formato preferido para padronizar as propostas.",
+          acao: "Configurar conta",
+          onClick: onConfigurarConta,
+          concluido: perfilCompleto,
+        }
+      : {
+          titulo: "Gere a primeira proposta",
+          detalhe:
+            "Cadastre cliente, serviço, orçamento e gere o arquivo pronto para envio.",
+          acao: "Criar primeira proposta",
+          onClick: onPrimeiraProposta,
+          concluido: primeiraPropostaGerada,
+        };
+
+  return createPortal(
+    <div
+      className="onboarding-modal-overlay"
+      onMouseDown={(event) => {
+        if (isBackdropClick(event)) {
+          onFechar();
+        }
+      }}
+    >
+      <section
+        className="onboarding-modal-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="onboarding-modal-title"
+      >
+        <header className="onboarding-modal-header">
+          <div>
+            <p className="onboarding-modal-kicker">Guia inicial</p>
+            <h2 id="onboarding-modal-title">Conheça a Emprely antes de começar</h2>
+          </div>
+          <button
+            type="button"
+            onClick={onFechar}
+            className="tooltip-icon-button"
+            aria-label="Fechar guia inicial"
+            title="Fechar"
+          >
+            <X size={18} aria-hidden="true" />
+          </button>
+        </header>
+
+        <div className="onboarding-modal-tabs" role="tablist" aria-label="Jornadas do guia">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={jornadaAtiva === "conta"}
+            className={jornadaAtiva === "conta" ? "is-active" : ""}
+            onClick={() => onAlterarJornada("conta")}
+          >
+            <Settings size={16} aria-hidden="true" />
+            Conta
+            {perfilCompleto ? <CheckCircle2 size={15} aria-hidden="true" /> : null}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={jornadaAtiva === "proposta"}
+            className={jornadaAtiva === "proposta" ? "is-active" : ""}
+            onClick={() => onAlterarJornada("proposta")}
+          >
+            <FileText size={16} aria-hidden="true" />
+            Proposta
+            {primeiraPropostaGerada ? <CheckCircle2 size={15} aria-hidden="true" /> : null}
+          </button>
+        </div>
+
+        <div className="onboarding-modal-body">
+          <div className="onboarding-focus-panel">
+            <span className="onboarding-focus-icon">
+              {etapaPrincipal.concluido ? (
+                <CheckCircle2 size={22} aria-hidden="true" />
+              ) : (
+                <Rocket size={22} aria-hidden="true" />
+              )}
+            </span>
+            <div>
+              <h3>{etapaPrincipal.titulo}</h3>
+              <p>{etapaPrincipal.detalhe}</p>
+              <div className="onboarding-status-row">
+                <span>Conta: {getOnboardingStatusLabel(configuracaoStatusVisual)}</span>
+                <span>Proposta: {getOnboardingStatusLabel(propostaStatusVisual)}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="onboarding-step-list">
+            {(jornadaAtiva === "conta"
+              ? [
+                  "Preencher nome, segmento, cidade/UF e contato.",
+                  "Adicionar ou revisar logomarca.",
+                  "Escolher template padrão, cores e formato preferido.",
+                ]
+              : [
+                  "Cadastrar ou selecionar o primeiro cliente.",
+                  "Cadastrar um serviço reutilizável.",
+                  "Montar, revisar e gerar a proposta para envio.",
+                ]
+            ).map((passo, index) => (
+              <div key={passo} className="onboarding-step-item">
+                <span>{index + 1}</span>
+                <p>{passo}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <footer className="onboarding-modal-footer">
+          <button
+            type="button"
+            onClick={onIniciarTour}
+            disabled={isPending}
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-border px-4 text-sm font-semibold"
+          >
+            <Sparkles size={16} aria-hidden="true" />
+            Ver tour guiado
+          </button>
+          <div className="onboarding-modal-actions">
+            <button
+              type="button"
+              onClick={onPular}
+              disabled={isPending}
+              className="inline-flex h-11 items-center justify-center rounded-md px-4 text-sm font-semibold text-muted transition hover:text-slate-950 disabled:opacity-60"
+            >
+              Lembrar depois
+            </button>
+            <button
+              type="button"
+              onClick={etapaPrincipal.onClick}
+              disabled={isPending || etapaPrincipal.concluido}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {etapaPrincipal.concluido ? "Concluído" : etapaPrincipal.acao}
+              <ArrowRight size={16} aria-hidden="true" />
+            </button>
+          </div>
+        </footer>
+      </section>
+    </div>,
+    document.body,
   );
 }
 
@@ -7857,6 +8677,7 @@ function ModalConfirmacaoSistema({
   return createPortal(
     <div
       className="system-confirm-overlay"
+      data-testid="system-confirm-overlay"
       role="presentation"
       onMouseDown={(event) => {
         if (isBackdropClick(event)) {
@@ -7866,11 +8687,21 @@ function ModalConfirmacaoSistema({
     >
       <section
         className={`system-confirm-dialog is-${variante}`}
+        data-testid="system-confirm-dialog"
         role="alertdialog"
         aria-modal="true"
         aria-labelledby={tituloId}
         aria-describedby={descricaoId}
+        onMouseDown={(event) => event.stopPropagation()}
       >
+        <button
+          type="button"
+          className="system-confirm-close"
+          aria-label="Fechar confirmacao"
+          onClick={onCancelar}
+        >
+          <X size={17} aria-hidden="true" />
+        </button>
         <div className="system-confirm-header">
           <span className="system-confirm-icon" aria-hidden="true">
             <Icone size={22} />
@@ -7889,6 +8720,7 @@ function ModalConfirmacaoSistema({
             ref={botaoCancelarRef}
             type="button"
             className="system-confirm-button system-confirm-button-secondary"
+            data-testid="system-confirm-cancel"
             onClick={onCancelar}
           >
             {confirmacao.textoCancelar ?? "Não"}
@@ -7896,6 +8728,7 @@ function ModalConfirmacaoSistema({
           <button
             type="button"
             className="system-confirm-button system-confirm-button-primary"
+            data-testid="system-confirm-confirm"
             onClick={onConfirmar}
           >
             {confirmacao.textoConfirmar ?? "Sim"}
@@ -8037,59 +8870,6 @@ function getToastSistemaVariante(
   return "success";
 }
 
-function AdminEmailsTabela({
-  emails,
-  loading,
-}: {
-  emails: AdminEmailHistoricoResponse[];
-  loading: boolean;
-}) {
-  if (loading) {
-    return <ListaCarregando label="Carregando histórico de emails" />;
-  }
-
-  if (emails.length === 0) {
-    return (
-      <EstadoVazio
-        titulo="Nenhum email encontrado"
-        detalhe="Informe a chave super admin e atualize para consultar o histórico recente."
-      />
-    );
-  }
-
-  return (
-    <div className="overflow-x-auto rounded-md border border-border">
-      <table className="min-w-full divide-y divide-border text-sm">
-        <thead className="bg-muted/30 text-left text-xs font-semibold uppercase text-muted">
-          <tr>
-            <th className="px-3 py-2">Tipo</th>
-            <th className="px-3 py-2">Destinatário</th>
-            <th className="px-3 py-2">Status</th>
-            <th className="px-3 py-2">Criado em</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-border bg-white">
-          {emails.map((email) => (
-            <tr key={email.id}>
-              <td className="px-3 py-2 font-medium text-foreground">{email.tipo}</td>
-              <td className="px-3 py-2 text-muted">{email.destinatario}</td>
-              <td className="px-3 py-2 text-muted">{email.status}</td>
-              <td className="px-3 py-2 text-muted">{formatDataHoraCurta(email.createdAt)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function formatDataHoraCurta(value: string) {
-  return new Intl.DateTimeFormat("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "short",
-  }).format(new Date(value));
-}
-
 function isCampoOpcional(label: string) {
   return /\bopcional\b/i.test(label);
 }
@@ -8168,6 +8948,8 @@ const CampoMoedaReal = forwardRef<HTMLInputElement, CampoMoedaRealProps>(
     const erroId = `${inputId}-erro`;
     const opcional = isCampoOpcional(label);
     const labelDisplay = opcional ? formatCampoLabel(label) : label;
+    const descricaoMoeda =
+      helperText ?? "Digite 1500 para R$ 1.500,00 ou 1500,50 para R$ 1.500,50.";
 
     return (
       <label
@@ -8186,14 +8968,14 @@ const CampoMoedaReal = forwardRef<HTMLInputElement, CampoMoedaRealProps>(
             onValueChange(parseMoedaRealInput(event.target.value))
           }
           aria-invalid={Boolean(error)}
-          aria-describedby={`${helperText ? descricaoId : ""} ${
+          aria-describedby={`${descricaoMoeda ? descricaoId : ""} ${
             error ? erroId : ""
           }`.trim() || undefined}
           className="mt-1 h-11 w-full rounded-md border border-border bg-white px-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-blue-100"
         />
-        {helperText ? (
+        {descricaoMoeda ? (
           <span id={descricaoId} className="campo-helper mt-1 block text-xs text-muted">
-            {helperText}
+            {descricaoMoeda}
           </span>
         ) : null}
         {error ? (
@@ -8299,11 +9081,13 @@ const CampoSelect = forwardRef<HTMLSelectElement, CampoSelectProps>(
     const labelDisplay = opcional ? formatCampoLabel(label) : label;
 
     return (
-      <label
+      <div
         className="campo-texto block"
         data-optional={opcional ? "true" : undefined}
       >
-        <span className="text-sm font-medium text-foreground">{labelDisplay}</span>
+        <label className="text-sm font-medium text-foreground" htmlFor={inputId}>
+          {labelDisplay}
+        </label>
         <select
           ref={ref}
           id={inputId}
@@ -8326,7 +9110,7 @@ const CampoSelect = forwardRef<HTMLSelectElement, CampoSelectProps>(
             {error}
           </span>
         ) : null}
-      </label>
+      </div>
     );
   },
 );
@@ -8349,11 +9133,13 @@ const CampoTextarea = forwardRef<HTMLTextAreaElement, CampoTextareaProps>(
     const labelDisplay = opcional ? formatCampoLabel(label) : label;
 
     return (
-      <label
+      <div
         className="campo-texto block"
         data-optional={opcional ? "true" : undefined}
       >
-        <span className="text-sm font-medium text-foreground">{labelDisplay}</span>
+        <label className="text-sm font-medium text-foreground" htmlFor={inputId}>
+          {labelDisplay}
+        </label>
         <textarea
           ref={ref}
           id={inputId}
@@ -8374,7 +9160,7 @@ const CampoTextarea = forwardRef<HTMLTextAreaElement, CampoTextareaProps>(
             {error}
           </span>
         ) : null}
-      </label>
+      </div>
     );
   },
 );
@@ -8384,12 +9170,16 @@ CampoTextarea.displayName = "CampoTextarea";
 type ClienteFormularioCamposProps = {
   form: UseFormReturn<ClienteFormInput>;
   complementaresAberto: boolean;
+  logoMarcaAssinaturaUrl: string | null;
+  nomeMarcaAssinatura: string;
   onToggleComplementares: () => void;
 };
 
 function ClienteFormularioCampos({
   form,
   complementaresAberto,
+  logoMarcaAssinaturaUrl,
+  nomeMarcaAssinatura,
   onToggleComplementares,
 }: ClienteFormularioCamposProps) {
   const nome = useWatch({
@@ -8412,10 +9202,19 @@ function ClienteFormularioCampos({
     control: form.control,
     name: "tiktok",
   });
+  const email = useWatch({
+    control: form.control,
+    name: "email",
+  });
   const whatsappUrl = buildWhatsappContatoClienteUrl({ nome, telefone });
   const instagramUrl = buildClienteSocialUrl("instagram", instagram);
   const facebookUrl = buildClienteSocialUrl("facebook", facebook);
   const tiktokUrl = buildClienteSocialUrl("tiktok", tiktok);
+  const emailUrl = buildClienteEmailUrl({
+    email,
+    logoMarcaUrl: logoMarcaAssinaturaUrl,
+    nomeMarca: nomeMarcaAssinatura,
+  });
 
   return (
     <>
@@ -8466,7 +9265,11 @@ function ClienteFormularioCampos({
                   error={form.formState.errors.instagram?.message}
                   {...form.register("instagram")}
                 />
-                <LinkSocialClienteButton href={instagramUrl} label="Instagram" />
+                <LinkSocialClienteButton
+                  href={instagramUrl}
+                  label="Instagram"
+                  rede="instagram"
+                />
               </div>
               <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
                 <CampoTexto
@@ -8475,7 +9278,11 @@ function ClienteFormularioCampos({
                   error={form.formState.errors.facebook?.message}
                   {...form.register("facebook")}
                 />
-                <LinkSocialClienteButton href={facebookUrl} label="Facebook" />
+                <LinkSocialClienteButton
+                  href={facebookUrl}
+                  label="Facebook"
+                  rede="facebook"
+                />
               </div>
               <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
                 <CampoTexto
@@ -8484,16 +9291,23 @@ function ClienteFormularioCampos({
                   error={form.formState.errors.tiktok?.message}
                   {...form.register("tiktok")}
                 />
-                <LinkSocialClienteButton href={tiktokUrl} label="TikTok" />
+                <LinkSocialClienteButton
+                  href={tiktokUrl}
+                  label="TikTok"
+                  rede="tiktok"
+                />
               </div>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
-              <CampoTexto
-                label="E-mail (opcional)"
-                type="email"
-                error={form.formState.errors.email?.message}
-                {...form.register("email")}
-              />
+              <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                <CampoTexto
+                  label="E-mail (opcional)"
+                  type="email"
+                  error={form.formState.errors.email?.message}
+                  {...form.register("email")}
+                />
+                <EmailClienteButton href={emailUrl} />
+              </div>
               <CampoTexto
                 label="CPF/CNPJ (opcional)"
                 placeholder="000.000.000-00"
@@ -9196,13 +10010,14 @@ function ContatoWhatsappClienteButton({
 function LinkSocialClienteButton({
   href,
   label,
+  rede,
 }: {
   href: string;
   label: string;
+  rede: RedeSocialCliente;
 }) {
   const tooltip = href ? `Abrir ${label}` : `${label} não informado`;
-  const className =
-    "tooltip-icon-button inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-border bg-white text-muted transition hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-60";
+  const className = `tooltip-icon-button inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md border bg-white transition disabled:cursor-not-allowed disabled:border-border disabled:bg-slate-50 disabled:text-muted disabled:opacity-60 ${getSocialClienteButtonClass(rede)}`;
 
   if (!href) {
     return (
@@ -9214,7 +10029,7 @@ function LinkSocialClienteButton({
         data-tooltip={tooltip}
         className={className}
       >
-        <ExternalLink size={16} aria-hidden="true" />
+        <SocialClienteIcon rede={rede} size={17} />
       </button>
     );
   }
@@ -9229,8 +10044,115 @@ function LinkSocialClienteButton({
       data-tooltip={tooltip}
       className={className}
     >
-      <ExternalLink size={16} aria-hidden="true" />
+      <SocialClienteIcon rede={rede} size={17} />
     </a>
+  );
+}
+
+function EmailClienteButton({ href }: { href: string }) {
+  const tooltip = href
+    ? "Enviar e-mail para este cliente"
+    : "Cliente sem e-mail válido";
+  const className =
+    "tooltip-icon-button inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-sky-200 bg-sky-50 text-sky-700 transition hover:border-sky-400 hover:bg-sky-100 disabled:cursor-not-allowed disabled:border-border disabled:bg-slate-50 disabled:text-muted disabled:opacity-60";
+
+  if (!href) {
+    return (
+      <button
+        type="button"
+        disabled
+        aria-label={tooltip}
+        title={tooltip}
+        data-tooltip={tooltip}
+        className={className}
+      >
+        <Mail size={17} aria-hidden="true" />
+      </button>
+    );
+  }
+
+  return (
+    <a
+      href={href}
+      aria-label={tooltip}
+      title={tooltip}
+      data-tooltip={tooltip}
+      className={className}
+    >
+      <Mail size={17} aria-hidden="true" />
+    </a>
+  );
+}
+
+function SocialClienteIcon({
+  rede,
+  size,
+}: {
+  rede: RedeSocialCliente;
+  size: number;
+}) {
+  if (rede === "instagram") {
+    return <InstagramGlyph size={size} />;
+  }
+
+  if (rede === "facebook") {
+    return <FacebookGlyph size={size} />;
+  }
+
+  return <TikTokGlyph size={size} />;
+}
+
+function getSocialClienteButtonClass(rede: RedeSocialCliente): string {
+  if (rede === "instagram") {
+    return "border-fuchsia-200 text-fuchsia-700 hover:border-fuchsia-400 hover:bg-fuchsia-50";
+  }
+
+  if (rede === "facebook") {
+    return "border-blue-200 text-blue-700 hover:border-blue-400 hover:bg-blue-50";
+  }
+
+  return "border-slate-300 text-slate-900 hover:border-slate-500 hover:bg-slate-100";
+}
+
+function FacebookGlyph({
+  size = 18,
+  ...props
+}: SVGProps<SVGSVGElement> & { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      {...props}
+    >
+      <path
+        d="M14.2 8.25h2.25V4.72c-.39-.05-1.73-.17-3.3-.17-3.26 0-5.49 1.99-5.49 5.64v3.18H4.1v3.95h3.56v6.13h4.25v-6.13h3.33l.53-3.95h-3.86V10.6c0-1.14.32-2.35 2.29-2.35Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+function TikTokGlyph({
+  size = 18,
+  ...props
+}: SVGProps<SVGSVGElement> & { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      {...props}
+    >
+      <path
+        d="M14.1 3.5h3.05c.18 1.33.82 2.48 1.78 3.37.84.78 1.91 1.3 3.07 1.47v3.1a7.82 7.82 0 0 1-3.05-.65 7.42 7.42 0 0 1-1.78-1.08v6.27c0 3.18-2.58 5.77-5.77 5.77a5.77 5.77 0 0 1-.88-11.47v3.23a2.56 2.56 0 1 0 3.58 2.35V3.5Z"
+        fill="currentColor"
+      />
+    </svg>
   );
 }
 
@@ -9249,14 +10171,23 @@ type ListagemAcao = {
   destructive?: boolean;
   accent?: boolean;
   tooltip?: string;
+  testId?: string;
+};
+
+type ListagemAcaoGrupo = {
+  id: "principal" | "fluxo" | "gerenciar" | "perigo";
+  label: string;
+  acoes: ListagemAcao[];
 };
 
 function ListagemAcoes({
   acoes,
   ariaLabel,
+  dataTestId,
 }: {
   acoes: ListagemAcao[];
   ariaLabel: string;
+  dataTestId?: string;
 }) {
   const [menuAberto, setMenuAberto] = useState(false);
   const [dropdownPosicao, setDropdownPosicao] = useState({
@@ -9281,10 +10212,10 @@ function ListagemAcoes({
     }
 
     const rect = button.getBoundingClientRect();
-    const larguraDropdown = 208;
+    const larguraDropdown = 288;
     const margemTela = 12;
     const espacoEntreBotao = 8;
-    const maxHeight = Math.min(360, window.innerHeight - margemTela * 2);
+    const maxHeight = Math.min(520, window.innerHeight - margemTela * 2);
     const alturaDropdown = Math.min(
       dropdownRef.current?.offsetHeight ?? maxHeight,
       maxHeight,
@@ -9356,7 +10287,11 @@ function ListagemAcoes({
 
   if (acoesAtivas.length <= 3) {
     return (
-      <div className="table-actions table-actions-icons" aria-label={ariaLabel}>
+      <div
+        className="table-actions table-actions-icons"
+        aria-label={ariaLabel}
+        data-testid={dataTestId}
+      >
         {acoesAtivas.map((acao) => (
           <ListagemAcaoIcone key={acao.label} acao={acao} />
         ))}
@@ -9365,7 +10300,11 @@ function ListagemAcoes({
   }
 
   return (
-    <div className="table-actions table-actions-menu" aria-label={ariaLabel}>
+    <div
+      className="table-actions table-actions-menu"
+      aria-label={ariaLabel}
+      data-testid={dataTestId}
+    >
       <div ref={rootRef} className="list-actions-dropdown-root">
         <button
           ref={buttonRef}
@@ -9374,6 +10313,7 @@ function ListagemAcoes({
           aria-label="Abrir menu de ações"
           aria-haspopup="menu"
           aria-expanded={menuAberto}
+          data-testid={dataTestId ? `${dataTestId}-menu` : undefined}
           data-tooltip="Mais ações"
           title="Mais ações"
           onClick={() => {
@@ -9392,18 +10332,31 @@ function ListagemAcoes({
                 ref={dropdownRef}
                 className="list-actions-dropdown"
                 role="menu"
+                data-testid={dataTestId ? `${dataTestId}-dropdown` : undefined}
                 style={{
                   top: dropdownPosicao.top,
                   left: dropdownPosicao.left,
                   maxHeight: dropdownPosicao.maxHeight,
                 }}
               >
-                {acoesAtivas.map((acao) => (
-                  <ListagemAcaoDropdown
-                    key={acao.label}
-                    acao={acao}
-                    onClose={() => setMenuAberto(false)}
-                  />
+                {getListagemAcoesGrupos(acoesAtivas).map((grupo) => (
+                  <div
+                    key={grupo.id}
+                    className={`list-actions-dropdown-group is-${grupo.id}`}
+                    role="group"
+                    aria-label={grupo.label}
+                  >
+                    <span className="list-actions-dropdown-group-title">
+                      {grupo.label}
+                    </span>
+                    {grupo.acoes.map((acao) => (
+                      <ListagemAcaoDropdown
+                        key={acao.label}
+                        acao={acao}
+                        onClose={() => setMenuAberto(false)}
+                      />
+                    ))}
+                  </div>
                 ))}
               </div>,
               document.body,
@@ -9412,6 +10365,38 @@ function ListagemAcoes({
       </div>
     </div>
   );
+}
+
+function getListagemAcoesGrupos(acoes: ListagemAcao[]): ListagemAcaoGrupo[] {
+  const grupos: ListagemAcaoGrupo[] = [
+    { id: "principal", label: "Principais", acoes: [] },
+    { id: "fluxo", label: "Fluxo comercial", acoes: [] },
+    { id: "gerenciar", label: "Gerenciar", acoes: [] },
+    { id: "perigo", label: "Perigo", acoes: [] },
+  ];
+
+  acoes.forEach((acao) => {
+    const label = acao.label.toLowerCase();
+
+    if (acao.destructive || label === "excluir") {
+      grupos.find((grupo) => grupo.id === "perigo")?.acoes.push(acao);
+      return;
+    }
+
+    if (["visualizar", "pdf", "whatsapp"].includes(label)) {
+      grupos.find((grupo) => grupo.id === "principal")?.acoes.push(acao);
+      return;
+    }
+
+    if (["gerar", "enviar", "aceita", "recusada"].includes(label)) {
+      grupos.find((grupo) => grupo.id === "fluxo")?.acoes.push(acao);
+      return;
+    }
+
+    grupos.find((grupo) => grupo.id === "gerenciar")?.acoes.push(acao);
+  });
+
+  return grupos.filter((grupo) => grupo.acoes.length > 0);
 }
 
 function ListagemAcaoIcone({ acao }: { acao: ListagemAcao }) {
@@ -9427,6 +10412,7 @@ function ListagemAcaoIcone({ acao }: { acao: ListagemAcao }) {
         aria-label={acao.label}
         title={tooltip}
         data-tooltip={tooltip}
+        data-testid={acao.testId}
         className={className}
       >
         {acao.icon}
@@ -9442,6 +10428,7 @@ function ListagemAcaoIcone({ acao }: { acao: ListagemAcao }) {
       aria-label={acao.label}
       title={tooltip}
       data-tooltip={tooltip}
+      data-testid={acao.testId}
       className={className}
     >
       {acao.icon}
@@ -9466,6 +10453,7 @@ function ListagemAcaoDropdown({
         rel={acao.rel}
         role="menuitem"
         className={className}
+        data-testid={acao.testId}
         onClick={onClose}
       >
         {acao.icon}
@@ -9480,6 +10468,7 @@ function ListagemAcaoDropdown({
       role="menuitem"
       disabled={acao.disabled}
       className={className}
+      data-testid={acao.testId}
       onClick={() => {
         if (acao.disabled) {
           return;
@@ -9808,16 +10797,26 @@ function TemplateSelectionIcon({
       <path d="M18 30h28" className="template-svg-line" />
       <path d="M18 38h20" className="template-svg-line" />
       {templateVisual === "OrcamentoSimplificado" ? (
-        <path d="M44 18l6 6-16 16-8 2 2-8 16-16Z" className="template-svg-accent" />
+        <>
+          <circle cx="45" cy="23" r="7" className="template-svg-accent" />
+          <path d="M38 43c2.5-8 11.5-8 14 0" className="template-svg-stroke-accent" />
+          <path d="M18 44h16" className="template-svg-line" />
+        </>
       ) : templateVisual === "PropostaCompleta" ? (
         <>
           <rect x="39" y="17" width="10" height="10" rx="2" className="template-svg-accent" />
           <rect x="39" y="31" width="10" height="10" rx="2" className="template-svg-accent-muted" />
         </>
-      ) : templateVisual === "LunaSocialStudio" || templateVisual === "InstagramPremium" ? (
+      ) : templateVisual === "LunaSocialStudio" ? (
         <>
           <circle cx="46" cy="23" r="7" className="template-svg-accent" />
           <path d="M41 40c2.5-6 7.5-6 10 0" className="template-svg-stroke-accent" />
+        </>
+      ) : templateVisual === "InstagramPremium" ? (
+        <>
+          <rect x="39" y="17" width="11" height="22" rx="4" className="template-svg-accent" />
+          <path d="M42 25l6 4-6 4z" fill="#fff" />
+          <path d="M38 44h14" className="template-svg-stroke-accent" />
         </>
       ) : templateVisual === "DarkGrowth" ? (
         <path d="M38 42l6-10 5 5 6-14" className="template-svg-stroke-accent" />
@@ -9892,7 +10891,7 @@ function TemplateComercialMinimalista({ d }: TemplateDocumentoBaseProps) {
       <header className="doc-minimal-header">
         <DocumentoMarca d={d} />
         <div className="doc-minimal-title">
-          <span className="doc-kicker">Orçamento Comercial</span>
+          <span className="doc-kicker">Orçamento rápido WhatsApp</span>
           <DocumentoTitulo titulo={d.titulo} className="doc-minimal-title-main" />
           <span className="doc-title-rule" />
         </div>
@@ -9900,7 +10899,6 @@ function TemplateComercialMinimalista({ d }: TemplateDocumentoBaseProps) {
 
       <DocumentoMetaStrip d={d} labelsUpper />
       {d.introducao ? <p className="doc-lead doc-minimal-lead">{d.introducao}</p> : null}
-
       <DocumentoTabelaServicos d={d} totalColumn />
 
       <section className="doc-minimal-summary">
@@ -9908,12 +10906,15 @@ function TemplateComercialMinimalista({ d }: TemplateDocumentoBaseProps) {
       </section>
 
       <DocumentoCondicoes d={d} compact />
-      <DocumentoFooter d={d} cta="Aprovar orçamento" minimal />
+      <DocumentoFooter d={d} cta="Aprovar e seguir" minimal />
     </div>
   );
 }
 
 function TemplateOrcamentoSimplificado({ d }: TemplateDocumentoBaseProps) {
+  const inclusos = getInclusosDocumento(d);
+  const textoResumo = d.introducao || d.observacoes;
+
   return (
     <div className="doc-page doc-simple-page">
       <span className="doc-simple-corner" />
@@ -9925,33 +10926,43 @@ function TemplateOrcamentoSimplificado({ d }: TemplateDocumentoBaseProps) {
       <section className="doc-simple-title">
         <span />
         <div>
-          <small>Orçamento Simplificado</small>
+          <small>Mídia kit e rate card</small>
           <DocumentoTitulo titulo={d.titulo} className="doc-simple-title-main" />
-          <p>Proposta objetiva com os principais itens para aprovação rápida.</p>
+          <p>Audiência, formatos, bundles e condições comerciais para parceria com creator.</p>
         </div>
       </section>
 
       <DocumentoMetaCards d={d} />
 
-      {d.introducao ? (
+      {textoResumo ? (
         <section className="doc-simple-intro">
           <div className="doc-round-icon">
-            <Target size={46} />
+            <UsersRound size={46} />
           </div>
-          <p>{d.introducao}</p>
+          <p>{textoResumo}</p>
         </section>
       ) : null}
 
       <section className="doc-simple-grid">
-        <DocumentoTabelaServicos d={d} compact icons />
+        <div>
+          <DocumentoSectionTitle icon={<Tags size={20} />} title="Formatos e pacotes" />
+          <DocumentoTabelaServicos d={d} compact detailed icons />
+        </div>
         <DocumentoTotalCard d={d} variant="receipt" />
       </section>
+
+      {d.beneficios.length || inclusos.length ? (
+        <section className="doc-simple-grid">
+          <DocumentoBeneficios d={d} />
+          <DocumentoLista titulo="Condições de uso e entrega" itens={inclusos} positive />
+        </section>
+      ) : null}
 
       <section className="doc-simple-actions">
         <DocumentoCondicoes d={d} icon />
         <div className="doc-cta doc-cta-simple">
           <CheckCircle2 size={30} />
-          <strong>Aprovar orçamento</strong>
+          <strong>Confirmar parceria</strong>
         </div>
       </section>
 
@@ -9980,9 +10991,9 @@ function TemplatePropostaCompleta({ d }: TemplateDocumentoBaseProps) {
       <header className="doc-complete-header">
         <DocumentoMarca d={d} />
         <div className="doc-complete-heading">
-          <span>Proposta comercial</span>
+          <span>Proposta comercial completa</span>
           <DocumentoTitulo titulo={d.titulo} className="doc-complete-title-main" />
-          <small>Estratégia, conteúdo e consistência para transformar seguidores em clientes.</small>
+          <small>Escopo, entregas, prazos, condições e próximos passos para aprovar com clareza.</small>
         </div>
       </header>
 
@@ -10062,12 +11073,34 @@ function TemplateSocialDetalhado({
   d,
   luna = false,
 }: TemplateDocumentoBaseProps & { luna?: boolean }) {
+  const texto = luna
+    ? {
+        kicker: "Social media mensal",
+        titulo: "Gestão de conteúdo recorrente",
+        escopo: "Calendário, entregas e rotina mensal",
+        beneficios: "O que melhora na operação",
+        listas: "Aprovações e combinados",
+        cronograma: "Cadência mensal",
+        cta: "Aprovar plano mensal",
+        tipo: "social" as const,
+      }
+    : {
+        kicker: "Tráfego pago e campanhas",
+        titulo: "Plano de mídia e performance",
+        escopo: "Setup, campanhas e otimização",
+        beneficios: "Indicadores de resultado",
+        listas: "Responsabilidades e limites",
+        cronograma: "Ciclo de campanha",
+        cta: "Aprovar gestão de tráfego",
+        tipo: "trafego" as const,
+      };
+
   return (
     <div className={`doc-page doc-social-page ${luna ? "doc-social-page-luna" : ""}`}>
       <header className="doc-social-hero">
         <div>
           <DocumentoMarca d={d} dark={luna} large />
-          <h1>Proposta Comercial</h1>
+          <h1>{texto.kicker}</h1>
           <span className="doc-title-underline" />
           <DocumentoTitulo titulo={d.titulo} as="h2" className="doc-social-title-main" />
           {d.introducao ? <p>{d.introducao}</p> : null}
@@ -10080,7 +11113,7 @@ function TemplateSocialDetalhado({
           <>
             <DocumentoSectionTitle
               icon={<Sparkles size={20} />}
-              title="Por que esta proposta faz sentido"
+              title={texto.beneficios}
             />
             <DocumentoBeneficios d={d} />
           </>
@@ -10088,13 +11121,13 @@ function TemplateSocialDetalhado({
 
         <DocumentoSectionTitle
           icon={<FolderOpen size={20} />}
-          title="Escopo da proposta"
+          title={texto.escopo}
         />
         <DocumentoTabelaServicos d={d} compact detailed icons />
 
         {getInclusosDocumento(d).length || d.itensNaoInclusos.length ? (
           <section className="doc-social-lists">
-            <DocumentoLista titulo="O que está incluso" itens={getInclusosDocumento(d)} positive />
+            <DocumentoLista titulo={texto.listas} itens={getInclusosDocumento(d)} positive />
             <DocumentoLista titulo="O que não está incluso" itens={d.itensNaoInclusos} />
           </section>
         ) : null}
@@ -10103,7 +11136,7 @@ function TemplateSocialDetalhado({
           <>
             <DocumentoSectionTitle
               icon={<Clock3 size={20} />}
-              title="Cronograma e condições"
+              title={texto.cronograma}
             />
             <DocumentoTimeline d={d} horizontal />
           </>
@@ -10117,7 +11150,7 @@ function TemplateSocialDetalhado({
               <p>{d.observacoes || d.condicoesPagamento}</p>
               <div className="doc-cta">
                 <CheckCircle2 size={24} />
-                <strong>Aprovar proposta</strong>
+                <strong>{texto.cta}</strong>
               </div>
               <DocumentoContatoInline d={d} />
             </div>
@@ -10137,7 +11170,7 @@ function TemplateInstagramPremium({ d }: TemplateDocumentoBaseProps) {
       <header className="doc-instagram-header">
         <div>
           <DocumentoMarca d={d} large />
-          <span className="doc-kicker">Proposta comercial</span>
+          <span className="doc-kicker">Reels, vídeos curtos e UGC</span>
           <DocumentoTitulo titulo={d.titulo} className="doc-instagram-title-main" />
           {d.introducao ? <p>{d.introducao}</p> : null}
         </div>
@@ -10150,7 +11183,7 @@ function TemplateInstagramPremium({ d }: TemplateDocumentoBaseProps) {
             <InstagramGlyph size={28} />
           </div>
           <div>
-            <h2>Resumo executivo</h2>
+            <h2>Objetivo da campanha</h2>
             <p>{textoResumo}</p>
           </div>
         </section>
@@ -10160,12 +11193,12 @@ function TemplateInstagramPremium({ d }: TemplateDocumentoBaseProps) {
 
       <section className="doc-instagram-grid">
         <div>
-          <DocumentoSectionTitle title="Escopo / serviços contratados" />
+          <DocumentoSectionTitle title="Vídeos e entregáveis" />
           <DocumentoTabelaServicos d={d} compact detailed icons />
         </div>
         <div className="doc-stack">
-          <DocumentoLista titulo="O que está incluso" itens={getInclusosDocumento(d)} positive />
-          <DocumentoLista titulo="O que não está incluso" itens={d.itensNaoInclusos} />
+          <DocumentoLista titulo="Direitos de uso e condições" itens={getInclusosDocumento(d)} positive />
+          <DocumentoLista titulo="Fora do pacote" itens={d.itensNaoInclusos} />
         </div>
       </section>
 
@@ -10181,7 +11214,7 @@ function TemplateInstagramPremium({ d }: TemplateDocumentoBaseProps) {
         </div>
       ) : null}
 
-      <DocumentoFooter d={d} cta="Aprovar proposta" premium />
+      <DocumentoFooter d={d} cta="Aprovar produção" premium />
     </div>
   );
 }
@@ -10314,14 +11347,14 @@ function TemplateExecutivoEditorial({ d }: TemplateDocumentoBaseProps) {
         <DocumentoMarca d={d} />
         <div className="doc-executive-seal">
           <BriefcaseBusiness size={18} />
-          <span>Proposta executiva</span>
+          <span>Consultoria e diagnóstico</span>
         </div>
       </header>
 
       <section className="doc-executive-cover">
         <div className="doc-executive-rule" />
         <div>
-          <span className="doc-kicker">Documento comercial</span>
+          <span className="doc-kicker">Diagnóstico, plano e acompanhamento</span>
           <DocumentoTitulo titulo={d.titulo} className="doc-executive-title-main" />
           {d.introducao ? <p>{d.introducao}</p> : null}
         </div>
@@ -10333,12 +11366,12 @@ function TemplateExecutivoEditorial({ d }: TemplateDocumentoBaseProps) {
         <main>
           {d.beneficios.length ? (
             <>
-              <DocumentoSectionTitle icon={<BadgeCheck size={20} />} title="Valor da proposta" />
+              <DocumentoSectionTitle icon={<BadgeCheck size={20} />} title="Problemas e ganhos esperados" />
               <DocumentoBeneficios d={d} mode="wide" />
             </>
           ) : null}
 
-          <DocumentoSectionTitle icon={<PackageCheck size={20} />} title="Escopo comercial" />
+          <DocumentoSectionTitle icon={<PackageCheck size={20} />} title="Sessões e entregáveis" />
           <DocumentoTabelaServicos d={d} compact totalColumn />
         </main>
 
@@ -10350,8 +11383,8 @@ function TemplateExecutivoEditorial({ d }: TemplateDocumentoBaseProps) {
 
       {inclusos.length || d.itensNaoInclusos.length ? (
         <section className="doc-executive-lists">
-          <DocumentoLista titulo="Incluído" itens={inclusos} positive />
-          <DocumentoLista titulo="Fora do escopo" itens={d.itensNaoInclusos} />
+          <DocumentoLista titulo="Incluído na consultoria" itens={inclusos} positive />
+          <DocumentoLista titulo="Fora do diagnóstico" itens={d.itensNaoInclusos} />
         </section>
       ) : null}
 
@@ -10362,7 +11395,7 @@ function TemplateExecutivoEditorial({ d }: TemplateDocumentoBaseProps) {
         </div>
       ) : null}
 
-      <DocumentoFooter d={d} cta="Aprovar proposta" minimal />
+      <DocumentoFooter d={d} cta="Aprovar diagnóstico" minimal />
     </div>
   );
 }
@@ -10375,7 +11408,7 @@ function TemplateCorporativoBoard({ d }: TemplateDocumentoBaseProps) {
       <header className="doc-board-hero">
         <div>
           <DocumentoMarca d={d} dark large />
-          <span className="doc-board-label">Commercial board</span>
+          <span className="doc-board-label">Agência growth board</span>
           <DocumentoTitulo titulo={d.titulo} className="doc-board-title-main" />
           {d.introducao ? <p>{d.introducao}</p> : null}
         </div>
@@ -10389,12 +11422,12 @@ function TemplateCorporativoBoard({ d }: TemplateDocumentoBaseProps) {
 
       <section className="doc-board-content">
         <main>
-          <DocumentoSectionTitle icon={<ShieldCheck size={20} />} title="Escopo contratado" />
+          <DocumentoSectionTitle icon={<ShieldCheck size={20} />} title="Frentes contratadas" />
           <DocumentoTabelaServicos d={d} compact detailed />
 
           {d.beneficios.length ? (
             <>
-              <DocumentoSectionTitle icon={<Target size={20} />} title="Direcionadores" />
+              <DocumentoSectionTitle icon={<Target size={20} />} title="Metas e indicadores" />
               <DocumentoBeneficios d={d} />
             </>
           ) : null}
@@ -10402,15 +11435,15 @@ function TemplateCorporativoBoard({ d }: TemplateDocumentoBaseProps) {
 
         {inclusos.length || d.itensNaoInclusos.length ? (
           <aside>
-            <DocumentoLista titulo="Incluído" itens={inclusos} positive />
-            <DocumentoLista titulo="Não incluído" itens={d.itensNaoInclusos} />
+            <DocumentoLista titulo="Entregas inclusas" itens={inclusos} positive />
+            <DocumentoLista titulo="Fora da cadência" itens={d.itensNaoInclusos} />
           </aside>
         ) : null}
       </section>
 
       {d.cronograma.length ? (
         <section className="doc-board-timeline">
-          <DocumentoSectionTitle icon={<Clock3 size={20} />} title="Etapas" />
+          <DocumentoSectionTitle icon={<Clock3 size={20} />} title="Roadmap e cadência" />
           <DocumentoTimeline d={d} horizontal />
         </section>
       ) : null}
@@ -10422,7 +11455,7 @@ function TemplateCorporativoBoard({ d }: TemplateDocumentoBaseProps) {
         </div>
       ) : null}
 
-      <DocumentoFooter d={d} cta="Aprovar proposta" premium />
+      <DocumentoFooter d={d} cta="Aprovar growth board" premium />
     </div>
   );
 }
@@ -10434,11 +11467,11 @@ function TemplateInstitucionalClean({ d }: TemplateDocumentoBaseProps) {
     <div className="doc-page doc-institutional-page">
       <header className="doc-institutional-header">
         <DocumentoMarca d={d} />
-        <span>Proposta institucional</span>
+        <span>Design e identidade visual</span>
       </header>
 
       <section className="doc-institutional-title">
-        <span className="doc-kicker">Orçamento comercial</span>
+        <span className="doc-kicker">Marca, aplicações e arquivos finais</span>
         <DocumentoTitulo titulo={d.titulo} className="doc-institutional-title-main" />
         {d.introducao ? <p>{d.introducao}</p> : null}
       </section>
@@ -10449,12 +11482,12 @@ function TemplateInstitucionalClean({ d }: TemplateDocumentoBaseProps) {
         <main>
           {d.beneficios.length ? (
             <>
-              <DocumentoSectionTitle icon={<Target size={20} />} title="Objetivos" />
+              <DocumentoSectionTitle icon={<Target size={20} />} title="Direção criativa e objetivos" />
               <DocumentoBeneficios d={d} mode="wide" />
             </>
           ) : null}
 
-          <DocumentoSectionTitle icon={<PackageCheck size={20} />} title="Serviços e investimento" />
+          <DocumentoSectionTitle icon={<PackageCheck size={20} />} title="Entregáveis, revisões e investimento" />
           <DocumentoTabelaServicos d={d} compact totalColumn />
         </main>
 
@@ -10466,14 +11499,14 @@ function TemplateInstitucionalClean({ d }: TemplateDocumentoBaseProps) {
 
       {inclusos.length || d.itensNaoInclusos.length ? (
         <section className="doc-institutional-lists">
-          <DocumentoLista titulo="Incluído" itens={inclusos} positive />
-          <DocumentoLista titulo="Não incluído" itens={d.itensNaoInclusos} />
+          <DocumentoLista titulo="Arquivos e aplicações inclusas" itens={inclusos} positive />
+          <DocumentoLista titulo="Fora do escopo criativo" itens={d.itensNaoInclusos} />
         </section>
       ) : null}
 
       {d.cronograma.length ? (
         <section className="doc-institutional-timeline">
-          <DocumentoSectionTitle icon={<Clock3 size={20} />} title="Cronograma" />
+          <DocumentoSectionTitle icon={<Clock3 size={20} />} title="Etapas e aprovações" />
           <DocumentoTimeline d={d} horizontal />
         </section>
       ) : null}
@@ -10485,7 +11518,7 @@ function TemplateInstitucionalClean({ d }: TemplateDocumentoBaseProps) {
         </div>
       ) : null}
 
-      <DocumentoFooter d={d} cta="Aprovar proposta" minimal />
+      <DocumentoFooter d={d} cta="Aprovar identidade" minimal />
     </div>
   );
 }
@@ -10655,6 +11688,148 @@ function InstagramGlyph({
   );
 }
 
+/*
+function DocumentoImagemRamo({
+  tipo: _tipo,
+  dark = false,
+}: {
+  tipo:
+    | "rapido"
+    | "social"
+    | "ugc"
+    | "creator"
+    | "trafego"
+    | "design"
+    | "consultoria"
+    | "agencia";
+  dark?: boolean;
+}) {
+  void _tipo;
+  void dark;
+  return null;
+
+  const config = {
+    rapido: {
+      kicker: "WhatsApp",
+      title: "Escopo, prazo e preço",
+      metric: "24h",
+      bars: [82, 56, 68],
+    },
+    social: {
+      kicker: "rotina mensal",
+      title: "Posts, reels e aprovações",
+      metric: "30d",
+      bars: [62, 84, 44],
+    },
+    ugc: {
+      kicker: "conteúdo curto",
+      title: "Reels, UGC e licença",
+      metric: "9:16",
+      bars: [76, 50, 88],
+    },
+    creator: {
+      kicker: "creator commerce",
+      title: "Audiência, formatos e rate card",
+      metric: "ER%",
+      bars: [58, 82, 64],
+    },
+    trafego: {
+      kicker: "performance",
+      title: "Campanhas, verba e KPIs",
+      metric: "ROAS",
+      bars: [44, 70, 92],
+    },
+    design: {
+      kicker: "identidade",
+      title: "Marca e social kit",
+      metric: "RGB",
+      bars: [78, 38, 58],
+    },
+    consultoria: {
+      kicker: "plano de ação",
+      title: "Diagnóstico e roadmap",
+      metric: "OKR",
+      bars: [36, 58, 86],
+    },
+    agencia: {
+      kicker: "growth board",
+      title: "Aquisição, conteúdo e CRM",
+      metric: "KPI",
+      bars: [54, 76, 94],
+    },
+  }[tipo];
+
+  return (
+    <div className={`doc-ramo-visual doc-ramo-visual-${tipo} ${dark ? "doc-ramo-visual-dark" : ""}`}>
+      <div className="doc-ramo-visual-copy">
+        <span>{config.kicker}</span>
+        <strong>{config.title}</strong>
+        <small>{config.metric}</small>
+      </div>
+      <svg viewBox="0 0 420 220" role="img" aria-label={`Imagem do template ${config.title}`}>
+        <rect className="doc-ramo-card-main" x="18" y="18" width="236" height="172" rx="22" />
+        <rect className="doc-ramo-card-side" x="276" y="38" width="116" height="132" rx="18" />
+        <circle className="doc-ramo-orb" cx="336" cy="66" r="20" />
+        <path className="doc-ramo-line-strong" d="M48 58h104" />
+        <path className="doc-ramo-line" d="M48 86h152" />
+        <path className="doc-ramo-line" d="M48 112h128" />
+        <path className="doc-ramo-line-muted" d="M48 148h172" />
+        <g className="doc-ramo-bars">
+          {config.bars.map((bar, index) => (
+            <rect
+              key={`${tipo}-${bar}`}
+              x={298 + index * 24}
+              y={142 - bar * 0.62}
+              width="14"
+              height={bar * 0.62}
+              rx="7"
+            />
+          ))}
+        </g>
+        <path className="doc-ramo-path" d="M278 158c22-42 48-34 70-72 12-21 26-31 46-34" />
+        {tipo === "social" || tipo === "design" ? (
+          <>
+            <rect className="doc-ramo-media" x="64" y="126" width="56" height="42" rx="10" />
+            <rect className="doc-ramo-media doc-ramo-media-alt" x="130" y="126" width="56" height="42" rx="10" />
+          </>
+        ) : null}
+        {tipo === "ugc" ? (
+          <>
+            <rect className="doc-ramo-phone" x="62" y="116" width="42" height="66" rx="13" />
+            <rect className="doc-ramo-phone doc-ramo-phone-alt" x="116" y="108" width="42" height="74" rx="13" />
+            <path className="doc-ramo-play" d="M132 132l16 10-16 10z" />
+            <rect className="doc-ramo-license" x="172" y="126" width="54" height="28" rx="14" />
+          </>
+        ) : null}
+        {tipo === "creator" ? (
+          <>
+            <circle className="doc-ramo-avatar" cx="84" cy="139" r="22" />
+            <path className="doc-ramo-profile" d="M52 176c8-22 56-22 64 0" />
+            <rect className="doc-ramo-chip" x="134" y="124" width="78" height="18" rx="9" />
+            <rect className="doc-ramo-chip doc-ramo-chip-alt" x="134" y="152" width="58" height="18" rx="9" />
+          </>
+        ) : null}
+        {tipo === "trafego" || tipo === "agencia" ? (
+          <>
+            <path className="doc-ramo-funnel" d="M60 124h132l-42 46H102z" />
+            <circle className="doc-ramo-dot" cx="192" cy="58" r="10" />
+            <circle className="doc-ramo-dot" cx="222" cy="86" r="7" />
+          </>
+        ) : null}
+        {tipo === "consultoria" ? (
+          <>
+            <circle className="doc-ramo-step" cx="72" cy="144" r="11" />
+            <circle className="doc-ramo-step" cx="128" cy="144" r="11" />
+            <circle className="doc-ramo-step" cx="184" cy="144" r="11" />
+            <path className="doc-ramo-step-line" d="M83 144h34M139 144h34" />
+          </>
+        ) : null}
+      </svg>
+    </div>
+  );
+}
+
+*/
 function DocumentoBeneficios({
   d,
   mode,
@@ -10672,8 +11847,16 @@ function DocumentoBeneficios({
     <BarChart3 size={28} key="chart" />,
   ];
 
+  const classe = [
+    "doc-benefit-grid",
+    mode === "wide" ? "doc-benefit-grid-wide" : "",
+    beneficios.length === 1 ? "doc-benefit-grid-single" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
-    <section className={`doc-benefit-grid ${mode === "wide" ? "doc-benefit-grid-wide" : ""}`}>
+    <section className={classe}>
       {beneficios.map((beneficio, index) => {
         const beneficioDocumento = parseBeneficioDocumento(beneficio);
 
@@ -10931,7 +12114,7 @@ function DocumentoCondicoes({
         </span>
       ) : null}
       <div>
-        <h3>Condicoes de pagamento</h3>
+        <h3>Condições de pagamento</h3>
         <p>{d.condicoesPagamento}</p>
       </div>
     </section>
@@ -11104,35 +12287,52 @@ function DashboardContent({
   perfilContaAtualizado,
   clientesTotal,
   servicosTotal,
+  primeiraPropostaGerada,
   isLoading,
   isError,
   onRetry,
   onEditarPerfil,
   onAbrirPropostas,
+  onAbrirClientes,
+  onAbrirServicos,
+  onAbrirPropostasPorStatus,
   onNovaProposta,
   onCadastrarCliente,
   onSalvarServico,
+  onAbrirOnboarding,
 }: {
   conta: ContaAtualResponse;
   propostas: PropostaResponse[];
   perfilContaAtualizado: boolean;
   clientesTotal: number;
   servicosTotal: number;
+  primeiraPropostaGerada: boolean;
   isLoading: boolean;
   isError: boolean;
   onRetry: () => void;
   onEditarPerfil: () => void;
   onAbrirPropostas: () => void;
+  onAbrirClientes: () => void;
+  onAbrirServicos: () => void;
+  onAbrirPropostasPorStatus: (status: PropostaStatus) => void;
   onNovaProposta: () => void;
   onCadastrarCliente: () => void;
   onSalvarServico: () => void;
+  onAbrirOnboarding: () => void;
 }) {
-  const metricas = buildMetricasDashboard(propostas, servicosTotal);
+  const metricas = buildMetricasDashboard({
+    propostas,
+    clientesTotal,
+    servicosTotal,
+    onAbrirClientes,
+    onAbrirServicos,
+    onAbrirPropostasPorStatus,
+  });
   const primeirosPassos = buildPrimeirosPassosDashboard({
     perfilContaAtualizado,
     clientesTotal,
     servicosTotal,
-    propostasTotal: propostas.length,
+    primeiraPropostaGerada,
     onEditarPerfil,
     onCadastrarCliente,
     onSalvarServico,
@@ -11145,18 +12345,19 @@ function DashboardContent({
 
   return (
     <>
-      <div className="dashboard-hero rounded-md border border-border bg-surface p-5">
+      <div className="dashboard-hero rounded-md border border-border bg-surface p-5" data-tour="dashboard-hero">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="max-w-2xl">
             <p className="inline-flex max-w-full items-center gap-2 rounded-md bg-violet-50 px-3 py-1.5 font-heading text-lg font-semibold leading-snug text-slate-950 sm:text-xl">
               <Sparkles size={16} aria-hidden="true" />
-              Crie orçamentos profissionais em minutos
+              Crie sua primeira proposta profissional em minutos
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap lg:justify-end">
             <button
               type="button"
               onClick={onNovaProposta}
+              data-tour="nova-proposta"
               className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-primary px-5 text-sm font-semibold text-white shadow-sm"
             >
               <Plus size={18} aria-hidden="true" />
@@ -11165,6 +12366,7 @@ function DashboardContent({
             <button
               type="button"
               onClick={onSalvarServico}
+              data-tour="servicos"
               className="inline-flex h-12 items-center justify-center gap-2 rounded-md border border-border bg-white px-5 text-sm font-semibold"
             >
               <PackageCheck size={18} aria-hidden="true" />
@@ -11173,6 +12375,7 @@ function DashboardContent({
             <button
               type="button"
               onClick={onCadastrarCliente}
+              data-tour="clientes"
               className="inline-flex h-12 items-center justify-center gap-2 rounded-md border border-border bg-white px-5 text-sm font-semibold"
             >
               <UsersRound size={18} aria-hidden="true" />
@@ -11183,6 +12386,15 @@ function DashboardContent({
       </div>
 
       {conta.plano === "Trial" ? <TrialUpsellBanner conta={conta} /> : null}
+
+      <button
+        type="button"
+        onClick={onAbrirOnboarding}
+        className="inline-flex h-10 w-fit items-center justify-center gap-2 rounded-md border border-border bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-primary hover:text-primary"
+      >
+        <Rocket size={16} aria-hidden="true" />
+        Abrir guia inicial
+      </button>
 
       {isLoading ? <DashboardCarregando /> : null}
 
@@ -11200,25 +12412,33 @@ function DashboardContent({
         <PrimeirosPassosDashboard passos={primeirosPassos} />
       ) : null}
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div
+        className="dashboard-metrics-grid grid"
+        data-tour="dashboard-metricas"
+      >
         {metricas.map((metrica) => {
           const Icon = metrica.icon;
 
           return (
-            <article
+            <button
               key={metrica.label}
-              className="metric-card rounded-md border border-border bg-surface p-4"
+              type="button"
+              onClick={metrica.onClick}
+              className="metric-card metric-card-action rounded-md border border-border bg-surface"
             >
-              <div className="flex items-center justify-between gap-3">
+              <div className="metric-card-content">
                 <p className="text-sm font-medium text-muted">{metrica.label}</p>
-                <span className={`metric-icon metric-icon-${metrica.tone}`}>
-                  <Icon size={18} aria-hidden="true" />
-                </span>
+                <strong className="mt-2 block text-3xl font-semibold">
+                  {metrica.value}
+                </strong>
               </div>
-              <strong className="mt-2 block text-3xl font-semibold">
-                {metrica.value}
-              </strong>
-            </article>
+              <span className={`metric-icon metric-icon-${metrica.tone}`}>
+                <Icon size={18} aria-hidden="true" />
+              </span>
+              <span className="metric-card-action-indicator" aria-hidden="true">
+                <ArrowRight size={13} />
+              </span>
+            </button>
           );
         })}
       </div>
@@ -11381,17 +12601,20 @@ function PrimeirosPassosDashboard({
     passos[indiceAtual] ?? passos[passos.length - 1];
 
   return (
-    <section className="rounded-md border border-border bg-surface p-4 shadow-sm sm:p-5">
+    <section
+      className="rounded-md border border-border bg-surface p-4 shadow-sm sm:p-5"
+      data-tour="primeiros-passos"
+    >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           <p className="text-sm font-semibold text-accent">Primeiros passos</p>
           <h2 className="mt-1 font-heading text-xl font-semibold leading-7 text-slate-950">
-            Fluxo guiado de teste
+            Fluxo guiado para sua primeira proposta
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
             {passosConcluidos} de {passos.length} etapas concluídas. Continue
-            pelo próximo passo para aprender o ciclo completo: cliente, serviço
-            e proposta.
+            pelo próximo passo para montar uma proposta com marca, cliente,
+            serviço e valor percebido antes do preço.
           </p>
         </div>
         <button
@@ -11503,7 +12726,7 @@ function buildPrimeirosPassosDashboard({
   perfilContaAtualizado,
   clientesTotal,
   servicosTotal,
-  propostasTotal,
+  primeiraPropostaGerada,
   onEditarPerfil,
   onCadastrarCliente,
   onSalvarServico,
@@ -11512,7 +12735,7 @@ function buildPrimeirosPassosDashboard({
   perfilContaAtualizado: boolean;
   clientesTotal: number;
   servicosTotal: number;
-  propostasTotal: number;
+  primeiraPropostaGerada: boolean;
   onEditarPerfil: () => void;
   onCadastrarCliente: () => void;
   onSalvarServico: () => void;
@@ -11522,7 +12745,7 @@ function buildPrimeirosPassosDashboard({
     {
       id: "perfil",
       titulo: "Perfil da conta",
-      detalhe: "Defina marca, contato e cores usados na proposta.",
+      detalhe: "Defina marca, contato e cores para a proposta sair com cara do seu negócio.",
       concluido: perfilContaAtualizado,
       acaoLabel: "Editar perfil",
       onClick: onEditarPerfil,
@@ -11530,7 +12753,7 @@ function buildPrimeirosPassosDashboard({
     {
       id: "cliente",
       titulo: "Primeiro cliente",
-      detalhe: "Cadastre o contato que vai receber a proposta.",
+      detalhe: "Cadastre quem pediu preço para enviar a proposta sem retrabalho.",
       concluido: clientesTotal > 0,
       acaoLabel: "Cadastrar cliente",
       onClick: onCadastrarCliente,
@@ -11538,7 +12761,7 @@ function buildPrimeirosPassosDashboard({
     {
       id: "servico",
       titulo: "Primeiro serviço",
-      detalhe: "Monte um item reutilizável para compor orçamentos.",
+      detalhe: "Monte um item reutilizável com escopo, entregas e valor.",
       concluido: servicosTotal > 0,
       acaoLabel: "Cadastrar serviço",
       onClick: onSalvarServico,
@@ -11546,46 +12769,196 @@ function buildPrimeirosPassosDashboard({
     {
       id: "proposta",
       titulo: "Primeira proposta",
-      detalhe: "Crie o primeiro rascunho e siga o fluxo comercial.",
-      concluido: propostasTotal > 0,
+      detalhe: "Gere a proposta para WhatsApp, PDF ou imagem e mostre valor antes do preço.",
+      concluido: primeiraPropostaGerada,
       acaoLabel: "Criar proposta",
       onClick: onNovaProposta,
     },
   ];
 }
 
-function buildMetricasDashboard(
-  propostas: PropostaResponse[],
-  servicosTotal: number,
-): DashboardMetrica[] {
+function buildOnboardingTourSteps(): Step[] {
+  return [
+    {
+      target: '[data-tour="menu-dashboard"]',
+      title: "Dashboard: visão geral",
+      content:
+        "Aqui você acompanha o progresso da conta, os atalhos principais e os números comerciais. É o ponto de partida para saber o que precisa de atenção.",
+      skipBeacon: true,
+    },
+    {
+      target: '[data-tour="menu-clientes"]',
+      title: "Clientes: cadastro organizado",
+      content:
+        "Use Clientes para manter contatos, telefones e e-mails prontos. Isso evita retrabalho quando você montar novas propostas.",
+    },
+    {
+      target: '[data-tour="menu-servicos"]',
+      title: "Serviços e pacotes",
+      content:
+        "Cadastre serviços reutilizáveis com escopo, entregas e valores. A vantagem é criar orçamentos mais rápidos e consistentes.",
+    },
+    {
+      target: '[data-tour="menu-propostas"]',
+      title: "Propostas: funil comercial",
+      content:
+        "Em Propostas você visualiza rascunhos, geradas, enviadas, aceitas e recusadas. Assim fica fácil acompanhar o cliente até o aceite.",
+    },
+    {
+      target: '[data-tour="menu-suporte"]',
+      title: "Suporte",
+      content:
+        "Quando precisar de ajuda ou registrar alguma dúvida, o suporte fica separado do fluxo comercial para não misturar operação com atendimento.",
+    },
+    {
+      target: '[data-tour="menu-conta"]',
+      title: "Conta e personalização",
+      content:
+        "No menu da conta ficam configurações, marca e personalização. Essa área define como sua empresa aparece nos documentos enviados ao cliente.",
+    },
+    {
+      target: '[data-tour="configurar-dados-conta"]',
+      title: "Primeiro passo: configurar a conta",
+      content:
+        "Preencha nome comercial, segmento, cidade, telefone e e-mail. Esses dados dão credibilidade e já entram automaticamente nos orçamentos.",
+    },
+    {
+      target: '[data-tour="configurar-logo"]',
+      title: "Marca no documento",
+      content:
+        "Adicione sua logomarca para que PDF e imagem saiam com identidade profissional, sem precisar montar layout manualmente.",
+    },
+    {
+      target: '[data-tour="configurar-template"]',
+      title: "Templates prontos",
+      content:
+        "Escolha um template de proposta. A Emprely ajuda a apresentar escopo, benefícios, valores e próximos passos de forma mais vendável.",
+      placement: "left",
+    },
+    {
+      target: '[data-tour="configurar-cores-formato"]',
+      title: "Cores e formato de envio",
+      content:
+        "Defina cores da marca e formatos de saída. Você pode gerar materiais prontos para PDF, imagem e compartilhamento pelo WhatsApp.",
+      placement: "right",
+    },
+    {
+      target: '[data-tour="nova-proposta"]',
+      title: "Criar o primeiro orçamento",
+      content:
+        "Depois da conta e dos templates, clique em Nova proposta para selecionar cliente, itens, template, revisar tudo e gerar o orçamento final.",
+    },
+  ];
+}
+function getOnboardingTourTarget(stepIndex: number) {
+  const target = buildOnboardingTourSteps()[stepIndex]?.target;
+
+  return typeof target === "string" ? target : null;
+}
+
+function limparArtefatosOnboardingTour() {
+  document.body.style.overflow = "";
+  document.body.style.pointerEvents = "";
+  document.documentElement.style.overflow = "";
+}
+
+function getOnboardingTourView(stepIndex: number): AppView {
+  if (stepIndex >= 0 && stepIndex <= 5) {
+    return "dashboard";
+  }
+
+  if (stepIndex >= 6 && stepIndex <= 7) {
+    return "conta";
+  }
+
+  if (stepIndex >= 8 && stepIndex <= 9) {
+    return "personalizacao";
+  }
+
+  return "dashboard";
+}
+
+function getOnboardingStatusLabel(status: OnboardingResponse["configuracaoConta"]["status"]) {
+  const labels: Record<OnboardingResponse["configuracaoConta"]["status"], string> = {
+    NaoIniciado: "não iniciado",
+    EmAndamento: "em andamento",
+    Pulado: "adiado",
+    Concluido: "concluído",
+  };
+
+  return labels[status];
+}
+
+function buildMetricasDashboard({
+  propostas,
+  clientesTotal,
+  servicosTotal,
+  onAbrirClientes,
+  onAbrirServicos,
+  onAbrirPropostasPorStatus,
+}: {
+  propostas: PropostaResponse[];
+  clientesTotal: number;
+  servicosTotal: number;
+  onAbrirClientes: () => void;
+  onAbrirServicos: () => void;
+  onAbrirPropostasPorStatus: (status: PropostaStatus) => void;
+}): DashboardMetrica[] {
+  const rascunhosTotal = contarPropostasPorStatus(propostas, "Rascunho");
+  const geradasTotal = contarPropostasPorStatus(propostas, "Gerada");
   const enviadasTotal = contarPropostasPorStatus(propostas, "Enviada");
   const aceitasTotal = contarPropostasPorStatus(propostas, "Aceita");
-  const rascunhosTotal = contarPropostasPorStatus(propostas, "Rascunho");
+  const recusadasTotal = contarPropostasPorStatus(propostas, "Recusada");
 
   return [
     {
-      label: "Propostas aprovadas",
-      value: aceitasTotal.toString(),
-      icon: Sparkles,
-      tone: "purple",
+      label: "Clientes",
+      value: clientesTotal.toString(),
+      icon: UsersRound,
+      tone: "slate",
+      onClick: onAbrirClientes,
     },
     {
-      label: "Serviços salvos",
+      label: "Serviços",
       value: servicosTotal.toString(),
       icon: PackageCheck,
       tone: "teal",
+      onClick: onAbrirServicos,
     },
     {
-      label: "Propostas enviadas",
+      label: "Rascunhos",
+      value: rascunhosTotal.toString(),
+      icon: ReceiptText,
+      tone: "amber",
+      onClick: () => onAbrirPropostasPorStatus("Rascunho"),
+    },
+    {
+      label: "Geradas",
+      value: geradasTotal.toString(),
+      icon: Sparkles,
+      tone: "purple",
+      onClick: () => onAbrirPropostasPorStatus("Gerada"),
+    },
+    {
+      label: "Enviadas",
       value: enviadasTotal.toString(),
       icon: FileText,
       tone: "blue",
+      onClick: () => onAbrirPropostasPorStatus("Enviada"),
     },
     {
-      label: "Em rascunho",
-      value: rascunhosTotal.toString(),
-      icon: ReceiptText,
+      label: "Aceitas",
+      value: aceitasTotal.toString(),
+      icon: BadgeCheck,
+      tone: "green",
+      onClick: () => onAbrirPropostasPorStatus("Aceita"),
+    },
+    {
+      label: "Recusadas",
+      value: recusadasTotal.toString(),
+      icon: CircleMinus,
       tone: "red",
+      onClick: () => onAbrirPropostasPorStatus("Recusada"),
     },
   ];
 }
@@ -12086,6 +13459,10 @@ function getAuthModeInicial(): AuthMode {
     return "confirmar-alteracao-email";
   }
 
+  if (auth === "cadastro") {
+    return "cadastro";
+  }
+
   return "login";
 }
 
@@ -12207,6 +13584,8 @@ function mapPerfilContaForm(
     siteUrl: perfilConta.siteUrl ?? "",
     instagram: perfilConta.instagram ?? "",
     documento: formatCpfCnpjCampo(perfilConta.documento),
+    segmento: perfilConta.segmento ?? "",
+    cidadeUf: perfilConta.cidadeUf ?? "",
     corPrimaria: perfilConta.corPrimaria,
     corSecundaria: perfilConta.corSecundaria,
     corSistemaPrimaria:
@@ -12216,7 +13595,25 @@ function mapPerfilContaForm(
       perfilContaDefaultValues.corSistemaSecundaria,
     logoUrl: perfilConta.logoUrl ?? "",
     templateVisualPadrao: normalizarTemplateVisual(perfilConta.templateVisualPadrao),
+    formatoArquivoPreferido: normalizarFormatoArquivoPreferido(
+      perfilConta.formatoArquivoPreferido,
+    ),
   };
+}
+
+function isPerfilContaOnboardingCompleto(
+  perfilConta?: PerfilContaResponse,
+): boolean {
+  return Boolean(
+    perfilConta?.nomeComercial?.trim() &&
+      perfilConta.telefoneContato?.trim() &&
+      perfilConta.emailContato?.trim() &&
+      perfilConta.segmento?.trim() &&
+      perfilConta.templateVisualPadrao?.trim() &&
+      perfilConta.corPrimaria?.trim() &&
+      perfilConta.corSecundaria?.trim() &&
+      perfilConta.formatoArquivoPreferido?.trim(),
+  );
 }
 
 function buildPerfilContaPayload(
@@ -12229,12 +13626,17 @@ function buildPerfilContaPayload(
     siteUrl: normalizarOpcional(input.siteUrl),
     instagram: normalizarOpcional(input.instagram),
     documento: normalizarOpcional(formatCpfCnpjCampo(input.documento)),
+    segmento: normalizarOpcional(input.segmento),
+    cidadeUf: normalizarOpcional(input.cidadeUf),
     corPrimaria: normalizarHexPreview(input.corPrimaria),
     corSecundaria: normalizarHexPreview(input.corSecundaria),
     corSistemaPrimaria: normalizarHexPreview(input.corSistemaPrimaria),
     corSistemaSecundaria: normalizarHexPreview(input.corSistemaSecundaria),
     logoUrl: normalizarOpcional(input.logoUrl),
     templateVisualPadrao: normalizarTemplateVisual(input.templateVisualPadrao),
+    formatoArquivoPreferido: normalizarFormatoArquivoPreferido(
+      input.formatoArquivoPreferido,
+    ),
   };
 }
 
@@ -12487,10 +13889,19 @@ function normalizarTemplateVisual(
   return template ?? propostaTemplateVisualDefault;
 }
 
+function normalizarFormatoArquivoPreferido(
+  valor: string | null | undefined,
+): FormatoArquivoPreferido {
+  const formato = formatoArquivoPreferidoValores.find((opcao) => opcao === valor);
+  return formato ?? formatoArquivoPreferidoDefault;
+}
+
 function getPropostaTemplateLabel(templateVisual: PropostaTemplateVisual): string {
   const templateVisualNormalizado = normalizarTemplateVisual(templateVisual);
 
   return (
+    propostaTemplateVisualOpcoesGaleria.find((template) => template.value === templateVisualNormalizado)
+      ?.label ??
     propostaTemplateVisualOpcoes.find((template) => template.value === templateVisualNormalizado)
       ?.label ?? "Comercial minimalista"
   );
@@ -12500,9 +13911,12 @@ function isTemplateCoresEstaticas(templateVisual: PropostaTemplateVisual): boole
   const templateVisualNormalizado = normalizarTemplateVisual(templateVisual);
 
   return Boolean(
-    propostaTemplateVisualOpcoes.find(
+    propostaTemplateVisualOpcoesGaleria.find(
       (template) => template.value === templateVisualNormalizado,
-    )?.coresEstaticas,
+    )?.coresEstaticas ??
+      propostaTemplateVisualOpcoes.find(
+        (template) => template.value === templateVisualNormalizado,
+      )?.coresEstaticas,
   );
 }
 
@@ -12586,6 +14000,10 @@ function formatQuantidade(valor: number | undefined): string {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(valorSeguro(valor));
+}
+
+function formatQuantidadeItens(total: number): string {
+  return `${total} ${total === 1 ? "item" : "itens"}`;
 }
 
 function formatValidadeProposta(validadeDias: number | undefined): string {
@@ -12738,6 +14156,41 @@ function buildClienteSocialUrl(
   }
 
   return `https://www.tiktok.com/@${usuario}`;
+}
+
+function buildClienteEmailUrl({
+  email,
+  logoMarcaUrl,
+  nomeMarca,
+}: {
+  email: string | null | undefined;
+  logoMarcaUrl: string | null | undefined;
+  nomeMarca: string;
+}): string {
+  const destinatario = email?.trim();
+
+  if (!destinatario || !isEmailContatoClienteValido(destinatario)) {
+    return "";
+  }
+
+  const assinatura = [
+    "Atenciosamente,",
+    nomeMarca.trim() || "Emprely",
+    logoMarcaUrl?.trim() && !logoMarcaUrl.trim().startsWith("data:")
+      ? `Logo: ${logoMarcaUrl.trim()}`
+      : "",
+  ].filter(Boolean);
+  const corpo = ["Olá,", "", "", ...assinatura].join("\n");
+  const parametros = new URLSearchParams({
+    subject: `Contato - ${nomeMarca.trim() || "Emprely"}`,
+    body: corpo,
+  });
+
+  return `mailto:${encodeURIComponent(destinatario)}?${parametros.toString()}`;
+}
+
+function isEmailContatoClienteValido(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
 function buildWhatsappPropostaUrl(
@@ -13201,13 +14654,39 @@ function formatMoedaRealInput(valor: number | null | undefined): string {
 }
 
 function parseMoedaRealInput(valor: string): number {
-  const digitos = valor.replace(/\D/g, "");
+  const texto = valor
+    .replace(/\s/g, "")
+    .replace(/^R\$/i, "")
+    .trim();
 
-  if (!digitos) {
+  if (!texto) {
     return 0;
   }
 
-  return Number(digitos) / 100;
+  const temSeparadorDecimal = /[,.]/.test(texto);
+
+  if (!temSeparadorDecimal) {
+    const apenasDigitos = texto.replace(/\D/g, "");
+    return apenasDigitos ? Number(apenasDigitos) : 0;
+  }
+
+  const separadores = texto.match(/[,.]/g) ?? [];
+  const ultimoSeparador = Math.max(texto.lastIndexOf(","), texto.lastIndexOf("."));
+  const casasAposSeparador = texto.slice(ultimoSeparador + 1).replace(/\D/g, "").length;
+  const pareceMilhar =
+    (!texto.includes(",") && separadores.length > 1) ||
+    (texto.includes(".") && !texto.includes(",") && casasAposSeparador === 3);
+
+  if (pareceMilhar) {
+    const semMilhar = texto.replace(/[.,]/g, "").replace(/\D/g, "");
+    return semMilhar ? Number(semMilhar) : 0;
+  }
+
+  const inteiro = texto.slice(0, ultimoSeparador).replace(/\D/g, "");
+  const decimal = texto.slice(ultimoSeparador + 1).replace(/\D/g, "").padEnd(2, "0").slice(0, 2);
+  const normalizado = `${inteiro || "0"}.${decimal}`;
+
+  return Number(normalizado);
 }
 
 function hasDescontoDocumento(d: PropostaDocumentoDados): boolean {
@@ -13317,7 +14796,6 @@ function getAppViewLabel(view: AppView): string {
     conta: "Configuracoes",
     personalizacao: "Personalizacao",
     suporte: "Suporte",
-    adminEmails: "Admin emails",
   };
 
   return labels[view];

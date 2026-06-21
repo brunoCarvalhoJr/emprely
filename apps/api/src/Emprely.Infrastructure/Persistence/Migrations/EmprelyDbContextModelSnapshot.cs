@@ -443,6 +443,10 @@ namespace Emprely.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("CidadeUf")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
                     b.Property<Guid>("ContaId")
                         .HasColumnType("uuid");
 
@@ -477,6 +481,11 @@ namespace Emprely.Infrastructure.Persistence.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
+                    b.Property<string>("FormatoArquivoPreferido")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<string>("Instagram")
                         .HasMaxLength(80)
                         .HasColumnType("character varying(80)");
@@ -489,6 +498,10 @@ namespace Emprely.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(160)
                         .HasColumnType("character varying(160)");
+
+                    b.Property<string>("Segmento")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
 
                     b.Property<string>("SiteUrl")
                         .HasMaxLength(300)
@@ -512,6 +525,128 @@ namespace Emprely.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("perfis_conta", (string)null);
+                });
+
+            modelBuilder.Entity("Emprely.Domain.Onboarding.OnboardingEvento", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ContaId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Etapa")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<Guid?>("PropostaId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Tipo")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UsuarioId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UsuarioId");
+
+                    b.HasIndex("ContaId", "UsuarioId", "CreatedAt");
+
+                    b.ToTable("onboarding_eventos", (string)null);
+                });
+
+            modelBuilder.Entity("Emprely.Domain.Onboarding.OnboardingUsuario", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("ConfiguracaoContaConcluidaAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("ConfiguracaoContaIniciadaAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("ConfiguracaoContaPuladaAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ContaId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("EtapaConfiguracaoConta")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<string>("EtapaPrimeiraProposta")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<DateTimeOffset?>("PrimeiraPropostaConcluidaAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("PrimeiraPropostaIniciadaAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("PrimeiraPropostaPuladaAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("PropostaRascunhoId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("StatusConfiguracaoConta")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)");
+
+                    b.Property<string>("StatusPrimeiraProposta")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)");
+
+                    b.Property<string>("StatusTour")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)");
+
+                    b.Property<DateTimeOffset?>("TourConcluidoAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("TourExibidoAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("TourPuladoAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UsuarioId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UsuarioId");
+
+                    b.HasIndex("ContaId", "UsuarioId")
+                        .IsUnique();
+
+                    b.ToTable("onboarding_usuarios", (string)null);
                 });
 
             modelBuilder.Entity("Emprely.Domain.Propostas.Proposta", b =>
@@ -1025,6 +1160,40 @@ namespace Emprely.Infrastructure.Persistence.Migrations
                     b.HasOne("Emprely.Domain.Contas.Conta", "Conta")
                         .WithOne("Perfil")
                         .HasForeignKey("Emprely.Domain.Contas.PerfilConta", "ContaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Conta");
+                });
+
+            modelBuilder.Entity("Emprely.Domain.Onboarding.OnboardingEvento", b =>
+                {
+                    b.HasOne("Emprely.Domain.Contas.Conta", "Conta")
+                        .WithMany()
+                        .HasForeignKey("ContaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Emprely.Infrastructure.Identity.UsuarioAplicacao", null)
+                        .WithMany()
+                        .HasForeignKey("UsuarioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Conta");
+                });
+
+            modelBuilder.Entity("Emprely.Domain.Onboarding.OnboardingUsuario", b =>
+                {
+                    b.HasOne("Emprely.Domain.Contas.Conta", "Conta")
+                        .WithMany()
+                        .HasForeignKey("ContaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Emprely.Infrastructure.Identity.UsuarioAplicacao", null)
+                        .WithMany()
+                        .HasForeignKey("UsuarioId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
