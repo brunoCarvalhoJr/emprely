@@ -278,6 +278,15 @@ test("exibe perfil da conta unificado no drawer mobile", async ({ page }) => {
   await expect(page.getByText("Template, cores e formatos de envio")).toBeVisible();
   await expect(page.getByLabel("E-mail de acesso")).toHaveAttribute("readonly", "");
 
+  const topoTemplate = await page
+    .getByRole("heading", { name: "Templates dos orçamentos" })
+    .boundingBox();
+  const topoCores = await page.getByRole("heading", { name: "Paleta da proposta" }).boundingBox();
+  const topoFormato = await page.getByRole("heading", { name: "Formato preferido" }).boundingBox();
+
+  expect(topoTemplate?.y ?? 0).toBeLessThan(topoCores?.y ?? 0);
+  expect(topoCores?.y ?? 0).toBeLessThan(topoFormato?.y ?? 0);
+
   await page.getByLabel("Nome comercial").fill("Conta Mobile Codex");
   await page.getByLabel("Segmento").fill("Consultoria mobile");
   await page.getByLabel("Cidade/UF").fill("Itajubá/MG");

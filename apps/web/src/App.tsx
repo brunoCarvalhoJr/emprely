@@ -7147,7 +7147,7 @@ export default function App() {
                               Aparência do sistema
                             </p>
                             <h2 className="mt-1 font-heading text-xl font-semibold leading-7">
-                              Tema e cores
+                              Tema do sistema
                             </h2>
                           </div>
                           <Palette className="text-muted" size={22} aria-hidden="true" />
@@ -7191,151 +7191,6 @@ export default function App() {
                                 <small>Interface escura para uso prolongado.</small>
                               </span>
                             </button>
-                          </div>
-                        </div>
-
-                        <div
-                          className="personalization-section mt-6 border-t border-border pt-5"
-                          data-tour="configurar-cores-formato"
-                        >
-                          <div>
-                            <p className="text-sm font-medium text-primary">
-                              Orçamentos
-                            </p>
-                            <div className="mt-1 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                              <div>
-                                <h2 className="font-heading text-xl font-semibold leading-7">
-                                  Cores dos templates
-                                </h2>
-                                <p className="mt-1 max-w-2xl text-sm leading-5 text-muted">
-                                  Defina as cores usadas nos templates personalizáveis. Templates com cores estáticas mantêm uma paleta profissional fixa.
-                                </p>
-                              </div>
-                              <div className="rounded-md border border-border bg-slate-50 p-3 text-sm text-muted lg:max-w-xs">
-                                <strong className="block text-foreground">
-                                  Cores estáticas
-                                </strong>
-                                <span className="mt-1 block leading-5">
-                                  Cartões sinalizados como estáticos não usam as cores abaixo.
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="mt-4">
-                            <span className="text-sm font-medium text-foreground">
-                              Formato preferido para envio
-                            </span>
-                            <p className="mt-1 text-sm text-muted">
-                              Usado no card de mensagem inicial com anexo.
-                            </p>
-                            <div className="mt-3 grid gap-2 lg:grid-cols-3">
-                              <button
-                                type="button"
-                                aria-pressed={
-                                  perfilPersonalizacaoPreview.formatoArquivoPreferido ===
-                                  "Pdf"
-                                }
-                                onClick={() => {
-                                  perfilForm.setValue(
-                                    "formatoArquivoPreferido",
-                                    "Pdf",
-                                    {
-                                      shouldDirty: true,
-                                      shouldValidate: true,
-                                    },
-                                  );
-                                  setPerfilMensagem(null);
-                                }}
-                                className={`personalization-choice ${
-                                  perfilPersonalizacaoPreview.formatoArquivoPreferido ===
-                                  "Pdf"
-                                    ? "is-active"
-                                    : ""
-                                }`}
-                              >
-                                <FileText size={18} aria-hidden="true" />
-                                <span>
-                                  <strong>PDF</strong>
-                                  <small>Arquivo pronto para enviar e arquivar.</small>
-                                </span>
-                              </button>
-                              <button
-                                type="button"
-                                aria-pressed={
-                                  perfilPersonalizacaoPreview.formatoArquivoPreferido ===
-                                  "Imagem"
-                                }
-                                onClick={() => {
-                                  perfilForm.setValue(
-                                    "formatoArquivoPreferido",
-                                    "Imagem",
-                                    {
-                                      shouldDirty: true,
-                                      shouldValidate: true,
-                                    },
-                                  );
-                                  setPerfilMensagem(null);
-                                }}
-                                className={`personalization-choice ${
-                                  perfilPersonalizacaoPreview.formatoArquivoPreferido ===
-                                  "Imagem"
-                                    ? "is-active"
-                                    : ""
-                                }`}
-                              >
-                                <ReceiptText size={18} aria-hidden="true" />
-                                <span>
-                                  <strong>Imagem</strong>
-                                  <small>Visual unico para compartilhar rapidamente.</small>
-                                </span>
-                              </button>
-                              <button
-                                type="button"
-                                aria-pressed={
-                                  perfilPersonalizacaoPreview.formatoArquivoPreferido ===
-                                  "PdfImagem"
-                                }
-                                onClick={() => {
-                                  perfilForm.setValue(
-                                    "formatoArquivoPreferido",
-                                    "PdfImagem",
-                                    {
-                                      shouldDirty: true,
-                                      shouldValidate: true,
-                                    },
-                                  );
-                                  setPerfilMensagem(null);
-                                }}
-                                className={`personalization-choice ${
-                                  perfilPersonalizacaoPreview.formatoArquivoPreferido ===
-                                  "PdfImagem"
-                                    ? "is-active"
-                                    : ""
-                                }`}
-                              >
-                                <Paperclip size={18} aria-hidden="true" />
-                                <span>
-                                  <strong>PDF + imagem</strong>
-                                  <small>Envia os dois formatos quando fizer sentido.</small>
-                                </span>
-                              </button>
-                            </div>
-                          </div>
-                          <div className="mt-4 grid gap-4 md:grid-cols-2">
-                          <CampoTexto
-                            label="Cor primária dos templates"
-                            type="color"
-                            error={perfilForm.formState.errors.corPrimaria?.message}
-                            helperText="Usada em títulos, ícones e áreas de destaque dos orçamentos."
-                            {...perfilForm.register("corPrimaria")}
-                          />
-                          <CampoTexto
-                            label="Cor secundária dos templates"
-                            type="color"
-                            error={perfilForm.formState.errors.corSecundaria?.message}
-                            helperText="Usada em acentos, detalhes e botões dos orçamentos."
-                            {...perfilForm.register("corSecundaria")}
-                          />
                           </div>
                         </div>
                       </div>
@@ -7476,20 +7331,188 @@ export default function App() {
                           </div>
                         </div>
 
-                        <div className="personalization-actions flex flex-col gap-3 border-t border-border sm:flex-row sm:items-center sm:justify-end">
-                          <MensagemErro error={perfilMutation.error} />
+                      </aside>
+
+                      <section
+                        className="personalization-main-card personalization-colors-card rounded-md border border-border bg-surface p-5"
+                        data-tour="configurar-cores-formato"
+                      >
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-primary">
+                              Cores dos templates
+                            </p>
+                            <h2 className="mt-1 font-heading text-xl font-semibold leading-7">
+                              Paleta da proposta
+                            </h2>
+                            <p className="mt-2 max-w-2xl text-sm leading-5 text-muted">
+                              Ajuste as cores usadas nos templates personalizáveis.
+                            </p>
+                          </div>
+                          <div className="static-color-note">
+                            <strong>Cores estáticas</strong>
+                            <span>
+                              Alguns templates mantêm paleta fixa para preservar o design.
+                            </span>
+                          </div>
+                        </div>
+                        <div className="profile-color-grid mt-4">
+                          <Controller
+                            control={perfilForm.control}
+                            name="corPrimaria"
+                            render={({ field }) => (
+                              <CampoCorPerfil
+                                label="Cor primária"
+                                value={field.value}
+                                onChange={(value) => {
+                                  field.onChange(value);
+                                  setPerfilMensagem(null);
+                                }}
+                                onBlur={field.onBlur}
+                                error={perfilForm.formState.errors.corPrimaria?.message}
+                                helperText="Títulos, ícones e áreas de destaque dos orçamentos."
+                              />
+                            )}
+                          />
+                          <Controller
+                            control={perfilForm.control}
+                            name="corSecundaria"
+                            render={({ field }) => (
+                              <CampoCorPerfil
+                                label="Cor secundária"
+                                value={field.value}
+                                onChange={(value) => {
+                                  field.onChange(value);
+                                  setPerfilMensagem(null);
+                                }}
+                                onBlur={field.onBlur}
+                                error={perfilForm.formState.errors.corSecundaria?.message}
+                                helperText="Acentos, detalhes e botões dos orçamentos."
+                              />
+                            )}
+                          />
+                        </div>
+                      </section>
+
+                      <section className="personalization-main-card personalization-format-card rounded-md border border-border bg-surface p-5">
+                        <div>
+                          <p className="text-sm font-medium text-primary">
+                            Envio da proposta
+                          </p>
+                          <h2 className="mt-1 font-heading text-xl font-semibold leading-7">
+                            Formato preferido
+                          </h2>
+                          <p className="mt-2 max-w-2xl text-sm leading-5 text-muted">
+                            Escolha o arquivo que aparece primeiro ao compartilhar a proposta.
+                          </p>
+                        </div>
+                        <div className="mt-4 grid gap-2 lg:grid-cols-3">
                           <button
-                            type="submit"
-                            disabled={perfilMutation.isPending}
-                            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            type="button"
+                            aria-pressed={
+                              perfilPersonalizacaoPreview.formatoArquivoPreferido ===
+                              "Pdf"
+                            }
+                            onClick={() => {
+                              perfilForm.setValue(
+                                "formatoArquivoPreferido",
+                                "Pdf",
+                                {
+                                  shouldDirty: true,
+                                  shouldValidate: true,
+                                },
+                              );
+                              setPerfilMensagem(null);
+                            }}
+                            className={`personalization-choice ${
+                              perfilPersonalizacaoPreview.formatoArquivoPreferido ===
+                              "Pdf"
+                                ? "is-active"
+                                : ""
+                            }`}
                           >
-                            <Save size={18} aria-hidden="true" />
-                            {perfilMutation.isPending
-                              ? "Salvando..."
-                              : "Salvar perfil da conta"}
+                            <FileText size={18} aria-hidden="true" />
+                            <span>
+                              <strong>PDF</strong>
+                              <small>Arquivo pronto para enviar e arquivar.</small>
+                            </span>
+                          </button>
+                          <button
+                            type="button"
+                            aria-pressed={
+                              perfilPersonalizacaoPreview.formatoArquivoPreferido ===
+                              "Imagem"
+                            }
+                            onClick={() => {
+                              perfilForm.setValue(
+                                "formatoArquivoPreferido",
+                                "Imagem",
+                                {
+                                  shouldDirty: true,
+                                  shouldValidate: true,
+                                },
+                              );
+                              setPerfilMensagem(null);
+                            }}
+                            className={`personalization-choice ${
+                              perfilPersonalizacaoPreview.formatoArquivoPreferido ===
+                              "Imagem"
+                                ? "is-active"
+                                : ""
+                            }`}
+                          >
+                            <ReceiptText size={18} aria-hidden="true" />
+                            <span>
+                              <strong>Imagem</strong>
+                              <small>Visual único para compartilhar rapidamente.</small>
+                            </span>
+                          </button>
+                          <button
+                            type="button"
+                            aria-pressed={
+                              perfilPersonalizacaoPreview.formatoArquivoPreferido ===
+                              "PdfImagem"
+                            }
+                            onClick={() => {
+                              perfilForm.setValue(
+                                "formatoArquivoPreferido",
+                                "PdfImagem",
+                                {
+                                  shouldDirty: true,
+                                  shouldValidate: true,
+                                },
+                              );
+                              setPerfilMensagem(null);
+                            }}
+                            className={`personalization-choice ${
+                              perfilPersonalizacaoPreview.formatoArquivoPreferido ===
+                              "PdfImagem"
+                                ? "is-active"
+                                : ""
+                            }`}
+                          >
+                            <Paperclip size={18} aria-hidden="true" />
+                            <span>
+                              <strong>PDF + imagem</strong>
+                              <small>Envia os dois formatos quando fizer sentido.</small>
+                            </span>
                           </button>
                         </div>
-                      </aside>
+                      </section>
+
+                      <div className="personalization-actions flex flex-col gap-3 border-t border-border sm:flex-row sm:items-center sm:justify-end">
+                        <MensagemErro error={perfilMutation.error} />
+                        <button
+                          type="submit"
+                          disabled={perfilMutation.isPending}
+                          className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          <Save size={18} aria-hidden="true" />
+                          {perfilMutation.isPending
+                            ? "Salvando..."
+                            : "Salvar perfil da conta"}
+                        </button>
+                      </div>
                     </form>
                   </section>
                 ) : null}
@@ -8986,6 +9009,88 @@ const CampoTexto = forwardRef<HTMLInputElement, CampoTextoProps>(
 );
 
 CampoTexto.displayName = "CampoTexto";
+
+const corHexRegex = /^#[0-9A-Fa-f]{6}$/;
+
+function normalizarCorHexInput(valor: string) {
+  const valorLimpo = valor.trim().replace(/[^#0-9A-Fa-f]/g, "").toUpperCase();
+
+  if (!valorLimpo) {
+    return "";
+  }
+
+  const semPrefixo = valorLimpo.replace(/^#/, "").slice(0, 6);
+  return `#${semPrefixo}`;
+}
+
+type CampoCorPerfilProps = {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  onBlur: () => void;
+  error?: string;
+  helperText?: string;
+};
+
+function CampoCorPerfil({
+  label,
+  value,
+  onChange,
+  onBlur,
+  error,
+  helperText,
+}: CampoCorPerfilProps) {
+  const campoId = useId();
+  const erroId = `${campoId}-erro`;
+  const descricaoId = `${campoId}-descricao`;
+  const corValida = corHexRegex.test(value) ? value : "#000000";
+
+  return (
+    <label className="profile-color-field">
+      <span className="profile-color-label">{label}</span>
+      <span className="profile-color-control">
+        <span
+          className="profile-color-swatch"
+          style={{ backgroundColor: corValida }}
+          aria-hidden="true"
+        />
+        <input
+          type="color"
+          value={corValida}
+          onChange={(event) => onChange(event.target.value.toUpperCase())}
+          onBlur={onBlur}
+          aria-label={`Selecionar ${label.toLowerCase()}`}
+          className="profile-color-picker"
+        />
+        <input
+          id={campoId}
+          type="text"
+          value={value}
+          maxLength={7}
+          inputMode="text"
+          spellCheck={false}
+          onChange={(event) => onChange(normalizarCorHexInput(event.target.value))}
+          onBlur={onBlur}
+          aria-invalid={Boolean(error)}
+          aria-describedby={`${helperText ? descricaoId : ""} ${
+            error ? erroId : ""
+          }`.trim() || undefined}
+          className="profile-color-hex"
+        />
+      </span>
+      {helperText ? (
+        <span id={descricaoId} className="campo-helper mt-1 block text-xs text-muted">
+          {helperText}
+        </span>
+      ) : null}
+      {error ? (
+        <span id={erroId} className="campo-error mt-1 block text-sm text-red-600">
+          {error}
+        </span>
+      ) : null}
+    </label>
+  );
+}
 
 type CampoMoedaRealProps = Omit<
   InputHTMLAttributes<HTMLInputElement>,
