@@ -885,6 +885,7 @@ export default function App() {
   >("conta");
   const [onboardingTourRodando, setOnboardingTourRodando] = useState(false);
   const [onboardingTourStepIndex, setOnboardingTourStepIndex] = useState(0);
+  const [onboardingTourKey, setOnboardingTourKey] = useState(0);
   const onboardingTourAutoInicioRef = useRef<string | null>(null);
   const onboardingTourEncerradoSessaoRef = useRef<string | null>(null);
   const [
@@ -1960,7 +1961,7 @@ export default function App() {
       onboardingTourAutoInicioRef.current = chaveTour;
       const timeoutId = window.setTimeout(() => {
         setOnboardingTourStepIndex(0);
-        setAppView("dashboard");
+        setAppView(getOnboardingTourView(0));
         setMobileMenuAberto(false);
         setContaMenuAberto(false);
         setOnboardingModalAberto(false);
@@ -2575,11 +2576,13 @@ export default function App() {
 
   function iniciarTourOnboarding() {
     onboardingTourEncerradoSessaoRef.current = null;
+    limparArtefatosOnboardingTour();
     setOnboardingModalAberto(false);
-    setAppView("dashboard");
+    setAppView(getOnboardingTourView(0));
     setMobileMenuAberto(false);
     setContaMenuAberto(false);
     setOnboardingTourStepIndex(0);
+    setOnboardingTourKey((key) => key + 1);
     setOnboardingTourRodando(true);
     onboardingEventoMutation.mutate({ tipo: "TourExibido", etapa: "dashboard" });
   }
@@ -2597,24 +2600,49 @@ export default function App() {
     });
   }
 
+  function encerrarOnboardingTour(data: EventData, statusFinal: "finished" | "skipped") {
+    const chaveUsuarioTour = conta && usuario ? `${conta.id}:${usuario.id}` : null;
+    onboardingTourEncerradoSessaoRef.current = chaveUsuarioTour;
+    flushSync(() => {
+      setOnboardingTourRodando(false);
+      setOnboardingTourStepIndex(0);
+      setOnboardingTourKey((key) => key + 1);
+      setMobileMenuAberto(false);
+      setContaMenuAberto(false);
+    });
+    limparArtefatosOnboardingTour();
+    window.requestAnimationFrame(limparArtefatosOnboardingTour);
+    window.setTimeout(limparArtefatosOnboardingTour, 80);
+    window.setTimeout(limparArtefatosOnboardingTour, 300);
+    onboardingEventoMutation.mutate({
+      tipo: statusFinal === "finished" ? "TourConcluiu" : "TourPulou",
+      etapa: typeof data.step?.target === "string" ? data.step.target : "dashboard",
+    });
+  }
+
   function handleOnboardingTourCallback(data: EventData) {
     if (data.status === "finished" || data.status === "skipped") {
-      const chaveUsuarioTour = conta && usuario ? `${conta.id}:${usuario.id}` : null;
-      onboardingTourEncerradoSessaoRef.current = chaveUsuarioTour;
-      flushSync(() => {
-        setOnboardingTourRodando(false);
-        setOnboardingTourStepIndex(0);
-      });
-      window.setTimeout(limparArtefatosOnboardingTour, 0);
-      onboardingEventoMutation.mutate({
-        tipo: data.status === "finished" ? "TourConcluiu" : "TourPulou",
-        etapa: typeof data.step?.target === "string" ? data.step.target : "dashboard",
-      });
+      encerrarOnboardingTour(data, data.status);
+      return;
+    }
+
+    if (data.type === "tour:end") {
+      encerrarOnboardingTour(
+        data,
+        data.action === "skip" ? "skipped" : "finished",
+      );
       return;
     }
 
     if (data.type === "step:after" || data.type === "error:target_not_found") {
       const indiceAtual = typeof data.index === "number" ? data.index : onboardingTourStepIndex;
+      const totalSteps = buildOnboardingTourSteps().length;
+
+      if (data.action !== "prev" && indiceAtual >= totalSteps - 1) {
+        encerrarOnboardingTour(data, "finished");
+        return;
+      }
+
       navegarParaOnboardingTourStep(
         data.action === "prev"
           ? indiceAtual - 1
@@ -3610,16 +3638,17 @@ export default function App() {
 
   return (
     <div className="app-shell min-h-screen bg-background text-foreground">
-      {usuario && conta ? (
+      {usuario && conta && onboardingTourRodando ? (
         <Joyride
+          key={onboardingTourKey}
           continuous
           onEvent={handleOnboardingTourCallback}
           locale={{
             back: "Voltar",
             close: "Fechar",
             last: "Concluir",
-            next: "Proximo",
-            nextWithProgress: "Proximo ({current} de {total})",
+            next: "Próximo",
+            nextWithProgress: "Próximo ({current} de {total})",
             open: "Abrir",
             skip: "Pular",
           }}
@@ -3632,7 +3661,7 @@ export default function App() {
             primaryColor: "#2563eb",
             scrollOffset: 88,
             showProgress: true,
-            spotlightPadding: 8,
+            spotlightPadding: 6,
             spotlightRadius: 10,
           }}
           run={onboardingTourRodando}
@@ -3643,7 +3672,8 @@ export default function App() {
             tooltip: {
               borderRadius: 8,
               boxShadow: "0 24px 70px rgba(2, 6, 23, 0.28)",
-              maxWidth: 340,
+              maxWidth: 360,
+              width: "min(360px, calc(100vw - 32px))",
             },
             tooltipTitle: {
               color: "#0f172a",
@@ -8435,12 +8465,14 @@ function OnboardingModal({
 
   const configuracaoStatus = onboarding?.configuracaoConta.status ?? "NaoIniciado";
   const propostaStatus = onboarding?.primeiraProposta.status ?? "NaoIniciado";
+  const configuracaoStatusVisual = perfilCompleto ? "Concluido" : configuracaoStatus;
+  const propostaStatusVisual = primeiraPropostaGerada ? "Concluido" : propostaStatus;
   const etapaPrincipal =
     jornadaAtiva === "conta"
       ? {
           titulo: "Configure sua conta",
           detalhe:
-            "Complete dados do negocio, logomarca, template, cores e formato preferido para padronizar as propostas.",
+            "Complete dados do negócio, logomarca, template, cores e formato preferido para padronizar as propostas.",
           acao: "Configurar conta",
           onClick: onConfigurarConta,
           concluido: perfilCompleto,
@@ -8448,7 +8480,7 @@ function OnboardingModal({
       : {
           titulo: "Gere a primeira proposta",
           detalhe:
-            "Cadastre cliente, servico, orcamento e gere o arquivo pronto para envio.",
+            "Cadastre cliente, serviço, orçamento e gere o arquivo pronto para envio.",
           acao: "Criar primeira proposta",
           onClick: onPrimeiraProposta,
           concluido: primeiraPropostaGerada,
@@ -8523,8 +8555,8 @@ function OnboardingModal({
               <h3>{etapaPrincipal.titulo}</h3>
               <p>{etapaPrincipal.detalhe}</p>
               <div className="onboarding-status-row">
-                <span>Conta: {getOnboardingStatusLabel(configuracaoStatus)}</span>
-                <span>Proposta: {getOnboardingStatusLabel(propostaStatus)}</span>
+                <span>Conta: {getOnboardingStatusLabel(configuracaoStatusVisual)}</span>
+                <span>Proposta: {getOnboardingStatusLabel(propostaStatusVisual)}</span>
               </div>
             </div>
           </div>
@@ -8534,11 +8566,11 @@ function OnboardingModal({
               ? [
                   "Preencher nome, segmento, cidade/UF e contato.",
                   "Adicionar ou revisar logomarca.",
-                  "Escolher template padrao, cores e formato preferido.",
+                  "Escolher template padrão, cores e formato preferido.",
                 ]
               : [
                   "Cadastrar ou selecionar o primeiro cliente.",
-                  "Cadastrar um servico reutilizavel.",
+                  "Cadastrar um serviço reutilizável.",
                   "Montar, revisar e gerar a proposta para envio.",
                 ]
             ).map((passo, index) => (
@@ -8558,7 +8590,7 @@ function OnboardingModal({
             className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-border px-4 text-sm font-semibold"
           >
             <Sparkles size={16} aria-hidden="true" />
-            Ver tour rapido
+            Ver tour rápido
           </button>
           <div className="onboarding-modal-actions">
             <button
@@ -8575,7 +8607,7 @@ function OnboardingModal({
               disabled={isPending || etapaPrincipal.concluido}
               className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {etapaPrincipal.concluido ? "Concluido" : etapaPrincipal.acao}
+              {etapaPrincipal.concluido ? "Concluído" : etapaPrincipal.acao}
               <ArrowRight size={16} aria-hidden="true" />
             </button>
           </div>
@@ -12739,17 +12771,11 @@ function buildPrimeirosPassosDashboard({
 function buildOnboardingTourSteps(): Step[] {
   return [
     {
-      target: '[data-tour="dashboard-hero"]',
-      title: "Atalhos do primeiro orcamento",
-      content:
-        "No dashboard voce encontra os atalhos para criar proposta, cadastrar cliente e salvar servico. O tour primeiro mostra a configuracao da conta e depois volta para esses atalhos.",
-      skipBeacon: true,
-    },
-    {
       target: '[data-tour="configurar-dados-conta"]',
-      title: "Dados do seu negocio",
+      title: "Dados do seu negócio",
       content:
-        "Comece preenchendo nome comercial, segmento, cidade, telefone e email. Esses dados aparecem nos orcamentos.",
+        "Comece preenchendo nome comercial, segmento, cidade, telefone e e-mail. Esses dados aparecem nos orçamentos.",
+      skipBeacon: true,
     },
     {
       target: '[data-tour="configurar-logo"]',
@@ -12759,33 +12785,41 @@ function buildOnboardingTourSteps(): Step[] {
     },
     {
       target: '[data-tour="configurar-template"]',
-      title: "Template padrao",
+      title: "Template padrão",
       content:
-        "Escolha o modelo visual que a Emprely vai usar por padrao nos novos orcamentos.",
+        "Escolha o modelo visual que a Emprely vai usar por padrão nos novos orçamentos.",
+      placement: "left",
     },
     {
       target: '[data-tour="configurar-cores-formato"]',
       title: "Cores e formato de envio",
       content:
         "Defina as cores da marca e escolha se prefere enviar PDF, imagem ou os dois formatos.",
+      placement: "right",
+    },
+    {
+      target: '[data-tour="dashboard-hero"]',
+      title: "Atalhos do primeiro orçamento",
+      content:
+        "Depois da configuração, volte ao dashboard para criar proposta, cadastrar cliente e salvar serviço pelos atalhos principais.",
     },
     {
       target: '[data-tour="clientes"]',
       title: "Cadastre o cliente",
       content:
-        "Depois da conta configurada, cadastre quem vai receber o primeiro orcamento.",
+        "Clique em Cadastrar cliente para registrar quem vai receber o primeiro orçamento.",
     },
     {
       target: '[data-tour="servicos"]',
-      title: "Cadastre o servico",
+      title: "Cadastre o serviço",
       content:
-        "Salve o servico, pacote ou entrega que sera cobrado. Voce podera reutilizar isso em outros orcamentos.",
+        "Clique em Cadastrar serviço para salvar o serviço, pacote ou entrega que será cobrado e reutilizado.",
     },
     {
       target: '[data-tour="nova-proposta"]',
-      title: "Gere o primeiro orcamento",
+      title: "Gere o primeiro orçamento",
       content:
-        "Use Nova proposta para montar o orcamento completo, revisar os itens e gerar o arquivo final para enviar.",
+        "Use Nova proposta para montar o orçamento completo, revisar os itens e gerar o arquivo final para envio.",
     },
   ];
 }
@@ -12800,22 +12834,14 @@ function limparArtefatosOnboardingTour() {
   document.body.style.overflow = "";
   document.body.style.pointerEvents = "";
   document.documentElement.style.overflow = "";
-
-  document
-    .querySelectorAll(
-      '#react-joyride-step, [id^="react-joyride-"], .react-joyride__overlay, .react-joyride__spotlight',
-    )
-    .forEach((elemento) => {
-      elemento.parentElement?.removeChild(elemento);
-    });
 }
 
 function getOnboardingTourView(stepIndex: number): AppView {
-  if (stepIndex >= 1 && stepIndex <= 2) {
+  if (stepIndex >= 0 && stepIndex <= 1) {
     return "conta";
   }
 
-  if (stepIndex >= 3 && stepIndex <= 4) {
+  if (stepIndex >= 2 && stepIndex <= 3) {
     return "personalizacao";
   }
 
@@ -12824,10 +12850,10 @@ function getOnboardingTourView(stepIndex: number): AppView {
 
 function getOnboardingStatusLabel(status: OnboardingResponse["configuracaoConta"]["status"]) {
   const labels: Record<OnboardingResponse["configuracaoConta"]["status"], string> = {
-    NaoIniciado: "nao iniciado",
+    NaoIniciado: "não iniciado",
     EmAndamento: "em andamento",
     Pulado: "adiado",
-    Concluido: "concluido",
+    Concluido: "concluído",
   };
 
   return labels[status];
