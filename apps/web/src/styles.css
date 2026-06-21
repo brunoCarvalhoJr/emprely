@@ -7714,11 +7714,19 @@ button[class*="border-accent"]:not(:disabled):hover {
 #proposal-preview-fit:checked ~ .proposal-view-modal-header label[for="proposal-preview-fit"],
 #proposal-preview-zoom:checked ~ .proposal-view-modal-header label[for="proposal-preview-zoom"],
 #proposal-preview-full:checked ~ .proposal-view-modal-header label[for="proposal-preview-full"],
+#personalization-template-preview-fit:checked ~ .proposal-view-modal-header label[for="personalization-template-preview-fit"],
+#personalization-template-preview-zoom:checked ~ .proposal-view-modal-header label[for="personalization-template-preview-zoom"],
+#personalization-template-preview-full:checked ~ .proposal-view-modal-header label[for="personalization-template-preview-full"],
 #template-preview-fit:checked ~ .template-preview-toolbar label[for="template-preview-fit"],
 #template-preview-zoom:checked ~ .template-preview-toolbar label[for="template-preview-zoom"],
 #template-preview-full:checked ~ .template-preview-toolbar label[for="template-preview-full"] {
   background: var(--primary);
   color: #ffffff;
+}
+
+.personalization-preview-zoom-controls {
+  margin-top: 0.85rem;
+  width: fit-content;
 }
 
 .template-preview-dialog {
@@ -7752,6 +7760,36 @@ button[class*="border-accent"]:not(:disabled):hover {
   --preview-scale: 1;
 }
 
+@media (min-width: 641px) {
+  .template-preview-stage,
+  .proposal-view-modal-stage {
+    display: grid;
+    place-items: start center;
+  }
+
+  #template-preview-fit:checked ~ .template-preview-stage,
+  #proposal-preview-fit:checked ~ .proposal-view-modal-stage,
+  #personalization-template-preview-fit:checked ~ .proposal-view-modal-stage {
+    --preview-scale: 0.52;
+    overflow: hidden;
+  }
+
+  #template-preview-zoom:checked ~ .template-preview-stage,
+  #proposal-preview-zoom:checked ~ .proposal-view-modal-stage,
+  #personalization-template-preview-zoom:checked ~ .proposal-view-modal-stage {
+    --preview-scale: 0.72;
+    overflow: auto;
+  }
+
+  #template-preview-full:checked ~ .template-preview-stage,
+  #proposal-preview-full:checked ~ .proposal-view-modal-stage,
+  #personalization-template-preview-full:checked ~ .proposal-view-modal-stage {
+    --preview-scale: 1;
+    place-items: start center;
+    overflow: auto;
+  }
+}
+
 .template-preview-stage .proposal-preview-shell {
   width: max-content;
   min-width: min(100%, 960px);
@@ -7760,8 +7798,7 @@ button[class*="border-accent"]:not(:disabled):hover {
   background: transparent !important;
   box-shadow: none;
   padding: 0 !important;
-  transform: scale(var(--preview-scale));
-  transform-origin: top center;
+  zoom: var(--preview-scale);
 }
 
 .template-preview-stage .proposal-preview-shell > div:first-child {
@@ -7900,8 +7937,7 @@ button[class*="border-accent"]:not(:disabled):hover {
   background: transparent !important;
   box-shadow: none;
   padding: 0 !important;
-  transform: scale(var(--preview-scale));
-  transform-origin: top center;
+  zoom: var(--preview-scale);
 }
 
 .proposal-view-modal-stage .proposal-preview-shell > div:first-child {
@@ -8000,19 +8036,22 @@ button[class*="border-accent"]:not(:disabled):hover {
   }
 
   #template-preview-fit:checked ~ .template-preview-stage,
-  #proposal-preview-fit:checked ~ .proposal-view-modal-stage {
+  #proposal-preview-fit:checked ~ .proposal-view-modal-stage,
+  #personalization-template-preview-fit:checked ~ .proposal-view-modal-stage {
     --preview-scale: 0.34;
     overflow: hidden;
   }
 
   #template-preview-zoom:checked ~ .template-preview-stage,
-  #proposal-preview-zoom:checked ~ .proposal-view-modal-stage {
+  #proposal-preview-zoom:checked ~ .proposal-view-modal-stage,
+  #personalization-template-preview-zoom:checked ~ .proposal-view-modal-stage {
     --preview-scale: 0.62;
     place-items: start center;
   }
 
   #template-preview-full:checked ~ .template-preview-stage,
-  #proposal-preview-full:checked ~ .proposal-view-modal-stage {
+  #proposal-preview-full:checked ~ .proposal-view-modal-stage,
+  #personalization-template-preview-full:checked ~ .proposal-view-modal-stage {
     --preview-scale: 1;
     place-items: start start;
   }

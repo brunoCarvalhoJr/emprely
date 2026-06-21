@@ -622,6 +622,18 @@ type SessaoInicialUsuario = {
   mensagem: string | null;
 };
 
+type AppNavigationSnapshot = {
+  appView: AppView;
+  clienteModo: CrudModo;
+  clienteSelecionadoId: string | null;
+  servicoModo: CrudModo;
+  servicoSelecionadoId: string | null;
+  propostaModo: CrudModo;
+  propostaSelecionadaId: string | null;
+  propostaAssistenteEtapa: PropostaAssistenteEtapa;
+  propostaWizardEtapaAtiva: PropostaWizardEtapaId;
+};
+
 const emprelyFaviconSrc = "/brand/emprely-favicon.svg";
 const logoArquivoTamanhoMaximoBytes = 2 * 1024 * 1024;
 const logoArquivoTamanhoMaximoLabel = "2 MB";
@@ -799,14 +811,118 @@ type ToastSistemaItem = {
 type PropostaWhatsappModo = "completa" | "arquivo";
 
 const toastSistemaDuracaoMs = 3000;
+const appNavigationStorageKey = "emprely.appNavigationState.v1";
+const appHistoryStateKey = "emprelyApp";
+const appViewValores: AppView[] = [
+  "dashboard",
+  "clientes",
+  "servicos",
+  "propostas",
+  "conta",
+  "personalizacao",
+  "suporte",
+];
+const crudModoValores: CrudModo[] = [
+  "lista",
+  "novo",
+  "editar",
+  "visualizar",
+  "assistente",
+];
+const propostaAssistenteEtapaValores: PropostaAssistenteEtapa[] = [
+  "inicio",
+  "existente",
+  "novo",
+];
+
+function normalizarAppViewPersistida(view: unknown): AppView | null {
+  if (typeof view !== "string" || !appViewValores.includes(view as AppView)) {
+    return null;
+  }
+
+  return view === "personalizacao" ? "conta" : (view as AppView);
+}
+
+function normalizarCrudModoPersistido(modo: unknown): CrudModo | null {
+  return typeof modo === "string" && crudModoValores.includes(modo as CrudModo)
+    ? (modo as CrudModo)
+    : null;
+}
+
+function normalizarStringOuNull(valor: unknown): string | null {
+  return typeof valor === "string" && valor.trim() ? valor : null;
+}
+
+function readAppNavigationSnapshot(): Partial<AppNavigationSnapshot> {
+  try {
+    const bruto = window.sessionStorage.getItem(appNavigationStorageKey);
+
+    if (!bruto) {
+      return {};
+    }
+
+    const parsed = JSON.parse(bruto) as Partial<AppNavigationSnapshot>;
+    const appView = normalizarAppViewPersistida(parsed.appView);
+    const clienteModo = normalizarCrudModoPersistido(parsed.clienteModo);
+    const servicoModo = normalizarCrudModoPersistido(parsed.servicoModo);
+    const propostaModo = normalizarCrudModoPersistido(parsed.propostaModo);
+    const propostaAssistenteEtapa =
+      typeof parsed.propostaAssistenteEtapa === "string" &&
+      propostaAssistenteEtapaValores.includes(parsed.propostaAssistenteEtapa)
+        ? parsed.propostaAssistenteEtapa
+        : null;
+    const propostaWizardEtapaAtiva =
+      typeof parsed.propostaWizardEtapaAtiva === "string" &&
+      propostaWizardEtapasOrdem.includes(parsed.propostaWizardEtapaAtiva)
+        ? parsed.propostaWizardEtapaAtiva
+        : null;
+
+    return {
+      appView: appView ?? undefined,
+      clienteModo: clienteModo ?? undefined,
+      clienteSelecionadoId: normalizarStringOuNull(parsed.clienteSelecionadoId),
+      servicoModo: servicoModo ?? undefined,
+      servicoSelecionadoId: normalizarStringOuNull(parsed.servicoSelecionadoId),
+      propostaModo: propostaModo ?? undefined,
+      propostaSelecionadaId: normalizarStringOuNull(parsed.propostaSelecionadaId),
+      propostaAssistenteEtapa: propostaAssistenteEtapa ?? undefined,
+      propostaWizardEtapaAtiva: propostaWizardEtapaAtiva ?? undefined,
+    };
+  } catch {
+    return {};
+  }
+}
+
+function writeAppNavigationSnapshot(snapshot: AppNavigationSnapshot) {
+  window.sessionStorage.setItem(appNavigationStorageKey, JSON.stringify(snapshot));
+}
+
+function clearAppNavigationSnapshot() {
+  window.sessionStorage.removeItem(appNavigationStorageKey);
+}
+
+function buildAppHistoryState(snapshot: AppNavigationSnapshot) {
+  return {
+    ...(window.history.state && typeof window.history.state === "object"
+      ? window.history.state
+      : {}),
+    [appHistoryStateKey]: true,
+    appSnapshot: snapshot,
+  };
+}
 
 export default function App() {
   const queryClient = useQueryClient();
   const [sessaoInicial] = useState<SessaoInicialUsuario>(readSessaoInicialUsuario);
+  const [appNavigationInicial] = useState<Partial<AppNavigationSnapshot>>(
+    readAppNavigationSnapshot,
+  );
   const [authMode, setAuthMode] = useState<AuthMode>(() => getAuthModeInicial());
   const [authEmailPendente, setAuthEmailPendente] = useState("");
   const authUrlParams = getAuthUrlParams();
-  const [appView, setAppView] = useState<AppView>("dashboard");
+  const [appView, setAppView] = useState<AppView>(
+    appNavigationInicial.appView ?? "dashboard",
+  );
   const [accessToken, setAccessToken] = useState<string | null>(
     sessaoInicial.accessToken,
   );
@@ -820,21 +936,27 @@ export default function App() {
   const [segurancaMensagem, setSegurancaMensagem] = useState<string | null>(null);
   const [suporteMensagem, setSuporteMensagem] = useState<string | null>(null);
   const [clienteMensagem, setClienteMensagem] = useState<string | null>(null);
-  const [clienteModo, setClienteModo] = useState<CrudModo>("lista");
+  const [clienteModo, setClienteModo] = useState<CrudModo>(
+    appNavigationInicial.clienteModo ?? "lista",
+  );
   const [clienteSelecionadoId, setClienteSelecionadoId] = useState<string | null>(
-    null,
+    appNavigationInicial.clienteSelecionadoId ?? null,
   );
   const [clienteComplementaresAberto, setClienteComplementaresAberto] =
     useState(false);
   const [servicoMensagem, setServicoMensagem] = useState<string | null>(null);
-  const [servicoModo, setServicoModo] = useState<CrudModo>("lista");
+  const [servicoModo, setServicoModo] = useState<CrudModo>(
+    appNavigationInicial.servicoModo ?? "lista",
+  );
   const [servicoSelecionadoId, setServicoSelecionadoId] = useState<string | null>(
-    null,
+    appNavigationInicial.servicoSelecionadoId ?? null,
   );
   const [propostaMensagem, setPropostaMensagem] = useState<string | null>(null);
-  const [propostaModo, setPropostaModo] = useState<CrudModo>("lista");
+  const [propostaModo, setPropostaModo] = useState<CrudModo>(
+    appNavigationInicial.propostaModo ?? "lista",
+  );
   const [propostaSelecionadaId, setPropostaSelecionadaId] = useState<string | null>(
-    null,
+    appNavigationInicial.propostaSelecionadaId ?? null,
   );
   const [propostaVisualizacaoModalId, setPropostaVisualizacaoModalId] = useState<
     string | null
@@ -898,9 +1020,13 @@ export default function App() {
     string | null
   >(null);
   const [propostaAssistenteEtapa, setPropostaAssistenteEtapa] =
-    useState<PropostaAssistenteEtapa>("inicio");
+    useState<PropostaAssistenteEtapa>(
+      appNavigationInicial.propostaAssistenteEtapa ?? "inicio",
+    );
   const [propostaWizardEtapaAtiva, setPropostaWizardEtapaAtiva] =
-    useState<PropostaWizardEtapaId>("cliente");
+    useState<PropostaWizardEtapaId>(
+      appNavigationInicial.propostaWizardEtapaAtiva ?? "cliente",
+    );
   const [onboardingModalAberto, setOnboardingModalAberto] = useState(false);
   const [onboardingJornadaAtiva, setOnboardingJornadaAtiva] = useState<
     "conta" | "proposta"
@@ -936,6 +1062,7 @@ export default function App() {
     ((confirmado: boolean) => void) | null
   >(null);
   const confirmacaoSistemaIdRef = useRef(0);
+  const historicoAppInicializadoRef = useRef(false);
 
   const fecharPropostaVisualizacaoModal = useCallback(() => {
     setPropostaVisualizacaoModalId(null);
@@ -1066,6 +1193,12 @@ export default function App() {
 
   useEffect(() => {
     const modalAberto =
+      confirmacaoSistema ||
+      clienteRapidoAberto ||
+      logoSugestaoPerfil ||
+      propostaCompartilharModalAberto ||
+      propostaTemplateModalAberto ||
+      templatePreviewAberto ||
       propostaVisualizacaoModalId ||
       propostaPreviewModalAberto ||
       personalizacaoPreviewTemplateAberto;
@@ -1076,6 +1209,39 @@ export default function App() {
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") {
+        return;
+      }
+
+      if (confirmacaoSistema) {
+        responderConfirmacaoSistema(false);
+        return;
+      }
+
+      if (logoSugestaoPerfil) {
+        setLogoSugestaoPerfil(null);
+        return;
+      }
+
+      if (clienteRapidoAberto) {
+        setClienteRapidoAberto(false);
+        setClienteRapidoComplementaresAberto(false);
+        return;
+      }
+
+      if (propostaCompartilharModalAberto) {
+        setPropostaCompartilharModalAberto(false);
+        setPropostaCompartilhamentoId(null);
+        setPropostaExportacaoMensagem(null);
+        return;
+      }
+
+      if (templatePreviewAberto) {
+        setTemplatePreviewAberto(null);
+        return;
+      }
+
+      if (propostaTemplateModalAberto) {
+        setPropostaTemplateModalAberto(false);
         return;
       }
 
@@ -1098,12 +1264,19 @@ export default function App() {
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [
+    clienteRapidoAberto,
+    confirmacaoSistema,
     fecharPersonalizacaoPreviewTemplate,
     fecharPropostaPreviewModal,
     fecharPropostaVisualizacaoModal,
+    logoSugestaoPerfil,
     personalizacaoPreviewTemplateAberto,
+    propostaCompartilharModalAberto,
     propostaPreviewModalAberto,
+    propostaTemplateModalAberto,
     propostaVisualizacaoModalId,
+    responderConfirmacaoSistema,
+    templatePreviewAberto,
   ]);
 
   const usuarioAtualQuery = useQuery({
@@ -1266,6 +1439,7 @@ export default function App() {
   const limparSessaoUsuario = useCallback(
     (mensagem: string | null = null) => {
       clearSessaoUsuarioStorage();
+      clearAppNavigationSnapshot();
       setAccessToken(null);
       setAuthUsuario(null);
       setAuthMode("login");
@@ -1435,6 +1609,199 @@ export default function App() {
     ? getStatusComercialContaEfetivo(conta)
     : "TrialExpirado";
   const perfilConta = perfilContaQuery.data;
+
+  useEffect(() => {
+    if (!usuario || !conta) {
+      if (!accessToken) {
+        clearAppNavigationSnapshot();
+      }
+      historicoAppInicializadoRef.current = false;
+      return;
+    }
+
+    const snapshot: AppNavigationSnapshot = {
+      appView,
+      clienteModo,
+      clienteSelecionadoId,
+      servicoModo,
+      servicoSelecionadoId,
+      propostaModo,
+      propostaSelecionadaId,
+      propostaAssistenteEtapa,
+      propostaWizardEtapaAtiva,
+    };
+    writeAppNavigationSnapshot(snapshot);
+
+    if (!historicoAppInicializadoRef.current) {
+      const state = buildAppHistoryState(snapshot);
+      window.history.replaceState(state, "", window.location.href);
+      window.history.pushState(state, "", window.location.href);
+      historicoAppInicializadoRef.current = true;
+      return;
+    }
+
+    window.history.replaceState(
+      buildAppHistoryState(snapshot),
+      "",
+      window.location.href,
+    );
+  }, [
+    accessToken,
+    appView,
+    clienteModo,
+    clienteSelecionadoId,
+    conta,
+    propostaAssistenteEtapa,
+    propostaModo,
+    propostaSelecionadaId,
+    propostaWizardEtapaAtiva,
+    servicoModo,
+    servicoSelecionadoId,
+    usuario,
+  ]);
+
+  useEffect(() => {
+    if (!usuario || !conta) {
+      return;
+    }
+
+    const manterUsuarioNoApp = () => {
+      const snapshot: AppNavigationSnapshot = {
+        appView,
+        clienteModo,
+        clienteSelecionadoId,
+        servicoModo,
+        servicoSelecionadoId,
+        propostaModo,
+        propostaSelecionadaId,
+        propostaAssistenteEtapa,
+        propostaWizardEtapaAtiva,
+      };
+      window.history.pushState(
+        buildAppHistoryState(snapshot),
+        "",
+        window.location.href,
+      );
+    };
+
+    const handlePopState = () => {
+      let eventoTratado = true;
+
+      if (confirmacaoSistema) {
+        responderConfirmacaoSistema(false);
+      } else if (logoSugestaoPerfil) {
+        setLogoSugestaoPerfil(null);
+      } else if (clienteRapidoAberto) {
+        resetClienteRapidoForm(clienteRapidoDefaultValues);
+        setClienteRapidoAberto(false);
+        setClienteRapidoComplementaresAberto(false);
+      } else if (propostaCompartilharModalAberto) {
+        setPropostaCompartilharModalAberto(false);
+        setPropostaCompartilhamentoId(null);
+        setPropostaExportacaoMensagem(null);
+      } else if (templatePreviewAberto) {
+        setTemplatePreviewAberto(null);
+      } else if (propostaTemplateModalAberto) {
+        setPropostaTemplateModalAberto(false);
+      } else if (propostaPreviewModalAberto) {
+        fecharPropostaPreviewModal();
+      } else if (personalizacaoPreviewTemplateAberto) {
+        fecharPersonalizacaoPreviewTemplate();
+      } else if (propostaVisualizacaoModalId) {
+        fecharPropostaVisualizacaoModal();
+      } else if (appView === "propostas" && propostaModo !== "lista") {
+        if (propostaModo === "assistente" && propostaAssistenteEtapa !== "inicio") {
+          resetClienteRapidoForm(clienteRapidoDefaultValues, { keepDirty: false });
+          setClienteRapidoComplementaresAberto(false);
+          setPropostaAssistenteEtapa("inicio");
+        } else if (
+          (propostaModo === "novo" || propostaModo === "editar") &&
+          propostaWizardEtapaAtiva !== "cliente"
+        ) {
+          const indiceAtual = propostaWizardEtapasOrdem.indexOf(
+            propostaWizardEtapaAtiva,
+          );
+          const etapaAnterior = propostaWizardEtapasOrdem[indiceAtual - 1];
+
+          if (etapaAnterior) {
+            setPropostaWizardEtapaAtiva(etapaAnterior);
+          }
+        } else {
+          setPropostaModo("lista");
+          setPropostaSelecionadaId(null);
+          setPropostaVisualizacaoModalId(null);
+          setPropostaPreviewModalAberto(false);
+          setPropostaTemplateModalAberto(false);
+          setPropostaCompartilharModalAberto(false);
+          setServicoParaAdicionarId("");
+          setClienteRapidoAberto(false);
+          setClienteRapidoComplementaresAberto(false);
+          setBuscaClienteAssistente("");
+          setPropostaAssistenteEtapa("inicio");
+          setPropostaWizardEtapaAtiva("cliente");
+          resetPropostaForm(propostaDefaultValues, { keepDirty: false });
+          resetClienteRapidoForm(clienteRapidoDefaultValues, { keepDirty: false });
+          tituloAutomaticoPropostaRef.current = null;
+        }
+      } else if (appView === "clientes" && clienteModo !== "lista") {
+        setClienteModo("lista");
+        setClienteSelecionadoId(null);
+        setClienteComplementaresAberto(false);
+        resetClienteForm(clienteDefaultValues, { keepDirty: false });
+      } else if (appView === "servicos" && servicoModo !== "lista") {
+        setServicoModo("lista");
+        setServicoSelecionadoId(null);
+        resetServicoForm(servicoDefaultValues, { keepDirty: false });
+      } else if (appView !== "dashboard") {
+        setAppView("dashboard");
+      } else {
+        eventoTratado = false;
+      }
+
+      if (eventoTratado) {
+        window.requestAnimationFrame(manterUsuarioNoApp);
+        return;
+      }
+
+      manterUsuarioNoApp();
+    };
+
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [
+    appView,
+    clienteModo,
+    clienteRapidoAberto,
+    clienteSelecionadoId,
+    confirmacaoSistema,
+    conta,
+    fecharPersonalizacaoPreviewTemplate,
+    fecharPropostaPreviewModal,
+    fecharPropostaVisualizacaoModal,
+    logoSugestaoPerfil,
+    personalizacaoPreviewTemplateAberto,
+    propostaAssistenteEtapa,
+    propostaCompartilharModalAberto,
+    propostaModo,
+    propostaPreviewModalAberto,
+    propostaSelecionadaId,
+    propostaTemplateModalAberto,
+    propostaVisualizacaoModalId,
+    propostaWizardEtapaAtiva,
+    responderConfirmacaoSistema,
+    resetClienteForm,
+    resetClienteRapidoForm,
+    resetPropostaForm,
+    resetServicoForm,
+    servicoModo,
+    servicoSelecionadoId,
+    templatePreviewAberto,
+    usuario,
+  ]);
+
   const onboarding = onboardingQuery.data;
   const perfilContaMinimoCompleto = isPerfilContaOnboardingCompleto(perfilConta);
   const perfilTemplateVisualPadrao = normalizarTemplateVisual(
@@ -2296,6 +2663,7 @@ export default function App() {
 
   function handleAuthSuccess(response: AuthUsuarioResponse) {
     saveSessaoUsuarioStorage(response);
+    clearAppNavigationSnapshot();
     setAccessToken(response.accessToken);
     setAuthUsuario(response);
     setSessaoMensagem(null);
@@ -7936,6 +8304,25 @@ export default function App() {
             aria-labelledby="personalization-template-preview-title"
             onMouseDown={(event) => event.stopPropagation()}
           >
+            <input
+              className="preview-zoom-radio"
+              type="radio"
+              name="personalization-template-preview-zoom"
+              id="personalization-template-preview-fit"
+              defaultChecked
+            />
+            <input
+              className="preview-zoom-radio"
+              type="radio"
+              name="personalization-template-preview-zoom"
+              id="personalization-template-preview-zoom"
+            />
+            <input
+              className="preview-zoom-radio"
+              type="radio"
+              name="personalization-template-preview-zoom"
+              id="personalization-template-preview-full"
+            />
             <header className="proposal-view-modal-header">
               <div>
                 <p className="text-sm font-medium text-primary">
@@ -7947,6 +8334,20 @@ export default function App() {
                 >
                   {getPropostaTemplateLabel(personalizacaoPreviewTemplateAberto)}
                 </h2>
+                <div
+                  className="preview-zoom-controls personalization-preview-zoom-controls"
+                  aria-label="Zoom do preview do template padrao"
+                >
+                  <label htmlFor="personalization-template-preview-fit">
+                    Inteiro
+                  </label>
+                  <label htmlFor="personalization-template-preview-zoom">
+                    Zoom
+                  </label>
+                  <label htmlFor="personalization-template-preview-full">
+                    100%
+                  </label>
+                </div>
                 <p className="mt-1 text-sm leading-5 text-muted">
                   Prévia real usando a logomarca, as cores e os dados atuais da
                   personalização.
