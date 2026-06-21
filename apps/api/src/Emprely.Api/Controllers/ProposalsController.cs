@@ -311,7 +311,7 @@ public sealed class ProposalsController : ControllerBase
             StatusCodes.Status403Forbidden,
             new
             {
-                message = "Trial expirado. Ative o plano para gerar, imprimir ou compartilhar propostas.",
+                message = "Trial expirado. Fale com a Emprely pelo WhatsApp +55 (35) 99738-9755 para ativar o plano e gerar, imprimir ou compartilhar propostas.",
             });
     }
 

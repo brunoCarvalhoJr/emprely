@@ -220,37 +220,69 @@ test("fluxo principal do MVP no web", async ({ page }) => {
   await expect(page.getByText("Proposta MVP E2E (cópia)")).toBeVisible();
 });
 
-test("exibe configuracoes do perfil sem plano e seguranca", async ({ page }) => {
+test("exibe perfil da conta unificado sem plano e seguranca", async ({ page }) => {
   await configurarApiMockada(page);
   await adicionarSessaoValida(page);
 
   await page.goto("/");
   await page.locator(".sidebar-account-button").click();
   await expect(
-    page.getByRole("menuitem", { name: "Configurações" }),
+    page.getByRole("menuitem", { name: "Perfil da conta" }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("menuitem", { name: "Personalização" }),
+  ).toBeHidden();
   await page.getByText("Primeiros passos").click();
   await expect(
-    page.getByRole("menuitem", { name: "Configurações" }),
+    page.getByRole("menuitem", { name: "Perfil da conta" }),
   ).toBeHidden();
   await page.locator(".sidebar-account-button").click();
-  await page.getByRole("menuitem", { name: "Personalização" }).click();
+  await page.getByRole("menuitem", { name: "Perfil da conta" }).click();
+  await expect(page.getByRole("heading", { name: "Perfil da conta" })).toBeVisible();
+  await expect(page.getByText("Passo Perfil da conta")).toBeVisible();
+  await expect(page.getByText("Template, cores e formatos de envio")).toBeVisible();
   await page.getByRole("button", { name: /Escuro/ }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await page.getByRole("button", { name: /Claro/ }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
-  await page.locator(".sidebar-account-button").click();
-  await page.getByRole("menuitem", { name: "Configurações" }).click();
 
   await expect(page.getByLabel("Responsável")).toHaveValue("Bruno Carvalho");
   await expect(page.getByLabel("E-mail de acesso")).toHaveValue("bruno@emprely.dev");
   await expect(page.getByLabel("E-mail de acesso")).toHaveAttribute("readonly", "");
   await expect(page.getByLabel("Telefone").first()).toHaveValue("(11) 99999-9999");
   await expect(page.getByText("Logomarca do negócio")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Salvar perfil" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Salvar perfil", exact: true }),
+  ).toBeVisible();
   await expect(page.getByText("Plano e segurança")).toBeHidden();
   await expect(page.getByLabel("Senha atual")).toBeHidden();
   await expect(page.getByRole("button", { name: "Atualizar senha" })).toBeHidden();
+});
+
+test("exibe perfil da conta unificado no drawer mobile", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await configurarApiMockada(page);
+  await adicionarSessaoValida(page);
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Abrir mais opcoes" }).click();
+  await expect(
+    page.getByRole("button", { name: "Perfil da conta" }),
+  ).toBeVisible();
+  await expect(page.getByText("Personalizacao")).toBeHidden();
+  await page.getByRole("button", { name: "Perfil da conta" }).click();
+
+  await expect(page.getByRole("heading", { name: "Perfil da conta" })).toBeVisible();
+  await expect(page.getByText("Passo Perfil da conta")).toBeVisible();
+  await expect(page.getByText("Template, cores e formatos de envio")).toBeVisible();
+
+  const possuiOverflowHorizontal = await page.evaluate(() => {
+    const larguraDocumento = document.documentElement.scrollWidth;
+    const larguraViewport = document.documentElement.clientWidth;
+    return larguraDocumento > larguraViewport + 1;
+  });
+
+  expect(possuiOverflowHorizontal).toBe(false);
 });
 
 test("cadastro exige confirmacao e recuperacao de senha usa fluxo interno", async ({ page }) => {

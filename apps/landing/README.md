@@ -15,6 +15,11 @@ O projeto real continua fora deste monorepo porque possui Git proprio, `package-
 - `https://www.emprely.com.br`
 - `https://emprely.com.br`
 
+## Contato oficial
+
+- WhatsApp comercial/suporte: `+55 (35) 99738-9755` (`https://wa.me/5535997389755`)
+- E-mail: `contato@emprely.com.br`
+
 ## Comandos pelo workspace
 
 Na raiz do monorepo:

@@ -38,6 +38,7 @@ Estado registrado em 2026-06-17:
 - Assets/logos usam S3 privado + CloudFront em `https://dz3i7ivpc873w.cloudfront.net`.
 - E-mail transacional usa Amazon SES `us-east-1` com `contato@emprely.com.br`.
 - Caixa manual/profissional usa Zoho Mail em `contato@emprely.com.br`.
+- WhatsApp publico oficial para suporte, contato comercial e ativacao de plano: `+55 (35) 99738-9755` (`https://wa.me/5535997389755`).
 - Webapp React/Vite publicado em S3 + CloudFront em `https://app.emprely.com.br`.
 - `https://app.emprely.com.br` validado com HTTP 200 em 2026-06-17.
 - Painel administrativo fica no mesmo webapp, em `/admin`, com login administrativo separado do login do cliente.

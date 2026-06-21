@@ -13,6 +13,7 @@ Com base no Notion e na landing ja publicada, a estrategia de dominios do Emprel
 | Assets/logos | `https://dz3i7ivpc873w.cloudfront.net` | Publicado |
 | Email profissional | `contato@emprely.com.br` | Publicado no Zoho |
 | Email transacional | `contato@emprely.com.br` via Amazon SES `us-east-1` | Publicado/validado |
+| WhatsApp comercial/suporte | `+55 (35) 99738-9755` (`https://wa.me/5535997389755`) | Canal publico oficial para contato, suporte e ativacao de plano |
 
 ## Evidencias
 
@@ -72,6 +73,8 @@ O formulario publico de contato/interesse existe no webapp em `https://app.empre
 
 - Zoho Mail: caixa de entrada profissional para leitura, resposta manual, assinatura e contato com clientes.
 - Amazon SES em `us-east-1`: envio transacional automático do SaaS, incluindo confirmação de e-mail, recuperação de senha, boas-vindas e suporte.
+
+O WhatsApp oficial inicial para contato comercial, suporte simples e ativacao de plano e `+55 (35) 99738-9755`. Links publicos devem usar `https://wa.me/5535997389755` com mensagem contextual pre-preenchida quando fizer sentido.
 
 O domínio `emprely.com.br` está verificado no SES, com acesso à produção concedido. Os templates transacionais ficam centralizados na API em `EmailTransacionalTemplateBuilder` e usam a logo pública do webapp em `https://app.emprely.com.br/brand/emprely-logo-dark.png`.
 

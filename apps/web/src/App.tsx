@@ -181,6 +181,24 @@ const propostaTemplateVisualValores = [
   "InstitucionalClean",
 ] as const satisfies readonly PropostaTemplateVisual[];
 
+const contatoEmprely = {
+  email: "contato@emprely.com.br",
+  whatsappDisplay: "+55 (35) 99738-9755",
+  whatsappNumero: "5535997389755",
+} as const;
+
+function buildWhatsappEmprelyUrl(mensagem: string): string {
+  return `https://wa.me/${contatoEmprely.whatsappNumero}?text=${encodeURIComponent(mensagem)}`;
+}
+
+const whatsappEmprelySuporteUrl = buildWhatsappEmprelyUrl(
+  "Olá, quero falar com a Emprely sobre suporte, planos ou ativação da minha conta.",
+);
+
+const whatsappEmprelyAtivarPlanoUrl = buildWhatsappEmprelyUrl(
+  "Olá, quero ativar o plano do Emprely e remover a marca d'água das minhas propostas.",
+);
+
 type PropostaTemplateVisualAtivo = (typeof propostaTemplateVisualValores)[number];
 const formatoArquivoPreferidoValores = ["Pdf", "Imagem", "PdfImagem"] as const;
 type FormatoArquivoPreferido = (typeof formatoArquivoPreferidoValores)[number];
@@ -2352,6 +2370,8 @@ export default function App() {
 
   function navegarParaView(view: AppView) {
     executarComConfirmacaoDescarte(() => {
+      const viewNormalizada: AppView = view === "personalizacao" ? "conta" : view;
+
       setContaMenuAberto(false);
       setMobileMenuAberto(false);
       setPropostaVisualizacaoModalId(null);
@@ -2359,17 +2379,17 @@ export default function App() {
       setPropostaTemplateModalAberto(false);
       setPropostaCompartilharModalAberto(false);
       setPersonalizacaoPreviewTemplateAberto(null);
-      setAppView(view);
+      setAppView(viewNormalizada);
 
-      if (view === "clientes") {
+      if (viewNormalizada === "clientes") {
         abrirListaClientesSemConfirmar();
       }
 
-      if (view === "servicos") {
+      if (viewNormalizada === "servicos") {
         abrirListaServicosSemConfirmar();
       }
 
-      if (view === "propostas") {
+      if (viewNormalizada === "propostas") {
         abrirListaPropostasSemConfirmar();
       }
     });
@@ -2567,7 +2587,7 @@ export default function App() {
       etapaConfiguracaoConta: perfilContaMinimoCompleto ? "personalizacao" : "dados-marca",
     });
     setOnboardingModalAberto(false);
-    navegarParaView(perfilContaMinimoCompleto ? "personalizacao" : "conta");
+    navegarParaView("conta");
   }
 
   function iniciarPrimeiraPropostaOnboarding() {
@@ -3582,6 +3602,10 @@ export default function App() {
         updatedAt: perfilConta?.updatedAt ?? null,
       }
     : perfilConta;
+  const perfilContaChecklist = buildPerfilContaChecklist(perfilPersonalizacaoPreview);
+  const perfilContaChecklistConcluidos = perfilContaChecklist.filter(
+    (item) => item.completo,
+  ).length;
   const personalizacaoPreviewItens: NonNullable<PropostaPreviewInput["itens"]> = [
     {
       nome: "Gestão mensal de Instagram",
@@ -3878,18 +3902,8 @@ export default function App() {
                         }`}
                         onClick={() => navegarParaView("conta")}
                       >
-                        <Settings size={18} aria-hidden="true" />
-                        <span>Configuracoes</span>
-                      </button>
-                      <button
-                        type="button"
-                        className={`mobile-drawer-nav-item ${
-                          appView === "personalizacao" ? "is-active" : ""
-                        }`}
-                        onClick={() => navegarParaView("personalizacao")}
-                      >
-                        <Palette size={18} aria-hidden="true" />
-                        <span>Personalizacao</span>
+                        <UserRound size={18} aria-hidden="true" />
+                        <span>Perfil da conta</span>
                       </button>
                     </div>
 
@@ -4036,19 +4050,8 @@ export default function App() {
                         appView === "conta" ? "is-active" : ""
                       }`}
                     >
-                      <Settings size={16} aria-hidden="true" />
-                      Configurações
-                    </button>
-                    <button
-                      type="button"
-                      role="menuitem"
-                      onClick={() => navegarParaView("personalizacao")}
-                      className={`sidebar-account-menu-item ${
-                        appView === "personalizacao" ? "is-active" : ""
-                      }`}
-                    >
-                      <Palette size={16} aria-hidden="true" />
-                      Personalização
+                      <UserRound size={16} aria-hidden="true" />
+                      Perfil da conta
                     </button>
                     <span className="sidebar-account-menu-divider" aria-hidden="true" />
                     <button
@@ -6773,7 +6776,7 @@ export default function App() {
                     <div className="page-heading">
                       <div>
                         <h1 className="font-heading text-3xl font-semibold">
-                          Configurações
+                          Perfil da conta
                         </h1>
                       </div>
                     </div>
@@ -6781,13 +6784,16 @@ export default function App() {
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div>
                           <p className="text-sm font-medium text-primary">
-                            Configurações da conta
+                            Conta e marca
                           </p>
                           <h2 className="mt-1 font-heading text-xl font-semibold leading-7">
-                            Dados do negócio
+                            Dados para gerar propostas profissionais
                           </h2>
+                          <p className="mt-2 max-w-3xl text-sm leading-5 text-muted">
+                            Complete identidade, contato, marca, cores, formato e template em uma unica tela.
+                          </p>
                         </div>
-                        <Settings className="text-muted" size={22} aria-hidden="true" />
+                        <UserRound className="text-muted" size={22} aria-hidden="true" />
                       </div>
 
                       {perfilContaQuery.isLoading ? (
@@ -6803,6 +6809,50 @@ export default function App() {
                           }}
                         />
                       ) : null}
+
+                      <div className="profile-completion-panel mt-5">
+                        <div className="profile-completion-summary">
+                          <div>
+                            <p className="text-sm font-semibold text-foreground">
+                              Passo Perfil da conta
+                            </p>
+                            <p className="mt-1 text-sm text-muted">
+                              {perfilContaChecklistConcluidos} de {perfilContaChecklist.length} itens completos.
+                            </p>
+                          </div>
+                          <span
+                            className={`profile-completion-badge ${
+                              perfilContaChecklistConcluidos === perfilContaChecklist.length
+                                ? "is-complete"
+                                : ""
+                            }`}
+                          >
+                            {perfilContaChecklistConcluidos === perfilContaChecklist.length
+                              ? "Completo"
+                              : "Pendente"}
+                          </span>
+                        </div>
+                        <div className="profile-completion-list">
+                          {perfilContaChecklist.map((item) => (
+                            <div
+                              key={item.id}
+                              className={`profile-completion-item ${
+                                item.completo ? "is-complete" : ""
+                              }`}
+                            >
+                              {item.completo ? (
+                                <CheckCircle2 size={16} aria-hidden="true" />
+                              ) : (
+                                <CircleMinus size={16} aria-hidden="true" />
+                              )}
+                              <span>
+                                <strong>{item.label}</strong>
+                                <small>{item.detalhe}</small>
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
 
                       <form
                         className="account-profile-form mt-5 grid gap-5"
@@ -7069,13 +7119,15 @@ export default function App() {
                   </section>
                 ) : null}
 
-                {appView === "personalizacao" ? (
+                {appView === "conta" ? (
                   <section className="account-settings-grid personalization-page grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(20rem,0.72fr)]">
-                    <div className="page-heading xl:col-span-2">
+                    <div className="profile-section-heading xl:col-span-2">
                       <div>
-                        <h1 className="font-heading text-3xl font-semibold">
-                          Personalização
-                        </h1>
+                        <p>Preferencias de proposta</p>
+                        <h2>Template, cores e formatos de envio</h2>
+                        <span>
+                          Escolha como a Emprely apresenta seus orcamentos antes de criar a primeira proposta.
+                        </span>
                       </div>
                     </div>
 
@@ -7339,7 +7391,7 @@ export default function App() {
                               Template ativo: {getPropostaTemplateLabel(templateVisualPersonalizacaoPreview)}
                             </p>
                             <p className="mt-1 text-xs text-muted">
-                              A alteração só será confirmada ao salvar a personalização.
+                              A alteração só será confirmada ao salvar o perfil da conta.
                             </p>
                           </div>
                           <button
@@ -7457,7 +7509,7 @@ export default function App() {
                             <Save size={18} aria-hidden="true" />
                             {perfilMutation.isPending
                               ? "Salvando..."
-                              : "Salvar personalização"}
+                              : "Salvar perfil da conta"}
                           </button>
                         </div>
                       </aside>
@@ -7479,8 +7531,37 @@ export default function App() {
                       <div>
                         <h2 className="font-heading text-xl font-semibold">Fale com o suporte Emprely</h2>
                         <p className="mt-1 text-sm text-muted">
-                          Descreva o problema para registrarmos sua solicitação.
+                          Descreva o problema para registrarmos sua solicitação. Se preferir atendimento direto, fale pelo WhatsApp ou e-mail oficial.
                         </p>
+                      </div>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <a
+                          href={whatsappEmprelySuporteUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex min-h-12 items-center gap-3 rounded-md border border-border bg-white px-4 py-3 text-sm font-semibold text-foreground transition hover:border-primary hover:text-primary"
+                          aria-label={`Falar com a Emprely pelo WhatsApp ${contatoEmprely.whatsappDisplay}`}
+                        >
+                          <WhatsAppIcon size={18} aria-hidden="true" />
+                          <span>
+                            WhatsApp
+                            <span className="block text-xs font-medium text-muted">
+                              {contatoEmprely.whatsappDisplay}
+                            </span>
+                          </span>
+                        </a>
+                        <a
+                          href={`mailto:${contatoEmprely.email}`}
+                          className="inline-flex min-h-12 items-center gap-3 rounded-md border border-border bg-white px-4 py-3 text-sm font-semibold text-foreground transition hover:border-primary hover:text-primary"
+                        >
+                          <Mail size={18} aria-hidden="true" />
+                          <span>
+                            E-mail
+                            <span className="block text-xs font-medium text-muted">
+                              {contatoEmprely.email}
+                            </span>
+                          </span>
+                        </a>
                       </div>
                       <CampoTexto
                         label="Assunto"
@@ -12573,7 +12654,7 @@ function TrialUpsellBanner({ conta }: { conta: ContaAtualResponse }) {
           </div>
         </div>
         <a
-          href="https://wa.me/5531999990000"
+          href={whatsappEmprelyAtivarPlanoUrl}
           target="_blank"
           rel="noreferrer"
           className="inline-flex h-11 items-center justify-center rounded-md bg-primary px-4 text-sm font-semibold text-white"
@@ -12745,9 +12826,9 @@ function buildPrimeirosPassosDashboard({
     {
       id: "perfil",
       titulo: "Perfil da conta",
-      detalhe: "Defina marca, contato e cores para a proposta sair com cara do seu negócio.",
+      detalhe: "Defina contato, marca, cores, formato e template para a proposta sair pronta.",
       concluido: perfilContaAtualizado,
-      acaoLabel: "Editar perfil",
+      acaoLabel: "Completar perfil",
       onClick: onEditarPerfil,
     },
     {
@@ -12812,15 +12893,15 @@ function buildOnboardingTourSteps(): Step[] {
     },
     {
       target: '[data-tour="menu-conta"]',
-      title: "Conta e personalização",
+      title: "Perfil da conta",
       content:
-        "No menu da conta ficam configurações, marca e personalização. Essa área define como sua empresa aparece nos documentos enviados ao cliente.",
+        "No menu da conta ficam os dados comerciais, marca, templates, cores e formatos. Essa area define como sua empresa aparece nos documentos enviados ao cliente.",
     },
     {
       target: '[data-tour="configurar-dados-conta"]',
       title: "Primeiro passo: configurar a conta",
       content:
-        "Preencha nome comercial, segmento, cidade, telefone e e-mail. Esses dados dão credibilidade e já entram automaticamente nos orçamentos.",
+        "Preencha nome comercial, segmento, telefone e e-mail. Esses dados dao credibilidade e ja entram automaticamente nos orcamentos.",
     },
     {
       target: '[data-tour="configurar-logo"]',
@@ -12872,7 +12953,7 @@ function getOnboardingTourView(stepIndex: number): AppView {
   }
 
   if (stepIndex >= 8 && stepIndex <= 9) {
-    return "personalizacao";
+    return "conta";
   }
 
   return "dashboard";
@@ -12985,8 +13066,27 @@ function ContatoPublicoContent({
           Fale com a Emprely
         </h1>
         <p className="max-w-2xl text-sm leading-6 text-muted">
-          Use este canal para duvidas, compra, Plano Fundador ou suporte antes de entrar no sistema.
+          Use este canal para dúvidas, compra, Plano Fundador ou suporte antes de entrar no sistema. Se quiser falar agora, chame no WhatsApp oficial ou envie um e-mail.
         </p>
+        <div className="mt-2 flex flex-col gap-3 sm:flex-row">
+          <a
+            href={whatsappEmprelySuporteUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white transition hover:bg-blue-700"
+            aria-label={`Falar com a Emprely pelo WhatsApp ${contatoEmprely.whatsappDisplay}`}
+          >
+            <WhatsAppIcon size={17} aria-hidden="true" />
+            WhatsApp {contatoEmprely.whatsappDisplay}
+          </a>
+          <a
+            href={`mailto:${contatoEmprely.email}`}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-border bg-white px-4 text-sm font-semibold text-foreground transition hover:border-primary hover:text-primary"
+          >
+            <Mail size={17} aria-hidden="true" />
+            {contatoEmprely.email}
+          </a>
+        </div>
       </div>
 
       <form
@@ -13614,6 +13714,67 @@ function isPerfilContaOnboardingCompleto(
       perfilConta.corSecundaria?.trim() &&
       perfilConta.formatoArquivoPreferido?.trim(),
   );
+}
+
+type PerfilContaChecklistItem = {
+  id: string;
+  label: string;
+  detalhe: string;
+  completo: boolean;
+};
+
+function buildPerfilContaChecklist(
+  perfilConta: Partial<PerfilContaFormInput>,
+): PerfilContaChecklistItem[] {
+  const valorPreenchido = (valor: unknown) =>
+    typeof valor === "string" ? valor.trim().length > 0 : Boolean(valor);
+
+  return [
+    {
+      id: "nome",
+      label: "Nome comercial",
+      detalhe: "Aparece no cabecalho e assinatura das propostas.",
+      completo: valorPreenchido(perfilConta.nomeComercial),
+    },
+    {
+      id: "segmento",
+      label: "Segmento",
+      detalhe: "Ajuda a contextualizar os templates e a proposta.",
+      completo: valorPreenchido(perfilConta.segmento),
+    },
+    {
+      id: "email",
+      label: "E-mail de contato",
+      detalhe: "Usado como canal comercial para o cliente.",
+      completo: valorPreenchido(perfilConta.emailContato),
+    },
+    {
+      id: "telefone",
+      label: "Telefone/WhatsApp",
+      detalhe: "Facilita aceite, duvidas e retorno do cliente.",
+      completo: valorPreenchido(formatTelefoneCampo(perfilConta.telefoneContato ?? "")),
+    },
+    {
+      id: "template",
+      label: "Template padrao",
+      detalhe: "Define o visual inicial de cada novo orcamento.",
+      completo: valorPreenchido(perfilConta.templateVisualPadrao),
+    },
+    {
+      id: "cores",
+      label: "Cores dos templates",
+      detalhe: "Mantem os materiais alinhados com a marca.",
+      completo:
+        valorPreenchido(perfilConta.corPrimaria) &&
+        valorPreenchido(perfilConta.corSecundaria),
+    },
+    {
+      id: "formato",
+      label: "Formato preferido",
+      detalhe: "Prepara PDF, imagem ou ambos para envio.",
+      completo: valorPreenchido(perfilConta.formatoArquivoPreferido),
+    },
+  ];
 }
 
 function buildPerfilContaPayload(
@@ -14784,7 +14945,7 @@ function getMensagemBloqueioPlano(
     return "";
   }
 
-  return "Trial expirado. Ative o plano para gerar, imprimir ou compartilhar propostas.";
+  return `Trial expirado. Fale com a Emprely pelo WhatsApp ${contatoEmprely.whatsappDisplay} para ativar o plano e gerar, imprimir ou compartilhar propostas.`;
 }
 
 function getAppViewLabel(view: AppView): string {
@@ -14793,8 +14954,8 @@ function getAppViewLabel(view: AppView): string {
     clientes: "Clientes",
     servicos: "Servicos",
     propostas: "Propostas",
-    conta: "Configuracoes",
-    personalizacao: "Personalizacao",
+    conta: "Perfil da conta",
+    personalizacao: "Perfil da conta",
     suporte: "Suporte",
   };
 
