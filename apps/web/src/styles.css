@@ -276,6 +276,47 @@ textarea:-webkit-autofill:focus {
   background-color: var(--surface-soft) !important;
 }
 
+:root[data-theme="dark"] .client-complementary-panel {
+  border-color: rgba(80, 103, 139, 0.72) !important;
+  background:
+    linear-gradient(180deg, rgba(15, 27, 45, 0.96), rgba(12, 22, 37, 0.98)) !important;
+  color: var(--foreground);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+:root[data-theme="dark"] .client-complementary-panel > button {
+  border-radius: 8px 8px 0 0;
+  background: rgba(20, 34, 56, 0.86);
+  color: var(--foreground) !important;
+}
+
+:root[data-theme="dark"] .client-complementary-panel > div {
+  border-top-color: rgba(80, 103, 139, 0.64) !important;
+  background: rgba(8, 17, 31, 0.28);
+}
+
+:root[data-theme="dark"] .client-complementary-panel label,
+:root[data-theme="dark"] .client-complementary-panel .campo-texto > span:first-child {
+  color: var(--foreground) !important;
+}
+
+:root[data-theme="dark"] .client-complementary-panel input {
+  border-color: rgba(80, 103, 139, 0.86) !important;
+  background: #071426 !important;
+  color: var(--foreground) !important;
+}
+
+:root[data-theme="dark"] .client-complementary-panel input::placeholder {
+  color: rgba(209, 220, 235, 0.62) !important;
+}
+
+:root[data-theme="dark"] .client-complementary-panel a,
+:root[data-theme="dark"] .client-complementary-panel button:not(:first-child) {
+  border-color: rgba(100, 116, 139, 0.72) !important;
+  background: rgba(22, 36, 58, 0.92) !important;
+  color: var(--foreground) !important;
+}
+
 :root[data-theme="dark"] .text-slate-500,
 :root[data-theme="dark"] .text-slate-600,
 :root[data-theme="dark"] .text-muted {
@@ -5807,6 +5848,119 @@ body.is-mobile-menu-open {
 .auth-floating-card {
   position: relative;
   z-index: 1;
+}
+
+/* A autenticacao publica deve ser sempre clara, independente do tema salvo no app. */
+:root[data-theme="dark"] .app-frame-public {
+  --background: #f7fbff;
+  --foreground: #071832;
+  --muted: #64748b;
+  --surface: #ffffff;
+  --surface-soft: #f5f9ff;
+  --border: rgba(205, 221, 241, 0.94);
+  --field-bg: #f7fbff;
+  --field-bg-focus: #ffffff;
+  --field-readonly-bg: #eef4ff;
+  --field-readonly-fg: #64748b;
+  --field-bg-autofill: #f7fbff;
+  color: #071832;
+}
+
+:root[data-theme="dark"] .app-frame-public,
+:root[data-theme="dark"] .app-frame-public main,
+:root[data-theme="dark"] .app-frame-public .app-content,
+:root[data-theme="dark"] .auth-isolated-page {
+  color: #071832;
+}
+
+:root[data-theme="dark"] .app-frame-public main {
+  background:
+    linear-gradient(135deg, rgba(122, 53, 255, 0.08), transparent 34%),
+    linear-gradient(215deg, rgba(19, 199, 189, 0.11), transparent 32%),
+    linear-gradient(180deg, #f7fbff 0%, #eef6ff 54%, #f9fdff 100%) !important;
+}
+
+:root[data-theme="dark"] .auth-floating-card {
+  border-color: rgba(205, 221, 241, 0.92) !important;
+  background: rgba(255, 255, 255, 0.97) !important;
+  color: #071832;
+  box-shadow: 0 24px 70px rgba(15, 35, 80, 0.1);
+}
+
+:root[data-theme="dark"] .auth-form-panel,
+:root[data-theme="dark"] .auth-form-header,
+:root[data-theme="dark"] .auth-form-fields,
+:root[data-theme="dark"] .auth-switch-copy,
+:root[data-theme="dark"] .auth-login-actions,
+:root[data-theme="dark"] .auth-legal-copy {
+  color: #071832;
+}
+
+:root[data-theme="dark"] .auth-form-panel h1 {
+  color: #071832 !important;
+}
+
+:root[data-theme="dark"] .auth-field-label,
+:root[data-theme="dark"] .auth-form-panel label span {
+  color: rgba(7, 24, 50, 0.74) !important;
+}
+
+:root[data-theme="dark"] .auth-field-group:focus-within .auth-field-label,
+:root[data-theme="dark"] .auth-form-panel label:focus-within span {
+  color: var(--brand-blue) !important;
+}
+
+:root[data-theme="dark"] .auth-mode-tabs {
+  border-color: rgba(219, 230, 245, 0.96) !important;
+  background: #f5f9ff !important;
+}
+
+:root[data-theme="dark"] .auth-mode-tabs button,
+:root[data-theme="dark"] .auth-mode-tabs button:not(.is-active) {
+  color: #5b6a80 !important;
+}
+
+:root[data-theme="dark"] .auth-mode-tabs button.is-active {
+  color: #ffffff !important;
+}
+
+:root[data-theme="dark"] .auth-form-panel input {
+  border-color: rgba(219, 230, 245, 0.96) !important;
+  background: #f7fbff !important;
+  color: #071832 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.92) !important;
+}
+
+:root[data-theme="dark"] .auth-form-panel input:focus {
+  border-color: var(--brand-blue) !important;
+  background: #ffffff !important;
+  box-shadow:
+    0 0 0 4px rgba(46, 123, 255, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92) !important;
+}
+
+:root[data-theme="dark"] .auth-form-panel input::placeholder {
+  color: #8b98aa !important;
+}
+
+:root[data-theme="dark"] .auth-password-toggle,
+:root[data-theme="dark"] .auth-switch-copy button,
+:root[data-theme="dark"] .auth-login-actions a,
+:root[data-theme="dark"] .auth-legal-copy a {
+  color: var(--primary) !important;
+}
+
+:root[data-theme="dark"] .auth-proof-chip {
+  border-color: rgba(19, 199, 189, 0.22) !important;
+  background: rgba(19, 199, 189, 0.1) !important;
+  color: #008a84 !important;
+}
+
+:root[data-theme="dark"] .auth-form-panel .campo-helper,
+:root[data-theme="dark"] .auth-mode-context,
+:root[data-theme="dark"] .auth-switch-copy,
+:root[data-theme="dark"] .auth-legal-copy {
+  color: #64748b !important;
 }
 
 @media (max-width: 920px) {
@@ -11522,7 +11676,7 @@ button[class*="border-accent"]:not(:disabled):hover {
   }
 
   .is-proposal-flow .proposal-form-flow {
-    padding-bottom: calc(5.8rem + env(safe-area-inset-bottom));
+    padding-bottom: calc(8.2rem + env(safe-area-inset-bottom));
   }
 
   .proposal-optional-section {
@@ -11625,9 +11779,9 @@ button[class*="border-accent"]:not(:disabled):hover {
     right: 0.7rem;
     bottom: calc(0.55rem + env(safe-area-inset-bottom));
     left: 0.7rem;
-    z-index: 40;
+    z-index: calc(var(--z-sidebar) + 6);
     display: grid;
-    grid-template-columns: minmax(0, 0.72fr) minmax(0, 1.28fr);
+    grid-template-columns: minmax(0, 1fr);
     gap: 0.58rem;
     align-items: center;
     border: 1px solid rgba(219, 230, 245, 0.96);
@@ -11668,7 +11822,7 @@ button[class*="border-accent"]:not(:disabled):hover {
 
   .proposal-mobile-step-dock-actions {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(6.2rem, 1fr));
     gap: 0.45rem;
     min-width: 0;
   }
@@ -11693,6 +11847,11 @@ button[class*="border-accent"]:not(:disabled):hover {
     line-height: 1;
     padding: 0 0.55rem;
     white-space: nowrap;
+  }
+
+  .proposal-mobile-step-dock-button.is-save {
+    border-color: rgba(110, 56, 255, 0.28);
+    color: var(--primary);
   }
 
   .proposal-mobile-step-dock-button.is-primary {

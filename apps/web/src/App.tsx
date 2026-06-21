@@ -4816,7 +4816,7 @@ export default function App() {
                               </div>
                             </div>
 
-                            <div className="mt-5 rounded-md border border-border bg-slate-50/70">
+                            <div className="client-complementary-panel mt-5 rounded-md border border-border bg-slate-50/70">
                               <button
                                 type="button"
                                 aria-expanded={clienteComplementaresAberto}
@@ -9838,7 +9838,7 @@ function ClienteFormularioCampos({
         </div>
       </div>
 
-      <div className="rounded-md border border-border bg-slate-50/70">
+      <div className="client-complementary-panel rounded-md border border-border bg-slate-50/70">
         <button
           type="button"
           aria-expanded={complementaresAberto}
@@ -10352,38 +10352,35 @@ function PropostaWizardMobileDock({
             className="proposal-mobile-step-dock-button"
           >
             <ArrowRight className="rotate-180" size={16} aria-hidden="true" />
-            Voltar
+            Anterior
           </button>
         ) : null}
+        <button
+          type="submit"
+          form="proposta-editor-form"
+          disabled={!podeSalvar || salvando}
+          className={`proposal-mobile-step-dock-button ${isRevisao ? "" : "is-save"}`}
+        >
+          <Save size={16} aria-hidden="true" />
+          {salvando ? "Salvando..." : isRevisao ? "Salvar rascunho" : "Salvar"}
+        </button>
         {isRevisao ? (
-          podeGerar ? (
-            <button
-              type="button"
-              onClick={onGerar}
-              disabled={gerando}
-              className="proposal-mobile-step-dock-button is-primary"
-            >
-              <CheckCircle2 size={16} aria-hidden="true" />
-              {gerando ? "Gerando..." : "Gerar"}
-            </button>
-          ) : (
-            <button
-              type="submit"
-              form="proposta-editor-form"
-              disabled={!podeSalvar || salvando}
-              className="proposal-mobile-step-dock-button is-primary"
-            >
-              <Save size={16} aria-hidden="true" />
-              {salvando ? "Salvando..." : "Salvar"}
-            </button>
-          )
+          <button
+            type="button"
+            onClick={onGerar}
+            disabled={!podeGerar || gerando}
+            className="proposal-mobile-step-dock-button is-primary"
+          >
+            <CheckCircle2 size={16} aria-hidden="true" />
+            {gerando ? "Gerando..." : "Gerar"}
+          </button>
         ) : (
           <button
             type="button"
             onClick={onProximo}
             className="proposal-mobile-step-dock-button is-primary"
           >
-            Proximo
+            PrÃ³ximo
             <ArrowRight size={16} aria-hidden="true" />
           </button>
         )}
