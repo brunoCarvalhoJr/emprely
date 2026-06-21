@@ -282,6 +282,13 @@ textarea:-webkit-autofill:focus {
   color: var(--muted) !important;
 }
 
+:root[data-theme="dark"] .text-slate-950,
+:root[data-theme="dark"] .text-slate-900,
+:root[data-theme="dark"] .text-slate-800,
+:root[data-theme="dark"] .text-slate-700 {
+  color: var(--foreground) !important;
+}
+
 :root[data-theme="dark"] .bg-violet-50 {
   background-color: rgba(139, 92, 246, 0.14) !important;
 }
@@ -3749,9 +3756,16 @@ body.is-mobile-menu-open {
 }
 
 :root[data-theme="dark"] .dashboard-hero h1,
+:root[data-theme="dark"] .dashboard-hero p,
+:root[data-theme="dark"] [data-tour="primeiros-passos"] h2,
+:root[data-theme="dark"] [data-tour="primeiros-passos"] h3,
 :root[data-theme="dark"] .metric-card strong,
 :root[data-theme="dark"] .proposal-section-header h3,
 :root[data-theme="dark"] .proposal-total-bar strong {
+  color: var(--foreground);
+}
+
+:root[data-theme="dark"] [data-tour="primeiros-passos"] article {
   color: var(--foreground);
 }
 
