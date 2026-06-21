@@ -8,6 +8,7 @@ Emprely, mantendo o fluxo atual de onboarding, checklist e React Joyride.
 ## Escopo
 
 - Ajustar textos do tour e da modal de guia inicial.
+- Reordenar o tour para explicar menus antes dos passos operacionais.
 - Corrigir encerramento do Joyride para nao deixar overlay preso.
 - Ajustar posicionamento e estilos do tooltip para reduzir cortes em desktop.
 - Exibir status da guia inicial a partir do estado real de conclusao.
@@ -32,3 +33,10 @@ Emprely, mantendo o fluxo atual de onboarding, checklist e React Joyride.
 8. A modal de guia inicial mostra status coerente com os dados reais: conta
    concluida quando o perfil minimo esta completo e proposta concluida quando
    ja existe proposta gerada.
+9. O tour inicia pelo mapa dos menus: Dashboard, Clientes, Servicos/Pacotes,
+   Propostas, Suporte e Conta/Personalizacao.
+10. Depois dos menus, o tour orienta configuracao da conta, logomarca,
+    templates, cores/formato e criacao do primeiro orcamento.
+11. Os textos do tour destacam vantagens do sistema: organizacao, reutilizacao
+    de servicos, propostas profissionais, envio em formatos comerciais e
+    acompanhamento do aceite.

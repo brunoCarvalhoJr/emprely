@@ -625,16 +625,18 @@ type NavegacaoPrincipalItem = {
   label: string;
   view: AppView;
   icon: typeof LayoutDashboard;
+  tourKey?: string;
   quickAction?: "novoCliente" | "novoServico" | "novaProposta";
   quickLabel?: string;
 };
 
 const navegacaoPrincipal: NavegacaoPrincipalItem[] = [
-  { label: "Dashboard", view: "dashboard", icon: LayoutDashboard },
+  { label: "Dashboard", view: "dashboard", icon: LayoutDashboard, tourKey: "dashboard" },
   {
     label: "Clientes",
     view: "clientes",
     icon: UsersRound,
+    tourKey: "clientes",
     quickAction: "novoCliente",
     quickLabel: "Novo cliente",
   },
@@ -642,6 +644,7 @@ const navegacaoPrincipal: NavegacaoPrincipalItem[] = [
     label: "Serviços / Pacotes",
     view: "servicos",
     icon: BriefcaseBusiness,
+    tourKey: "servicos",
     quickAction: "novoServico",
     quickLabel: "Novo serviço",
   },
@@ -649,10 +652,11 @@ const navegacaoPrincipal: NavegacaoPrincipalItem[] = [
     label: "Propostas",
     view: "propostas",
     icon: ReceiptText,
+    tourKey: "propostas",
     quickAction: "novaProposta",
     quickLabel: "Nova proposta",
   },
-  { label: "Suporte", view: "suporte", icon: HeartHandshake },
+  { label: "Suporte", view: "suporte", icon: HeartHandshake, tourKey: "suporte" },
 ];
 
 const filtrosStatusProposta: Array<{
@@ -1964,6 +1968,7 @@ export default function App() {
         setAppView(getOnboardingTourView(0));
         setMobileMenuAberto(false);
         setContaMenuAberto(false);
+        setSidebarRecolhida(false);
         setOnboardingModalAberto(false);
         setOnboardingTourRodando(true);
         if (onboarding.tour.status === "NaoIniciado") {
@@ -2581,6 +2586,7 @@ export default function App() {
     setAppView(getOnboardingTourView(0));
     setMobileMenuAberto(false);
     setContaMenuAberto(false);
+    setSidebarRecolhida(false);
     setOnboardingTourStepIndex(0);
     setOnboardingTourKey((key) => key + 1);
     setOnboardingTourRodando(true);
@@ -2596,6 +2602,7 @@ export default function App() {
       setAppView(proximaView);
       setMobileMenuAberto(false);
       setContaMenuAberto(false);
+      setSidebarRecolhida(false);
       setOnboardingTourStepIndex(proximoIndice);
     });
   }
@@ -3986,6 +3993,7 @@ export default function App() {
                   className="sidebar-account-button tooltip-icon-button flex w-full items-center gap-3 rounded-md p-2 text-left"
                   aria-haspopup="menu"
                   aria-expanded={contaMenuAberto}
+                  data-tour="menu-conta"
                   data-tooltip={nomeMarcaTopo}
                   title={`${nomeMarcaTopo} - ${subtituloMarcaTopo}`}
                   onClick={() => setContaMenuAberto((aberto) => !aberto)}
@@ -4099,6 +4107,7 @@ export default function App() {
                               : item.label
                         }
                         aria-current={itemAtivo ? "page" : undefined}
+                        data-tour={item.tourKey ? `menu-${item.tourKey}` : undefined}
                         data-tooltip={item.label}
                         className={`app-nav-item tooltip-icon-button flex h-11 min-w-0 flex-1 items-center gap-3 rounded-md px-3 text-left text-sm font-medium transition ${
                           itemAtivo
@@ -8504,7 +8513,7 @@ function OnboardingModal({
         <header className="onboarding-modal-header">
           <div>
             <p className="onboarding-modal-kicker">Guia inicial</p>
-            <h2 id="onboarding-modal-title">Primeiros passos na Emprely</h2>
+            <h2 id="onboarding-modal-title">Conheça a Emprely antes de começar</h2>
           </div>
           <button
             type="button"
@@ -8590,7 +8599,7 @@ function OnboardingModal({
             className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-border px-4 text-sm font-semibold"
           >
             <Sparkles size={16} aria-hidden="true" />
-            Ver tour rápido
+            Ver tour guiado
           </button>
           <div className="onboarding-modal-actions">
             <button
@@ -12404,7 +12413,7 @@ function DashboardContent({
       ) : null}
 
       <div
-        className="dashboard-metrics-grid grid gap-4 md:grid-cols-2 xl:grid-cols-4"
+        className="dashboard-metrics-grid grid"
         data-tour="dashboard-metricas"
       >
         {metricas.map((metrica) => {
@@ -12415,7 +12424,7 @@ function DashboardContent({
               key={metrica.label}
               type="button"
               onClick={metrica.onClick}
-              className="metric-card metric-card-action rounded-md border border-border bg-surface p-4"
+              className="metric-card metric-card-action rounded-md border border-border bg-surface"
             >
               <div className="metric-card-content">
                 <p className="text-sm font-medium text-muted">{metrica.label}</p>
@@ -12771,59 +12780,76 @@ function buildPrimeirosPassosDashboard({
 function buildOnboardingTourSteps(): Step[] {
   return [
     {
-      target: '[data-tour="configurar-dados-conta"]',
-      title: "Dados do seu negócio",
+      target: '[data-tour="menu-dashboard"]',
+      title: "Dashboard: visão geral",
       content:
-        "Comece preenchendo nome comercial, segmento, cidade, telefone e e-mail. Esses dados aparecem nos orçamentos.",
+        "Aqui você acompanha o progresso da conta, os atalhos principais e os números comerciais. É o ponto de partida para saber o que precisa de atenção.",
       skipBeacon: true,
     },
     {
-      target: '[data-tour="configurar-logo"]',
-      title: "Logomarca",
+      target: '[data-tour="menu-clientes"]',
+      title: "Clientes: cadastro organizado",
       content:
-        "Adicione sua logo para que o PDF e a imagem saiam com a identidade da sua marca.",
+        "Use Clientes para manter contatos, telefones e e-mails prontos. Isso evita retrabalho quando você montar novas propostas.",
+    },
+    {
+      target: '[data-tour="menu-servicos"]',
+      title: "Serviços e pacotes",
+      content:
+        "Cadastre serviços reutilizáveis com escopo, entregas e valores. A vantagem é criar orçamentos mais rápidos e consistentes.",
+    },
+    {
+      target: '[data-tour="menu-propostas"]',
+      title: "Propostas: funil comercial",
+      content:
+        "Em Propostas você visualiza rascunhos, geradas, enviadas, aceitas e recusadas. Assim fica fácil acompanhar o cliente até o aceite.",
+    },
+    {
+      target: '[data-tour="menu-suporte"]',
+      title: "Suporte",
+      content:
+        "Quando precisar de ajuda ou registrar alguma dúvida, o suporte fica separado do fluxo comercial para não misturar operação com atendimento.",
+    },
+    {
+      target: '[data-tour="menu-conta"]',
+      title: "Conta e personalização",
+      content:
+        "No menu da conta ficam configurações, marca e personalização. Essa área define como sua empresa aparece nos documentos enviados ao cliente.",
+    },
+    {
+      target: '[data-tour="configurar-dados-conta"]',
+      title: "Primeiro passo: configurar a conta",
+      content:
+        "Preencha nome comercial, segmento, cidade, telefone e e-mail. Esses dados dão credibilidade e já entram automaticamente nos orçamentos.",
+    },
+    {
+      target: '[data-tour="configurar-logo"]',
+      title: "Marca no documento",
+      content:
+        "Adicione sua logomarca para que PDF e imagem saiam com identidade profissional, sem precisar montar layout manualmente.",
     },
     {
       target: '[data-tour="configurar-template"]',
-      title: "Template padrão",
+      title: "Templates prontos",
       content:
-        "Escolha o modelo visual que a Emprely vai usar por padrão nos novos orçamentos.",
+        "Escolha um template de proposta. A Emprely ajuda a apresentar escopo, benefícios, valores e próximos passos de forma mais vendável.",
       placement: "left",
     },
     {
       target: '[data-tour="configurar-cores-formato"]',
       title: "Cores e formato de envio",
       content:
-        "Defina as cores da marca e escolha se prefere enviar PDF, imagem ou os dois formatos.",
+        "Defina cores da marca e formatos de saída. Você pode gerar materiais prontos para PDF, imagem e compartilhamento pelo WhatsApp.",
       placement: "right",
     },
     {
-      target: '[data-tour="dashboard-hero"]',
-      title: "Atalhos do primeiro orçamento",
-      content:
-        "Depois da configuração, volte ao dashboard para criar proposta, cadastrar cliente e salvar serviço pelos atalhos principais.",
-    },
-    {
-      target: '[data-tour="clientes"]',
-      title: "Cadastre o cliente",
-      content:
-        "Clique em Cadastrar cliente para registrar quem vai receber o primeiro orçamento.",
-    },
-    {
-      target: '[data-tour="servicos"]',
-      title: "Cadastre o serviço",
-      content:
-        "Clique em Cadastrar serviço para salvar o serviço, pacote ou entrega que será cobrado e reutilizado.",
-    },
-    {
       target: '[data-tour="nova-proposta"]',
-      title: "Gere o primeiro orçamento",
+      title: "Criar o primeiro orçamento",
       content:
-        "Use Nova proposta para montar o orçamento completo, revisar os itens e gerar o arquivo final para envio.",
+        "Depois da conta e dos templates, clique em Nova proposta para selecionar cliente, itens, template, revisar tudo e gerar o orçamento final.",
     },
   ];
 }
-
 function getOnboardingTourTarget(stepIndex: number) {
   const target = buildOnboardingTourSteps()[stepIndex]?.target;
 
@@ -12837,11 +12863,15 @@ function limparArtefatosOnboardingTour() {
 }
 
 function getOnboardingTourView(stepIndex: number): AppView {
-  if (stepIndex >= 0 && stepIndex <= 1) {
+  if (stepIndex >= 0 && stepIndex <= 5) {
+    return "dashboard";
+  }
+
+  if (stepIndex >= 6 && stepIndex <= 7) {
     return "conta";
   }
 
-  if (stepIndex >= 2 && stepIndex <= 3) {
+  if (stepIndex >= 8 && stepIndex <= 9) {
     return "personalizacao";
   }
 
@@ -12882,49 +12912,49 @@ function buildMetricasDashboard({
 
   return [
     {
-      label: "Clientes cadastrados",
+      label: "Clientes",
       value: clientesTotal.toString(),
       icon: UsersRound,
       tone: "slate",
       onClick: onAbrirClientes,
     },
     {
-      label: "Serviços salvos",
+      label: "Serviços",
       value: servicosTotal.toString(),
       icon: PackageCheck,
       tone: "teal",
       onClick: onAbrirServicos,
     },
     {
-      label: "Em rascunho",
+      label: "Rascunhos",
       value: rascunhosTotal.toString(),
       icon: ReceiptText,
       tone: "amber",
       onClick: () => onAbrirPropostasPorStatus("Rascunho"),
     },
     {
-      label: "Propostas aprovadas",
+      label: "Geradas",
       value: geradasTotal.toString(),
       icon: Sparkles,
       tone: "purple",
       onClick: () => onAbrirPropostasPorStatus("Gerada"),
     },
     {
-      label: "Propostas enviadas",
+      label: "Enviadas",
       value: enviadasTotal.toString(),
       icon: FileText,
       tone: "blue",
       onClick: () => onAbrirPropostasPorStatus("Enviada"),
     },
     {
-      label: "Propostas aceitas",
+      label: "Aceitas",
       value: aceitasTotal.toString(),
       icon: BadgeCheck,
       tone: "green",
       onClick: () => onAbrirPropostasPorStatus("Aceita"),
     },
     {
-      label: "Propostas recusadas",
+      label: "Recusadas",
       value: recusadasTotal.toString(),
       icon: CircleMinus,
       tone: "red",
