@@ -21,10 +21,11 @@ Os previews ja possuem parte da estrutura visual de zoom via CSS/radio, mas o pr
 - Criar uma guarda de historico para usuarios autenticados e tratar `popstate` dentro do app.
 - No `popstate`, fechar modal primeiro; depois voltar etapa/assistente; depois voltar para lista; depois manter o usuario dentro do app.
 - Adicionar controles de zoom ao preview de template de personalizacao e abrir sempre em modo "Inteiro".
+- Em mobile, tratar menu lateral, menu da conta e modais de onboarding como camadas superiores: o botao voltar deve fechar a camada aberta sem rolar a pagina para o topo.
+- Usar `history.scrollRestoration = "manual"` durante sessao autenticada para evitar que o navegador restaure scroll antigo ao consumir o `popstate` internamente.
 
 ## Fora de escopo
 
 - Nao alterar contratos de API.
 - Nao salvar conteudo digitado em formularios nao persistidos.
 - Nao converter o app para roteamento completo por URL nesta rodada.
-

@@ -18,9 +18,11 @@ Melhorar a continuidade de uso do app autenticado e a inspecao visual de templat
 
 3. Botao voltar do navegador
    - Se houver modal aberta, deve fechar a modal.
+   - Se o menu mobile, menu da conta ou modal de onboarding estiver aberto, deve fechar essa camada antes de qualquer navegacao.
    - Se estiver em etapa interna do assistente/proposta, deve voltar uma etapa.
    - Se estiver em formulario/visualizacao, deve voltar para a lista da area.
    - Nao deve sair do app autenticado por acidente.
+   - Ao fechar uma camada aberta pelo botao voltar no celular, a pagina deve manter a posicao atual de scroll.
 
 ## Criterios de aceite
 
@@ -28,5 +30,6 @@ Melhorar a continuidade de uso do app autenticado e a inspecao visual de templat
 - Atualizar em nova proposta e permanecer no fluxo de proposta.
 - Abrir preview de template e ver documento inteiro por padrao.
 - Botao voltar com preview aberto fecha o preview.
+- Botao voltar com menu mobile aberto fecha apenas o menu.
+- Botao voltar com qualquer modal aberta fecha apenas a modal e nao joga a tela para o topo.
 - Botao voltar em formulario interno volta para a lista, sem sair do dominio.
-

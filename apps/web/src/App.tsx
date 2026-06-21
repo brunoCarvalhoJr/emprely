@@ -1612,6 +1612,19 @@ export default function App() {
 
   useEffect(() => {
     if (!usuario || !conta) {
+      return;
+    }
+
+    const scrollRestorationAnterior = window.history.scrollRestoration;
+    window.history.scrollRestoration = "manual";
+
+    return () => {
+      window.history.scrollRestoration = scrollRestorationAnterior;
+    };
+  }, [conta, usuario]);
+
+  useEffect(() => {
+    if (!usuario || !conta) {
       if (!accessToken) {
         clearAppNavigationSnapshot();
       }
@@ -1685,9 +1698,21 @@ export default function App() {
     };
 
     const handlePopState = () => {
+      const scrollAtualX = window.scrollX;
+      const scrollAtualY = window.scrollY;
       let eventoTratado = true;
 
-      if (confirmacaoSistema) {
+      const preservarScrollAtual = () => {
+        window.scrollTo(scrollAtualX, scrollAtualY);
+      };
+
+      if (mobileMenuAberto) {
+        setMobileMenuAberto(false);
+      } else if (contaMenuAberto) {
+        setContaMenuAberto(false);
+      } else if (onboardingModalAberto) {
+        setOnboardingModalAberto(false);
+      } else if (confirmacaoSistema) {
         responderConfirmacaoSistema(false);
       } else if (logoSugestaoPerfil) {
         setLogoSugestaoPerfil(null);
@@ -1759,11 +1784,16 @@ export default function App() {
       }
 
       if (eventoTratado) {
-        window.requestAnimationFrame(manterUsuarioNoApp);
+        window.requestAnimationFrame(() => {
+          manterUsuarioNoApp();
+          preservarScrollAtual();
+          window.requestAnimationFrame(preservarScrollAtual);
+        });
         return;
       }
 
       manterUsuarioNoApp();
+      preservarScrollAtual();
     };
 
     window.addEventListener("popstate", handlePopState);
@@ -1778,10 +1808,13 @@ export default function App() {
     clienteSelecionadoId,
     confirmacaoSistema,
     conta,
+    contaMenuAberto,
     fecharPersonalizacaoPreviewTemplate,
     fecharPropostaPreviewModal,
     fecharPropostaVisualizacaoModal,
     logoSugestaoPerfil,
+    mobileMenuAberto,
+    onboardingModalAberto,
     personalizacaoPreviewTemplateAberto,
     propostaAssistenteEtapa,
     propostaCompartilharModalAberto,
