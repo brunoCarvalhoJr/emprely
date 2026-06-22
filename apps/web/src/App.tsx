@@ -4443,6 +4443,11 @@ export default function App() {
                 </button>
                 {contaMenuAberto ? (
                   <div className="sidebar-account-menu" role="menu">
+                    <div className="sidebar-account-menu-summary" aria-hidden="true">
+                      <strong>{nomeMarcaTopo}</strong>
+                      <span>{subtituloMarcaTopo}</span>
+                    </div>
+                    <span className="sidebar-account-menu-divider" aria-hidden="true" />
                     <button
                       type="button"
                       role="menuitem"
@@ -5760,12 +5765,12 @@ export default function App() {
                               <span>Escolha quem receberá a proposta.</span>
                               <button
                                 type="button"
-                                onClick={avancarEtapaProposta}
-                                className="page-heading-action is-primary"
-                              >
-                                Próximo
-                                <ArrowRight size={16} aria-hidden="true" />
-                              </button>
+                              onClick={avancarEtapaProposta}
+                              className="page-heading-action is-primary"
+                            >
+                              {"Pr\u00f3ximo"}
+                              <ArrowRight size={16} aria-hidden="true" />
+                            </button>
                             </div>
                           </div>
                         ) : null}
@@ -10359,10 +10364,11 @@ function PropostaWizardMobileDock({
           type="submit"
           form="proposta-editor-form"
           disabled={!podeSalvar || salvando}
+          aria-label={isRevisao ? "Salvar rascunho" : "Salvar"}
           className={`proposal-mobile-step-dock-button ${isRevisao ? "" : "is-save"}`}
         >
           <Save size={16} aria-hidden="true" />
-          {salvando ? "Salvando..." : isRevisao ? "Salvar rascunho" : "Salvar"}
+          {salvando ? "Salvando..." : isRevisao ? "Rascunho" : "Salvar"}
         </button>
         {isRevisao ? (
           <button
@@ -10380,7 +10386,7 @@ function PropostaWizardMobileDock({
             onClick={onProximo}
             className="proposal-mobile-step-dock-button is-primary"
           >
-            PrÃ³ximo
+            {"Pr\u00f3ximo"}
             <ArrowRight size={16} aria-hidden="true" />
           </button>
         )}
