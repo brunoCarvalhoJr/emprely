@@ -4205,6 +4205,8 @@ export default function App() {
   const perfilContaChecklistConcluidos = perfilContaChecklist.filter(
     (item) => item.completo,
   ).length;
+  const perfilContaCompleto =
+    perfilContaChecklistConcluidos === perfilContaChecklist.length;
   const personalizacaoPreviewItens: NonNullable<PropostaPreviewInput["itens"]> = [
     {
       nome: "Gestão mensal de Instagram",
@@ -7444,48 +7446,52 @@ export default function App() {
                         />
                       ) : null}
 
-                      <div className="profile-completion-panel mt-5">
+                      <div
+                        className={`profile-completion-panel mt-5 ${
+                          perfilContaCompleto ? "is-complete" : ""
+                        }`}
+                      >
                         <div className="profile-completion-summary">
                           <div>
                             <p className="text-sm font-semibold text-foreground">
                               Passo Perfil da conta
                             </p>
                             <p className="mt-1 text-sm text-muted">
-                              {perfilContaChecklistConcluidos} de {perfilContaChecklist.length} itens completos.
+                              {perfilContaCompleto
+                                ? "Seu perfil ja esta pronto para gerar propostas profissionais."
+                                : `${perfilContaChecklistConcluidos} de ${perfilContaChecklist.length} itens completos.`}
                             </p>
                           </div>
                           <span
                             className={`profile-completion-badge ${
-                              perfilContaChecklistConcluidos === perfilContaChecklist.length
-                                ? "is-complete"
-                                : ""
+                              perfilContaCompleto ? "is-complete" : ""
                             }`}
                           >
-                            {perfilContaChecklistConcluidos === perfilContaChecklist.length
-                              ? "Completo"
-                              : "Pendente"}
+                            {perfilContaCompleto ? "Perfil completo" : "Pendente"}
                           </span>
                         </div>
-                        <div className="profile-completion-list">
-                          {perfilContaChecklist.map((item) => (
-                            <div
-                              key={item.id}
-                              className={`profile-completion-item ${
-                                item.completo ? "is-complete" : ""
-                              }`}
-                            >
-                              {item.completo ? (
-                                <CheckCircle2 size={16} aria-hidden="true" />
-                              ) : (
-                                <CircleMinus size={16} aria-hidden="true" />
-                              )}
-                              <span>
-                                <strong>{item.label}</strong>
-                                <small>{item.detalhe}</small>
-                              </span>
-                            </div>
-                          ))}
-                        </div>
+                        {!perfilContaCompleto ? (
+                          <div className="profile-completion-list">
+                            {perfilContaChecklist.map((item) => (
+                              <div
+                                key={item.id}
+                                className={`profile-completion-item ${
+                                  item.completo ? "is-complete" : ""
+                                }`}
+                              >
+                                {item.completo ? (
+                                  <CheckCircle2 size={16} aria-hidden="true" />
+                                ) : (
+                                  <CircleMinus size={16} aria-hidden="true" />
+                                )}
+                                <span>
+                                  <strong>{item.label}</strong>
+                                  <small>{item.detalhe}</small>
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
                       </div>
 
                       <form
@@ -7494,96 +7500,6 @@ export default function App() {
                           perfilMutation.mutate(input),
                         )}
                       >
-                        <div
-                          className="account-settings-section account-identity-section"
-                          data-tour="configurar-dados-conta"
-                        >
-                          <div className="account-settings-section-heading">
-                            <h3>Identificação</h3>
-                            <p>Dados principais exibidos nos documentos e propostas.</p>
-                          </div>
-                          <div className="account-fields-grid grid gap-4">
-                            <CampoTexto
-                              label="Nome comercial"
-                              error={perfilForm.formState.errors.nomeComercial?.message}
-                              {...perfilForm.register("nomeComercial")}
-                            />
-                            <CampoTexto
-                              label="Segmento"
-                              placeholder="Ex.: social media, fotografia, consultoria"
-                              error={perfilForm.formState.errors.segmento?.message}
-                              {...perfilForm.register("segmento")}
-                            />
-                            <CampoTexto
-                              label="Cidade/UF"
-                              placeholder="Ex.: Belo Horizonte/MG"
-                              error={perfilForm.formState.errors.cidadeUf?.message}
-                              {...perfilForm.register("cidadeUf")}
-                            />
-                            <CampoTexto
-                              label="Responsável"
-                              value={usuario.nome}
-                              readOnly
-                              helperText="Nome usado no cadastro."
-                            />
-                            <CampoTexto
-                              label="CPF/CNPJ"
-                              placeholder="000.000.000-00"
-                              error={perfilForm.formState.errors.documento?.message}
-                              {...buildCpfCnpjInputProps(
-                                perfilForm.register(
-                                  "documento",
-                                  cpfCnpjInputRegisterOptions,
-                                ),
-                              )}
-                            />
-                          </div>
-                        </div>
-
-                        <div className="account-settings-section account-contact-section">
-                          <div className="account-settings-section-heading">
-                            <h3>Contato</h3>
-                            <p>Canais usados para comunicação com clientes.</p>
-                          </div>
-                          <div className="account-fields-grid grid gap-4">
-                            <CampoTexto
-                              label="E-mail de acesso"
-                              type="email"
-                              readOnly
-                              helperText="Este e-mail não pode ser editado aqui."
-                              value={usuario.email}
-                            />
-                            <CampoTexto
-                              label="E-mail de contato"
-                              type="email"
-                              helperText="Aparece nos documentos e mensagens enviados aos clientes."
-                              error={perfilForm.formState.errors.emailContato?.message}
-                              {...perfilForm.register("emailContato")}
-                            />
-                            <CampoTexto
-                              label="Telefone"
-                              error={perfilForm.formState.errors.telefoneContato?.message}
-                              {...buildTelefoneInputProps(
-                                perfilForm.register(
-                                  "telefoneContato",
-                                  telefoneInputRegisterOptions,
-                                ),
-                              )}
-                            />
-                            <CampoTexto
-                              label="Site"
-                              type="url"
-                              error={perfilForm.formState.errors.siteUrl?.message}
-                              {...perfilForm.register("siteUrl")}
-                            />
-                            <CampoTexto
-                              label="Instagram"
-                              error={perfilForm.formState.errors.instagram?.message}
-                              {...perfilForm.register("instagram")}
-                            />
-                          </div>
-                        </div>
-
                         <div
                           className="account-settings-section account-logo-section"
                           data-tour="configurar-logo"
@@ -7695,6 +7611,96 @@ export default function App() {
                               </p>
                             ) : null}
                         </div>
+                        <div
+                          className="account-settings-section account-identity-section"
+                          data-tour="configurar-dados-conta"
+                        >
+                          <div className="account-settings-section-heading">
+                            <h3>Identificação</h3>
+                            <p>Dados principais exibidos nos documentos e propostas.</p>
+                          </div>
+                          <div className="account-fields-grid grid gap-4">
+                            <CampoTexto
+                              label="Nome comercial"
+                              error={perfilForm.formState.errors.nomeComercial?.message}
+                              {...perfilForm.register("nomeComercial")}
+                            />
+                            <CampoTexto
+                              label="Segmento"
+                              placeholder="Ex.: social media, fotografia, consultoria"
+                              error={perfilForm.formState.errors.segmento?.message}
+                              {...perfilForm.register("segmento")}
+                            />
+                            <CampoTexto
+                              label="Cidade/UF"
+                              placeholder="Ex.: Belo Horizonte/MG"
+                              error={perfilForm.formState.errors.cidadeUf?.message}
+                              {...perfilForm.register("cidadeUf")}
+                            />
+                            <CampoTexto
+                              label="Responsável"
+                              value={usuario.nome}
+                              readOnly
+                              helperText="Nome usado no cadastro."
+                            />
+                            <CampoTexto
+                              label="CPF/CNPJ"
+                              placeholder="000.000.000-00"
+                              error={perfilForm.formState.errors.documento?.message}
+                              {...buildCpfCnpjInputProps(
+                                perfilForm.register(
+                                  "documento",
+                                  cpfCnpjInputRegisterOptions,
+                                ),
+                              )}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="account-settings-section account-contact-section">
+                          <div className="account-settings-section-heading">
+                            <h3>Contato</h3>
+                            <p>Canais usados para comunicação com clientes.</p>
+                          </div>
+                          <div className="account-fields-grid grid gap-4">
+                            <CampoTexto
+                              label="E-mail de acesso"
+                              type="email"
+                              readOnly
+                              helperText="Este e-mail não pode ser editado aqui."
+                              value={usuario.email}
+                            />
+                            <CampoTexto
+                              label="E-mail de contato"
+                              type="email"
+                              helperText="Aparece nos documentos e mensagens enviados aos clientes."
+                              error={perfilForm.formState.errors.emailContato?.message}
+                              {...perfilForm.register("emailContato")}
+                            />
+                            <CampoTexto
+                              label="Telefone"
+                              error={perfilForm.formState.errors.telefoneContato?.message}
+                              {...buildTelefoneInputProps(
+                                perfilForm.register(
+                                  "telefoneContato",
+                                  telefoneInputRegisterOptions,
+                                ),
+                              )}
+                            />
+                            <CampoTexto
+                              label="Site"
+                              type="url"
+                              error={perfilForm.formState.errors.siteUrl?.message}
+                              {...perfilForm.register("siteUrl")}
+                            />
+                            <CampoTexto
+                              label="Instagram"
+                              error={perfilForm.formState.errors.instagram?.message}
+                              {...perfilForm.register("instagram")}
+                            />
+                          </div>
+                        </div>
+
                         <div className="account-settings-actions flex flex-col gap-3 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-end">
                           <MensagemErro error={perfilMutation.error} />
                           <button
@@ -13305,7 +13311,7 @@ function DashboardContent({
     <>
       <div className="dashboard-page-heading">
         <div>
-          <p>Painel do Emprely</p>
+          <p>Visão geral</p>
           <h1>Painel comercial</h1>
           <span>
             Acompanhe clientes, serviços, propostas e próximos fechamentos em um só lugar.

@@ -6521,11 +6521,20 @@ body.is-mobile-menu-open {
   padding: 1rem;
 }
 
+.profile-completion-panel.is-complete {
+  gap: 0;
+  padding: 0.85rem 1rem;
+}
+
 .profile-completion-summary {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
+}
+
+.profile-completion-panel.is-complete .profile-completion-summary {
+  align-items: center;
 }
 
 .profile-completion-badge {

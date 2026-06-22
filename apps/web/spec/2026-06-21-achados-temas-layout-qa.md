@@ -14,6 +14,8 @@ Resolver os achados da bateria Playwright claro/escuro de 2026-06-21.
 6. No tema escuro, Perfil da conta, Personalizacao e Nova proposta nao podem exibir paineis funcionais com fundo branco/cinza claro que prejudiquem leitura.
 7. Details/accordions do fluxo de proposta devem usar superficie escura, borda escura e texto legivel no tema escuro, inclusive em breakpoints mobile.
 8. No tema escuro, a modal de preview de template deve ter toolbar, controles e area externa escuras. Apenas o documento renderizado permanece branco para representar o PDF/proposta final.
+9. Na tela Perfil da conta, a logomarca deve aparecer logo abaixo do bloco `Passo Perfil da conta`.
+10. Quando o perfil da conta estiver completo, o painel de progresso deve ficar compacto e exibir apenas `Perfil completo`, sem a lista de tarjas individuais.
 
 ## Fora de escopo
 
