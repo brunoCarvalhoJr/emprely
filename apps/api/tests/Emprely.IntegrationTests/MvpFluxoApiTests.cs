@@ -475,6 +475,46 @@ public sealed class MvpFluxoApiTests : IClassFixture<EmprelyApiFactory>
     }
 
     [Fact]
+    public async Task Admin_DeveResetarTourInicialDeUsuario()
+    {
+        var auth = await RegisterUsuarioAsync("mvp-reset-tour@emprely.dev");
+        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.AccessToken);
+
+        var onboardingComTourConcluido = await PostJsonAsync<OnboardingResponse>(
+            "/api/onboarding/events",
+            new CreateOnboardingEventoRequest("TourConcluiu", "dashboard"),
+            HttpStatusCode.OK);
+
+        Assert.Equal("Concluido", onboardingComTourConcluido.Tour.Status);
+        Assert.NotNull(onboardingComTourConcluido.Tour.ConcluidaAt);
+
+        await CriarAdminDiretoAsync("Super Admin Reset Tour", "super-reset-tour@emprely.dev", "Senha123", PerfilAdminUsuario.SuperAdmin);
+        httpClient.DefaultRequestHeaders.Authorization = null;
+
+        var adminAuth = await PostJsonAsync<AdminLoginResponse>(
+            "/api/admin/auth/login",
+            new AdminLoginRequest("super-reset-tour@emprely.dev", "Senha123"),
+            HttpStatusCode.OK);
+
+        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminAuth.AccessToken);
+
+        var resetResponse = await httpClient.PostAsJsonAsync(
+            $"/api/admin/usuarios/{auth.Usuario.Id}/reset-tour",
+            new AdminMotivoRequest("Reabrir tour inicial para validacao de suporte"),
+            JsonOptions);
+
+        Assert.Equal(HttpStatusCode.NoContent, resetResponse.StatusCode);
+
+        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.AccessToken);
+        var onboardingResetado = await GetJsonAsync<OnboardingResponse>("/api/onboarding");
+
+        Assert.Equal("NaoIniciado", onboardingResetado.Tour.Status);
+        Assert.Null(onboardingResetado.Tour.IniciadaAt);
+        Assert.Null(onboardingResetado.Tour.PuladaAt);
+        Assert.Null(onboardingResetado.Tour.ConcluidaAt);
+    }
+
+    [Fact]
     public async Task FluxoMvp_DeveRejeitarTelefoneInvalidoEBloquearGeracaoComTrialExpirado()
     {
         var auth = await RegisterUsuarioAsync("mvp-bloqueio@emprely.dev");

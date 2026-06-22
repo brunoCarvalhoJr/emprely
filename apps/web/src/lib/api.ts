@@ -440,6 +440,21 @@ export async function adminDesbloquearUsuario(
   );
 }
 
+export async function adminResetarTourUsuario(
+  usuarioId: string,
+  input: AdminMotivoInput,
+  token: string,
+): Promise<void> {
+  return apiFetch<void>(
+    `/api/admin/usuarios/${usuarioId}/reset-tour`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+    { token },
+  );
+}
+
 export async function adminAlterarPlanoConta(
   contaId: string,
   input: AdminAlterarPlanoContaInput,

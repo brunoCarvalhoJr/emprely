@@ -7,6 +7,7 @@ using Emprely.Contracts.Admin;
 using Emprely.Domain.Admin;
 using Emprely.Domain.Comunicacoes;
 using Emprely.Domain.Contas;
+using Emprely.Domain.Onboarding;
 using Emprely.Infrastructure.Comunicacoes;
 using Emprely.Infrastructure.Identity;
 using Emprely.Infrastructure.Persistence;
@@ -332,6 +333,74 @@ public sealed class AdminUsuariosController : AdminControllerBase
             request.Motivo,
             null,
             cancellationToken);
+
+        return NoContent();
+    }
+
+    [HttpPost("{usuarioId:guid}/reset-tour")]
+    public async Task<IActionResult> ResetarTourUsuario(
+        Guid usuarioId,
+        AdminMotivoRequest request,
+        CancellationToken cancellationToken)
+    {
+        var admin = GetAdminAtual();
+        var superAdminResult = ExigirSuperAdmin(admin);
+        if (superAdminResult is not null)
+        {
+            return superAdminResult;
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Motivo))
+        {
+            return ValidationProblem("Motivo administrativo obrigatorio.");
+        }
+
+        var usuarioExiste = await dbContext.Users.AnyAsync(
+            usuario => usuario.Id == usuarioId,
+            cancellationToken);
+
+        if (!usuarioExiste)
+        {
+            return NotFound(new { message = "Usuario nao encontrado." });
+        }
+
+        var onboardings = await dbContext.OnboardingUsuarios
+            .Where(onboarding => onboarding.UsuarioId == usuarioId)
+            .ToListAsync(cancellationToken);
+
+        foreach (var onboarding in onboardings)
+        {
+            onboarding.ResetarTour();
+        }
+
+        var registrosAfetados = onboardings.Count;
+
+        if (onboardings.Count == 0)
+        {
+            var membros = await dbContext.MembrosConta
+                .Where(membro => membro.UsuarioId == usuarioId)
+                .Select(membro => new { membro.ContaId, membro.UsuarioId })
+                .ToListAsync(cancellationToken);
+
+            foreach (var membro in membros)
+            {
+                dbContext.OnboardingUsuarios.Add(OnboardingUsuario.Create(membro.ContaId, membro.UsuarioId));
+            }
+
+            registrosAfetados = membros.Count;
+        }
+
+        await RegistrarAuditoriaAsync(
+            dbContext,
+            admin,
+            "TourUsuarioResetado",
+            "Usuario",
+            usuarioId,
+            request.Motivo,
+            $"Registros de onboarding afetados: {registrosAfetados}",
+            cancellationToken);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
 
         return NoContent();
     }

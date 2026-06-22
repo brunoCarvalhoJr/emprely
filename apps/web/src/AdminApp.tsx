@@ -34,6 +34,7 @@ import {
   adminResendConfirmacaoEmailPainel,
   adminLogin,
   adminReativarConta,
+  adminResetarTourUsuario,
   adminSuspenderConta,
   getAdminEmailsHistoricoPainel,
   getAdminAdmins,
@@ -65,6 +66,7 @@ type ActionMode =
   | "reativar"
   | "bloquear"
   | "desbloquear"
+  | "resetTour"
   | "email";
 
 type ActionState = {
@@ -1051,6 +1053,12 @@ function UsuarioDetalhePanel({
           {usuario.bloqueado ? <Unlock size={16} aria-hidden="true" /> : <Ban size={16} aria-hidden="true" />}
           {usuario.bloqueado ? "Desbloquear" : "Bloquear"}
         </button>
+        {isSuperAdmin ? (
+          <button className="admin-button-secondary" type="button" onClick={() => onAction("resetTour", usuario)}>
+            <RefreshCw size={16} aria-hidden="true" />
+            Resetar tour
+          </button>
+        ) : null}
         <button className="admin-button-secondary sm:col-span-2" type="button" onClick={() => onAction("email", usuario)}>
           <Mail size={16} aria-hidden="true" />
           Email personalizado
@@ -1186,6 +1194,8 @@ function ActionModal({
         await adminBloquearUsuario(usuario.id, { motivo: motivoForm.motivo }, token);
       } else if (action.mode === "desbloquear") {
         await adminDesbloquearUsuario(usuario.id, { motivo: motivoForm.motivo }, token);
+      } else if (action.mode === "resetTour") {
+        await adminResetarTourUsuario(usuario.id, { motivo: motivoForm.motivo }, token);
       }
     },
     onSuccess: onDone,
@@ -1242,7 +1252,7 @@ function ActionModal({
           {action.mode === "criarConta" && action.usuario ? <CriarContaFields usuario={action.usuario} form={criarContaForm} setForm={setCriarContaForm} errors={fieldErrors} clearError={(field) => setFieldErrors((errors) => clearFieldError(errors, field))} /> : null}
           {action.mode === "plano" ? <PlanoFields form={planoForm} setForm={setPlanoForm} errors={fieldErrors} clearError={(field) => setFieldErrors((errors) => clearFieldError(errors, field))} /> : null}
           {action.mode === "diasGratis" || action.mode === "diasGratisLote" ? <DiasGratisFields form={diasGratisForm} setForm={setDiasGratisForm} errors={fieldErrors} clearError={(field) => setFieldErrors((errors) => clearFieldError(errors, field))} /> : null}
-          {action.mode === "suspender" || action.mode === "reativar" || action.mode === "bloquear" || action.mode === "desbloquear" ? (
+          {action.mode === "suspender" || action.mode === "reativar" || action.mode === "bloquear" || action.mode === "desbloquear" || action.mode === "resetTour" ? (
             <MotivoFields form={motivoForm} setForm={setMotivoForm} showEmail={action.mode === "suspender"} errors={fieldErrors} clearError={(field) => setFieldErrors((errors) => clearFieldError(errors, field))} />
           ) : null}
           {action.mode === "email" ? <EmailFields form={emailForm} setForm={setEmailForm} errors={fieldErrors} clearError={(field) => setFieldErrors((errors) => clearFieldError(errors, field))} /> : null}
@@ -1619,6 +1629,7 @@ function getActionTitle(mode: ActionMode) {
     reativar: "Reativar conta",
     bloquear: "Bloquear usuário",
     desbloquear: "Desbloquear usuário",
+    resetTour: "Resetar tour inicial",
     email: "Enviar email personalizado",
   };
 

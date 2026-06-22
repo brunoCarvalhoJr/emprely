@@ -182,6 +182,15 @@ public sealed class OnboardingUsuario : EntidadeBase
         UpdatedAt = agora;
     }
 
+    public void ResetarTour()
+    {
+        StatusTour = StatusNaoIniciado;
+        TourExibidoAt = null;
+        TourPuladoAt = null;
+        TourConcluidoAt = null;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
     private void AtualizarTimestampsConfiguracao(DateTimeOffset agora)
     {
         if (StatusConfiguracaoConta == StatusEmAndamento)
