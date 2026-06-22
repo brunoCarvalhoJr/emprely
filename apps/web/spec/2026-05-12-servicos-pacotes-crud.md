@@ -1,36 +1,43 @@
-# Spec Web - Servicos Pacotes CRUD
+# Spec Web - Serviços e Pacotes CRUD
 
-## Visao geral
+## Visão geral
 
-Adicionar no web autenticado uma area de servicos e pacotes para criar, editar, listar e arquivar itens do catalogo da conta atual.
+Adicionar no web autenticado uma área de serviços e pacotes para criar, editar, listar e arquivar itens do catálogo da conta atual.
 
 ## Escopo
 
 Inclui:
 
-- Tipos TypeScript para servico.
-- Funcoes API para listar, criar, atualizar e arquivar.
+- Tipos TypeScript para serviço.
+- Funções API para listar, criar, atualizar e arquivar.
 - Estado de tela `Servicos` no app logado.
-- Formulario de servico/pacote.
+- Formulário de serviço/pacote.
 - Lista de itens ativos.
-- Acao de editar.
-- Acao de arquivar.
+- Ação de editar.
+- Ação de arquivar.
+- Unidades: `Único`, `Mensal`, `Semanal`, `Diário`, `Por hora` e `Por item`.
 
 Fora do escopo:
 
-- Composicao de pacotes com varios servicos.
-- Busca, filtros e paginacao.
-- Vinculo com propostas.
-- Calculo de subtotal/total da proposta.
+- Composição de pacotes com vários serviços.
+- Busca, filtros e paginação.
+- Vínculo com propostas.
+- Cálculo de subtotal/total da proposta.
 
-## Criterios de aceite
+## Critérios de aceite
 
-- Usuario logado consegue abrir a area de servicos.
-- Usuario logado consegue cadastrar servico ou pacote.
+- Usuário logado consegue abrir a área de serviços.
+- Usuário logado consegue cadastrar serviço ou pacote.
 - Item aparece na lista.
-- Usuario consegue editar item.
-- Usuario consegue arquivar item.
+- Usuário consegue editar item.
+- Usuário consegue arquivar item.
 - Item arquivado sai da listagem ativa.
+- Usuário consegue cadastrar serviço com unidade semanal.
+- Usuário consegue cadastrar serviço com unidade diária.
+- Campo de preço permite digitar valores como `1500` e `1500,50` sem apagar ou
+  travar a edição, formatando como moeda ao sair do campo.
+- Campos monetários reutilizados em propostas exibem um número editável simples
+  ao receber foco, como `1500,00`, evitando edição dentro de `R$ 1.500,00`.
 - `pnpm --dir apps/web lint` passa.
 - `pnpm --dir apps/web build` passa.
 

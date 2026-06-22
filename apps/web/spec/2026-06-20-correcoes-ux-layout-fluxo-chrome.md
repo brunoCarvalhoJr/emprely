@@ -55,6 +55,21 @@ Aplicar correcoes apontadas pela vistoria Chrome do Emprely para melhorar confia
 - Menu de acoes de propostas com muitas opcoes fica agrupado por contexto: principal, fluxo comercial, gerenciar e perigo.
 - Modais de confirmacao, preview, compartilhamento e cadastro rapido ficam mais legiveis, com header e acoes mais claras.
 - Clicar em `Gerar proposta` sem salvar rascunho manualmente exibe apenas o toast final de proposta gerada.
+- Preview de template no desktop ocupa quase toda a area util da tela sem cortar o documento no modo `Inteiro`.
+- Preview de template permite navegar entre templates com `Anterior` e `Proximo` sem fechar a modal.
+- Botao `Usar` aplica o template atualmente visivel no preview.
+- Logo salva no perfil aparece no preview dos templates quando a URL é acessivel.
+- Se a logo falhar, o template mostra fallback com iniciais da marca em vez de icone de imagem quebrada.
+- No desktop, clicar em `Mensagem inicial + anexo` fecha a modal, baixa o PDF,
+  abre o WhatsApp e informa que a proposta está na pasta Downloads para ser
+  anexada manualmente.
+- Elementos não editáveis, como botões, cards, tabelas e paginação, não devem
+  exibir seleção/caret como se fossem campos de digitação.
+- Formulários e detalhes de entidades devem destacar a entidade principal com
+  ícone, cabeçalho visual e cards de metadados, em vez de usar apenas texto
+  maior.
+- Tooltips de ações não devem ser cortados por bordas da tela, modais ou
+  containers de tabela.
 
 ## Testes
 

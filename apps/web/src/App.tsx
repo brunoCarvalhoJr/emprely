@@ -491,7 +491,7 @@ const servicoSchema = z.object({
     .number()
     .min(0, "Informe um preço maior ou igual a zero.")
     .max(9999999999.99, "Informe um preço menor."),
-  unidade: z.enum(["Unico", "Mensal", "PorHora", "PorItem"]),
+  unidade: z.enum(["Unico", "Mensal", "Semanal", "Diario", "PorHora", "PorItem"]),
   tipo: z.enum(["Servico", "Pacote"]),
 });
 
@@ -632,6 +632,11 @@ type AppNavigationSnapshot = {
   propostaSelecionadaId: string | null;
   propostaAssistenteEtapa: PropostaAssistenteEtapa;
   propostaWizardEtapaAtiva: PropostaWizardEtapaId;
+};
+
+type AppReturnIntent = {
+  label: string;
+  snapshot: AppNavigationSnapshot;
 };
 
 const emprelyFaviconSrc = "/brand/emprely-favicon.svg";
@@ -923,6 +928,9 @@ export default function App() {
   const [appView, setAppView] = useState<AppView>(
     appNavigationInicial.appView ?? "dashboard",
   );
+  const [appViewAnterior, setAppViewAnterior] = useState<AppView | null>(null);
+  const [retornoContextual, setRetornoContextual] =
+    useState<AppReturnIntent | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(
     sessaoInicial.accessToken,
   );
@@ -1478,6 +1486,8 @@ export default function App() {
       resetServicoForm(servicoDefaultValues);
       resetPropostaForm(propostaDefaultValues);
       tituloAutomaticoPropostaRef.current = null;
+      setAppViewAnterior(null);
+      setRetornoContextual(null);
       setAppView("dashboard");
       if (window.location.search.includes("auth=")) {
         window.history.replaceState({}, "", window.location.pathname);
@@ -2704,6 +2714,8 @@ export default function App() {
     setClienteMensagem(null);
     setServicoMensagem(null);
     setPropostaMensagem(null);
+    setAppViewAnterior(null);
+    setRetornoContextual(null);
     setAppView("dashboard");
   }
 
@@ -2769,6 +2781,114 @@ export default function App() {
     })();
   }
 
+  function getSnapshotNavegacaoAtual(): AppNavigationSnapshot {
+    return {
+      appView,
+      clienteModo,
+      clienteSelecionadoId,
+      servicoModo,
+      servicoSelecionadoId,
+      propostaModo,
+      propostaSelecionadaId,
+      propostaAssistenteEtapa,
+      propostaWizardEtapaAtiva,
+    };
+  }
+
+  function mudarAppView(view: AppView) {
+    const viewNormalizada: AppView = view === "personalizacao" ? "conta" : view;
+
+    if (viewNormalizada !== appView) {
+      setAppViewAnterior(appView);
+    }
+
+    setAppView(viewNormalizada);
+  }
+
+  function salvarRetornoContextualProposta(label: string) {
+    if (appView !== "propostas" || propostaModo === "lista") {
+      return;
+    }
+
+    setRetornoContextual({
+      label,
+      snapshot: getSnapshotNavegacaoAtual(),
+    });
+  }
+
+  function aplicarSnapshotNavegacao(snapshot: AppNavigationSnapshot) {
+    setAppView(snapshot.appView === "personalizacao" ? "conta" : snapshot.appView);
+    setClienteModo(snapshot.clienteModo);
+    setClienteSelecionadoId(snapshot.clienteSelecionadoId);
+    setServicoModo(snapshot.servicoModo);
+    setServicoSelecionadoId(snapshot.servicoSelecionadoId);
+    setPropostaModo(snapshot.propostaModo);
+    setPropostaSelecionadaId(snapshot.propostaSelecionadaId);
+    setPropostaAssistenteEtapa(snapshot.propostaAssistenteEtapa);
+    setPropostaWizardEtapaAtiva(snapshot.propostaWizardEtapaAtiva);
+  }
+
+  function voltarContextual() {
+    executarComConfirmacaoDescarte(() => {
+      if (retornoContextual) {
+        aplicarSnapshotNavegacao(retornoContextual.snapshot);
+        setRetornoContextual(null);
+        setContaMenuAberto(false);
+        setMobileMenuAberto(false);
+        return;
+      }
+
+      if (appView === "clientes" && clienteModo !== "lista") {
+        abrirListaClientesSemConfirmar();
+        return;
+      }
+
+      if (appView === "servicos" && servicoModo !== "lista") {
+        abrirListaServicosSemConfirmar();
+        return;
+      }
+
+      if (appView === "propostas" && propostaModo !== "lista") {
+        abrirListaPropostasSemConfirmar();
+        return;
+      }
+
+      if (appViewAnterior && appViewAnterior !== appView) {
+        setAppView(appViewAnterior === "personalizacao" ? "conta" : appViewAnterior);
+        setAppViewAnterior(null);
+        return;
+      }
+
+      setAppView("dashboard");
+      setAppViewAnterior(null);
+    });
+  }
+
+  const textoBotaoVoltarContextual = retornoContextual?.label
+    ? retornoContextual.label
+    : appView === "clientes" && clienteModo !== "lista"
+      ? "Voltar para clientes"
+      : appView === "servicos" && servicoModo !== "lista"
+        ? "Voltar para serviços"
+        : appView === "propostas" && propostaModo !== "lista"
+          ? "Voltar para propostas"
+          : "Voltar";
+
+  const deveMostrarVoltarContextual =
+    Boolean(retornoContextual) ||
+    (appView === "clientes" && clienteModo !== "lista") ||
+    (appView === "servicos" && servicoModo !== "lista") ||
+    (appView === "propostas" && propostaModo !== "lista") ||
+    (appView !== "dashboard" && Boolean(appViewAnterior));
+
+  const classeVoltarContextual =
+    retornoContextual ||
+    (appView === "clientes" && clienteModo !== "lista") ||
+    (appView === "servicos" && servicoModo !== "lista") ||
+    (appView === "propostas" && propostaModo !== "lista")
+      ? "is-contextual"
+      : "is-list-level";
+
   function navegarParaView(view: AppView) {
     executarComConfirmacaoDescarte(() => {
       const viewNormalizada: AppView = view === "personalizacao" ? "conta" : view;
@@ -2780,7 +2900,8 @@ export default function App() {
       setPropostaTemplateModalAberto(false);
       setPropostaCompartilharModalAberto(false);
       setPersonalizacaoPreviewTemplateAberto(null);
-      setAppView(viewNormalizada);
+      mudarAppView(viewNormalizada);
+      setRetornoContextual(null);
 
       if (viewNormalizada === "clientes") {
         abrirListaClientesSemConfirmar();
@@ -2821,8 +2942,9 @@ export default function App() {
 
   function abrirNovoCliente() {
     executarComConfirmacaoDescarte(() => {
+      salvarRetornoContextualProposta("Voltar para proposta");
       prepararNovoCliente();
-      setAppView("clientes");
+      mudarAppView("clientes");
     });
   }
 
@@ -2849,8 +2971,9 @@ export default function App() {
 
   function abrirNovoServico() {
     executarComConfirmacaoDescarte(() => {
+      salvarRetornoContextualProposta("Voltar para proposta");
       prepararNovoServico();
-      setAppView("servicos");
+      mudarAppView("servicos");
     });
   }
 
@@ -2954,18 +3077,15 @@ export default function App() {
     tituloAutomaticoPropostaRef.current = null;
   }
 
-  function voltarListaPropostas() {
-    executarComConfirmacaoDescarte(abrirListaPropostasSemConfirmar);
-  }
-
   function abrirNovaProposta(clienteId = "") {
     executarComConfirmacaoDescarte(() => {
+      setRetornoContextual(null);
       if (clienteId) {
         prepararNovaProposta(clienteId);
       } else {
         prepararAssistenteNovaProposta();
       }
-      setAppView("propostas");
+      mudarAppView("propostas");
     });
   }
 
@@ -3523,6 +3643,9 @@ export default function App() {
     }
 
     await executarExportacaoProposta(async () => {
+      const formatoPreferido = normalizarFormatoArquivoPreferido(
+        perfilConta?.formatoArquivoPreferido,
+      );
       const nodeExportacao = await aguardarNodeExportacaoProposta(
         () =>
           node ??
@@ -3530,8 +3653,11 @@ export default function App() {
           propostaVisualizacaoExportDocumentoRef.current ??
           propostaVisualizacaoDocumentoRef.current,
       );
-      const blob = await gerarPdfPropostaBlob(nodeExportacao);
-      const nomeArquivo = `${buildNomeArquivoProposta(proposta)}.pdf`;
+      const anexos = await gerarArquivosAnexoProposta(
+        nodeExportacao,
+        proposta,
+        formatoPreferido,
+      );
       const mensagem = buildMensagemWhatsappProposta(
         proposta,
         clienteCompartilhamentoAtivo,
@@ -3539,35 +3665,37 @@ export default function App() {
         conta?.nome ?? "Emprely",
         "arquivo",
       );
-      const arquivoPdf = new File([blob], nomeArquivo, {
-        type: "application/pdf",
-      });
+      const arquivosCompartilhamento = anexos.map(
+        (anexo) => new File([anexo.blob], anexo.nomeArquivo, { type: anexo.tipo }),
+      );
       const podeCompartilharArquivo =
         !isViewportDesktopInicial() &&
         typeof navigator !== "undefined" &&
         typeof navigator.share === "function" &&
         (!navigator.canShare ||
           navigator.canShare({
-            files: [arquivoPdf],
+            files: arquivosCompartilhamento,
           }));
 
       if (podeCompartilharArquivo) {
         await navigator.share({
           title: proposta.titulo,
           text: mensagem,
-          files: [arquivoPdf],
+          files: arquivosCompartilhamento,
         });
-        setPropostaExportacaoMensagem("PDF e mensagem enviados para compartilhamento.");
+        setPropostaExportacaoMensagem(
+          `${getDescricaoArquivoPreferidoCompartilhamento(formatoPreferido)} e mensagem enviados para compartilhamento.`,
+        );
         fecharModalCompartilharProposta();
         return;
       }
 
-      baixarBlobArquivo(blob, nomeArquivo);
+      fecharModalCompartilharProposta();
+      anexos.forEach((anexo) => baixarBlobArquivo(anexo.blob, anexo.nomeArquivo));
       window.open(whatsappPropostaArquivoUrl, "_blank", "noopener,noreferrer");
       setPropostaExportacaoMensagem(
-        "PDF baixado e WhatsApp aberto com a mensagem inicial.",
+        `Proposta baixada na sua pasta Downloads como ${getDescricaoArquivoPreferidoAnexo(formatoPreferido)}. O WhatsApp foi aberto; basta anexar ${getInstrucaoAnexoWhatsapp(formatoPreferido)} na conversa.`,
       );
-      fecharModalCompartilharProposta();
     });
   }
 
@@ -3582,6 +3710,58 @@ export default function App() {
         "Não foi possível gerar o arquivo. Tente novamente ou use a opção de imprimir.",
       );
     }
+  }
+
+  async function gerarArquivosAnexoProposta(
+    nodeExportacao: HTMLDivElement,
+    proposta: PropostaResponse,
+    formatoPreferido: FormatoArquivoPreferido,
+  ): Promise<
+    Array<{ blob: Blob; nomeArquivo: string; tipo: "application/pdf" | "image/png" }>
+  > {
+    const nomeBase = buildNomeArquivoProposta(proposta);
+
+    if (formatoPreferido === "Imagem") {
+      const blob = await gerarPngPropostaBlob(nodeExportacao);
+
+      return [
+        {
+          blob,
+          nomeArquivo: `${nomeBase}.png`,
+          tipo: "image/png",
+        },
+      ];
+    }
+
+    if (formatoPreferido === "PdfImagem") {
+      const [pdfBlob, pngBlob] = await Promise.all([
+        gerarPdfPropostaBlob(nodeExportacao),
+        gerarPngPropostaBlob(nodeExportacao),
+      ]);
+
+      return [
+        {
+          blob: pdfBlob,
+          nomeArquivo: `${nomeBase}.pdf`,
+          tipo: "application/pdf",
+        },
+        {
+          blob: pngBlob,
+          nomeArquivo: `${nomeBase}.png`,
+          tipo: "image/png",
+        },
+      ];
+    }
+
+    const blob = await gerarPdfPropostaBlob(nodeExportacao);
+
+    return [
+      {
+        blob,
+        nomeArquivo: `${nomeBase}.pdf`,
+        tipo: "application/pdf",
+      },
+    ];
   }
 
   async function aguardarNodeExportacaoProposta(
@@ -3943,6 +4123,24 @@ export default function App() {
   const templateVisualPersonalizacaoPreview = normalizarTemplateVisual(
     templateVisualPadraoPreview,
   );
+  const templatePreviewIndice = templatePreviewAberto
+    ? propostaTemplateVisualOpcoesGaleria.findIndex(
+        (template) => template.value === templatePreviewAberto,
+      )
+    : -1;
+  const templatePreviewAnterior =
+    templatePreviewIndice >= 0
+      ? propostaTemplateVisualOpcoesGaleria[
+          (templatePreviewIndice - 1 + propostaTemplateVisualOpcoesGaleria.length) %
+            propostaTemplateVisualOpcoesGaleria.length
+        ]?.value
+      : null;
+  const templatePreviewProximo =
+    templatePreviewIndice >= 0
+      ? propostaTemplateVisualOpcoesGaleria[
+          (templatePreviewIndice + 1) % propostaTemplateVisualOpcoesGaleria.length
+        ]?.value
+      : null;
   const perfilContaPersonalizacaoPreview: PerfilContaResponse | undefined = conta
     ? {
         id: perfilConta?.id ?? null,
@@ -4271,7 +4469,7 @@ export default function App() {
                       </button>
                     </div>
 
-                    <nav className="mobile-drawer-nav" aria-label="Navegacao principal">
+                    <nav className="mobile-drawer-nav" aria-label="Navegação principal">
                       {navegacaoPrincipal.map((item) => {
                         const Icon = item.icon;
                         const itemAtivo = appView === item.view;
@@ -4348,13 +4546,13 @@ export default function App() {
                 className={`mobile-bottom-nav ${
                   propostaEditorAtivo || propostaModo === "assistente" ? "is-hidden" : ""
                 }`}
-                aria-label="Navegacao rapida mobile"
+                aria-label="Navegação rápida mobile"
               >
                 {[
-                  { label: "Inicio", view: "dashboard" as AppView, icon: LayoutDashboard },
+                  { label: "Início", view: "dashboard" as AppView, icon: LayoutDashboard },
                   { label: "Propostas", view: "propostas" as AppView, icon: FileText },
                   { label: "Clientes", view: "clientes" as AppView, icon: UsersRound },
-                  { label: "Servicos", view: "servicos" as AppView, icon: PackageCheck },
+                  { label: "Serviços", view: "servicos" as AppView, icon: PackageCheck },
                 ].map((item) => {
                   const Icon = item.icon;
                   const ativo = appView === item.view;
@@ -4377,7 +4575,7 @@ export default function App() {
                 })}
                 <button
                   type="button"
-                  aria-label="Abrir mais opcoes"
+                  aria-label="Abrir mais opções"
                   onClick={() => {
                     if (document.activeElement instanceof HTMLElement) {
                       document.activeElement.blur();
@@ -4576,18 +4774,18 @@ export default function App() {
                   <section className="space-y-5">
                     <div className="page-heading">
                       <div>
-                        {clienteModo !== "lista" ? (
+                        {deveMostrarVoltarContextual ? (
                           <button
                             type="button"
-                            onClick={voltarListaClientes}
-                            className="page-heading-action page-heading-back-action mb-3"
+                            onClick={voltarContextual}
+                            className={`page-heading-action page-heading-back-action ${classeVoltarContextual} mb-3`}
                           >
                             <ArrowRight
                               className="rotate-180"
                               size={18}
                               aria-hidden="true"
                             />
-                            Voltar para lista
+                            {textoBotaoVoltarContextual}
                           </button>
                         ) : null}
                         <h1 className="font-heading text-3xl font-semibold">
@@ -5009,18 +5207,18 @@ export default function App() {
                   <section className="space-y-5">
                     <div className="page-heading">
                       <div>
-                        {servicoModo !== "lista" ? (
+                        {deveMostrarVoltarContextual ? (
                           <button
                             type="button"
-                            onClick={voltarListaServicos}
-                            className="page-heading-action page-heading-back-action mb-3"
+                            onClick={voltarContextual}
+                            className={`page-heading-action page-heading-back-action ${classeVoltarContextual} mb-3`}
                           >
                             <ArrowRight
                               className="rotate-180"
                               size={18}
                               aria-hidden="true"
                             />
-                            Voltar para lista
+                            {textoBotaoVoltarContextual}
                           </button>
                         ) : null}
                         <h1 className="font-heading text-3xl font-semibold">
@@ -5192,17 +5390,19 @@ export default function App() {
                     ) : null}
 
                     {servicoModo === "visualizar" ? (
-                      <div className="rounded-md border border-border bg-surface p-5">
+                      <div className="form-surface-card rounded-md border border-border bg-surface p-5">
                         {servicoSelecionado ? (
                           <>
-                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                              <div>
-                                <p className="text-sm font-medium text-accent">
-                                  Serviço / Pacote
-                                </p>
-                                <h2 className="mt-1 font-heading text-2xl font-semibold leading-8">
-                                  {servicoSelecionado.nome}
-                                </h2>
+                            <div className="form-entity-hero">
+                              <div className="form-entity-icon">
+                                <PackageCheck size={24} aria-hidden="true" />
+                              </div>
+                              <div className="form-entity-copy">
+                                <p>Serviço / Pacote</p>
+                                <h2>{servicoSelecionado.nome}</h2>
+                                <span>
+                                  Item reutilizável do catálogo para montar propostas com mais velocidade.
+                                </span>
                               </div>
                               <div className="flex flex-wrap gap-2">
                                 <button
@@ -5215,28 +5415,33 @@ export default function App() {
                                 </button>
                               </div>
                             </div>
-                            <div className="mt-5 grid gap-3 md:grid-cols-2">
+                            <div className="form-info-grid mt-5">
                               <InfoLinha
+                                icon={<Tags size={18} aria-hidden="true" />}
                                 label="Categoria"
                                 value={servicoSelecionado.categoria || "Não informado"}
                               />
                               <InfoLinha
+                                icon={<BriefcaseBusiness size={18} aria-hidden="true" />}
                                 label="Tipo"
                                 value={formatTipoServico(servicoSelecionado.tipo)}
                               />
                               <InfoLinha
+                                icon={<DollarSign size={18} aria-hidden="true" />}
                                 label="Valor"
                                 value={formatMoney(servicoSelecionado.preco)}
                               />
                               <InfoLinha
+                                icon={<ReceiptText size={18} aria-hidden="true" />}
                                 label="Unidade"
                                 value={formatUnidadeServico(servicoSelecionado.unidade)}
                               />
                             </div>
                             {servicoSelecionado.descricao ? (
-                              <p className="mt-5 rounded-md bg-slate-50 px-3 py-2 text-sm text-muted">
-                                {servicoSelecionado.descricao}
-                              </p>
+                              <div className="form-description-card mt-5">
+                                <FileText size={18} aria-hidden="true" />
+                                <p>{servicoSelecionado.descricao}</p>
+                              </div>
                             ) : null}
                           </>
                         ) : (
@@ -5248,15 +5453,17 @@ export default function App() {
                     ) : null}
 
                     {servicoModo === "novo" || servicoModo === "editar" ? (
-                      <div className="rounded-md border border-border bg-surface p-5">
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                        <div>
-                          <p className="text-sm font-medium text-primary">
-                            Serviços
-                          </p>
-                          <h2 className="mt-1 font-heading text-xl font-semibold leading-7">
-                            {servicoSelecionado ? "Editar serviço" : "Novo serviço"}
-                          </h2>
+                      <div className="form-surface-card rounded-md border border-border bg-surface p-5">
+                      <div className="form-entity-hero is-form">
+                        <div className="form-entity-icon">
+                          <PackageCheck size={24} aria-hidden="true" />
+                        </div>
+                        <div className="form-entity-copy">
+                          <p>Serviços</p>
+                          <h2>{servicoSelecionado ? "Editar serviço" : "Novo serviço"}</h2>
+                          <span>
+                            Defina nome, valor e unidade para reaproveitar este item nas próximas propostas.
+                          </span>
                         </div>
                       </div>
 
@@ -5266,11 +5473,16 @@ export default function App() {
                           salvarServicoMutation.mutate(input),
                         )}
                       >
-                        <CampoTexto
-                          label="Nome"
-                          error={servicoForm.formState.errors.nome?.message}
-                          {...servicoForm.register("nome")}
-                        />
+                        <div className="form-primary-field">
+                          <div className="form-primary-field-icon">
+                            <PackageCheck size={18} aria-hidden="true" />
+                          </div>
+                          <CampoTexto
+                            label="Nome do serviço ou pacote"
+                            error={servicoForm.formState.errors.nome?.message}
+                            {...servicoForm.register("nome")}
+                          />
+                        </div>
                         <div className="grid gap-4 md:grid-cols-2">
                           <CampoTexto
                             label="Categoria (opcional)"
@@ -5301,6 +5513,8 @@ export default function App() {
                           >
                             <option value="Unico">Único</option>
                             <option value="Mensal">Mensal</option>
+                            <option value="Semanal">Semanal</option>
+                            <option value="Diario">Diário</option>
                             <option value="PorHora">Por hora</option>
                             <option value="PorItem">Por item</option>
                           </CampoSelect>
@@ -5360,18 +5574,18 @@ export default function App() {
                   >
                     <div className="page-heading xl:col-span-2">
                       <div>
-                        {propostaModo !== "lista" ? (
+                        {deveMostrarVoltarContextual ? (
                           <button
                             type="button"
-                            onClick={voltarListaPropostas}
-                            className="page-heading-action page-heading-back-action mb-3"
+                            onClick={voltarContextual}
+                            className={`page-heading-action page-heading-back-action ${classeVoltarContextual} mb-3`}
                           >
                             <ArrowRight
                               className="rotate-180"
                               size={18}
                               aria-hidden="true"
                             />
-                            Voltar para lista
+                            {textoBotaoVoltarContextual}
                           </button>
                         ) : null}
                         <h1 className="font-heading text-3xl font-semibold">
@@ -7181,6 +7395,20 @@ export default function App() {
                   <section className="account-settings-grid account-settings-single grid gap-4">
                     <div className="page-heading">
                       <div>
+                        {deveMostrarVoltarContextual ? (
+                          <button
+                            type="button"
+                            onClick={voltarContextual}
+                            className={`page-heading-action page-heading-back-action ${classeVoltarContextual} mb-3`}
+                          >
+                            <ArrowRight
+                              className="rotate-180"
+                              size={18}
+                              aria-hidden="true"
+                            />
+                            {textoBotaoVoltarContextual}
+                          </button>
+                        ) : null}
                         <h1 className="font-heading text-3xl font-semibold">
                           Perfil da conta
                         </h1>
@@ -7521,10 +7749,10 @@ export default function App() {
                   <section className="account-settings-grid personalization-page grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(20rem,0.72fr)]">
                     <div className="profile-section-heading xl:col-span-2">
                       <div>
-                        <p>Preferencias de proposta</p>
+                        <p>Preferências de proposta</p>
                         <h2>Template, cores e formatos de envio</h2>
                         <span>
-                          Escolha como a Emprely apresenta seus orcamentos antes de criar a primeira proposta.
+                          Escolha como a Emprely apresenta seus orçamentos antes de criar a primeira proposta.
                         </span>
                       </div>
                     </div>
@@ -7927,6 +8155,20 @@ export default function App() {
                   <section className="grid gap-4">
                     <div className="page-heading">
                       <div>
+                        {deveMostrarVoltarContextual ? (
+                          <button
+                            type="button"
+                            onClick={voltarContextual}
+                            className={`page-heading-action page-heading-back-action ${classeVoltarContextual} mb-3`}
+                          >
+                            <ArrowRight
+                              className="rotate-180"
+                              size={18}
+                              aria-hidden="true"
+                            />
+                            {textoBotaoVoltarContextual}
+                          </button>
+                        ) : null}
                         <h1 className="font-heading text-3xl font-semibold">Suporte</h1>
                       </div>
                     </div>
@@ -8591,7 +8833,13 @@ export default function App() {
                   />
                 </span>
                 <strong>Mensagem inicial + anexo</strong>
-                <span>Texto inicial com PDF da proposta anexado quando disponivel.</span>
+                <span>
+                  {getDescricaoCardMensagemAnexo(
+                    normalizarFormatoArquivoPreferido(
+                      perfilConta?.formatoArquivoPreferido,
+                    ),
+                  )}
+                </span>
               </button>
               <a
                 href={whatsappPropostaCompletaUrl}
@@ -8801,6 +9049,32 @@ export default function App() {
                   ) : null}
               </div>
               <div className="preview-modal-actions">
+                <button
+                  type="button"
+                  disabled={!templatePreviewAnterior}
+                  onClick={() => {
+                    if (templatePreviewAnterior) {
+                      setTemplatePreviewAberto(templatePreviewAnterior);
+                    }
+                  }}
+                  className="template-preview-nav-button"
+                >
+                  <ChevronsLeft size={16} aria-hidden="true" />
+                  Anterior
+                </button>
+                <button
+                  type="button"
+                  disabled={!templatePreviewProximo}
+                  onClick={() => {
+                    if (templatePreviewProximo) {
+                      setTemplatePreviewAberto(templatePreviewProximo);
+                    }
+                  }}
+                  className="template-preview-nav-button"
+                >
+                  Próximo
+                  <ChevronsRight size={16} aria-hidden="true" />
+                </button>
                 <div className="preview-zoom-controls" aria-label="Zoom do preview">
                   <label htmlFor="template-preview-fit">Inteiro</label>
                   <label htmlFor="template-preview-zoom">Zoom</label>
@@ -9543,7 +9817,20 @@ type CampoMoedaRealProps = Omit<
 };
 
 const CampoMoedaReal = forwardRef<HTMLInputElement, CampoMoedaRealProps>(
-  ({ label, value, onValueChange, error, helperText, id, ...props }, ref) => {
+  (
+    {
+      label,
+      value,
+      onValueChange,
+      error,
+      helperText,
+      id,
+      onBlur,
+      onFocus,
+      ...props
+    },
+    ref,
+  ) => {
     const campoId = useId();
     const inputId = id ?? campoId;
     const descricaoId = `${inputId}-descricao`;
@@ -9552,6 +9839,11 @@ const CampoMoedaReal = forwardRef<HTMLInputElement, CampoMoedaRealProps>(
     const labelDisplay = opcional ? formatCampoLabel(label) : label;
     const descricaoMoeda =
       helperText ?? "Digite 1500 para R$ 1.500,00 ou 1500,50 para R$ 1.500,50.";
+    const [textoEmEdicao, setTextoEmEdicao] = useState(() =>
+      formatMoedaRealInput(value),
+    );
+    const [estaEditando, setEstaEditando] = useState(false);
+    const valorFormatado = formatMoedaRealInput(value);
 
     return (
       <label
@@ -9564,11 +9856,28 @@ const CampoMoedaReal = forwardRef<HTMLInputElement, CampoMoedaRealProps>(
           ref={ref}
           id={inputId}
           type="text"
-          inputMode="numeric"
-          value={formatMoedaRealInput(value)}
-          onChange={(event) =>
-            onValueChange(parseMoedaRealInput(event.target.value))
-          }
+          inputMode="decimal"
+          value={estaEditando ? textoEmEdicao : valorFormatado}
+          onFocus={(event) => {
+            setEstaEditando(true);
+            const textoEditavel =
+              valorSeguro(value) > 0 ? formatMoedaRealEditavel(value) : "";
+            setTextoEmEdicao(textoEditavel);
+            window.requestAnimationFrame(() => {
+              event.currentTarget.setSelectionRange(0, textoEditavel.length);
+            });
+            onFocus?.(event);
+          }}
+          onChange={(event) => {
+            const novoTexto = event.target.value;
+            setTextoEmEdicao(novoTexto);
+            onValueChange(parseMoedaRealInput(novoTexto));
+          }}
+          onBlur={(event) => {
+            setEstaEditando(false);
+            setTextoEmEdicao(formatMoedaRealInput(parseMoedaRealInput(event.target.value)));
+            onBlur?.(event);
+          }}
           aria-invalid={Boolean(error)}
           aria-describedby={`${descricaoMoeda ? descricaoId : ""} ${
             error ? erroId : ""
@@ -10342,7 +10651,7 @@ function PropostaWizardMobileDock({
   }
 
   return createPortal(
-    <div className="proposal-mobile-step-dock no-print" aria-label="Navegacao da etapa">
+    <div className="proposal-mobile-step-dock no-print" aria-label="Navegação da etapa">
       <div className="proposal-mobile-step-dock-copy">
         <span>
           Etapa {etapaAtual} de {totalEtapas}
@@ -10462,11 +10771,22 @@ function EstadoVazio({
   );
 }
 
-function InfoLinha({ label, value }: { label: string; value: string }) {
+function InfoLinha({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: string;
+  icon?: ReactNode;
+}) {
   return (
-    <div className="rounded-md border border-border px-3 py-2">
-      <p className="text-xs font-medium uppercase text-muted">{label}</p>
-      <p className="mt-1 break-words text-sm font-semibold">{value}</p>
+    <div className="info-line-card">
+      {icon ? <span className="info-line-icon">{icon}</span> : null}
+      <div>
+        <p>{label}</p>
+        <strong>{value}</strong>
+      </div>
     </div>
   );
 }
@@ -12133,15 +12453,11 @@ function DocumentoMarca({
 }) {
   return (
     <div className={`doc-brand ${large ? "doc-brand-large" : ""} ${dark ? "doc-brand-dark" : ""}`}>
-      {d.logoUrl ? (
-        <img
-          src={d.logoUrl}
-          alt={`Logo ${d.nomeMarca}`}
-          crossOrigin="anonymous"
-        />
-      ) : (
-        <span className="doc-brand-fallback">{getIniciaisMarca(d.nomeMarca)}</span>
-      )}
+      <DocumentoLogoMarca
+        key={d.logoUrl ?? d.nomeMarca}
+        logoUrl={d.logoUrl}
+        nomeMarca={d.nomeMarca}
+      />
       <div>
         <strong>{d.nomeMarca}</strong>
         {d.instagramMarca || d.siteMarca ? (
@@ -12149,6 +12465,38 @@ function DocumentoMarca({
         ) : null}
       </div>
     </div>
+  );
+}
+
+function DocumentoLogoMarca({
+  logoUrl,
+  nomeMarca,
+}: {
+  logoUrl: string | null;
+  nomeMarca: string;
+}) {
+  const [modoImagem, setModoImagem] = useState<"cors" | "sem-cors" | "fallback">(
+    logoUrl ? "cors" : "fallback",
+  );
+  const imagemVisivel = Boolean(logoUrl) && modoImagem !== "fallback";
+
+  return (
+    <span className="doc-brand-logo-frame">
+      <span className="doc-brand-fallback">{getIniciaisMarca(nomeMarca)}</span>
+      {imagemVisivel ? (
+        <img
+          key={`${logoUrl}-${modoImagem}`}
+          src={logoUrl ?? ""}
+          alt={`Logo ${nomeMarca}`}
+          crossOrigin={modoImagem === "cors" ? "anonymous" : undefined}
+          onError={() => {
+            setModoImagem((modoAtual) =>
+              modoAtual === "cors" ? "sem-cors" : "fallback",
+            );
+          }}
+        />
+      ) : null}
+    </span>
   );
 }
 
@@ -12941,16 +13289,40 @@ function DashboardContent({
   const deveMostrarPrimeirosPassos = primeirosPassos.some(
     (passo) => !passo.concluido,
   );
-  const propostasRecentes = propostas.slice(0, 5);
+  const [propostasRecentesPagina, setPropostasRecentesPagina] = useState(1);
+  const [propostasRecentesTamanhoPagina, setPropostasRecentesTamanhoPagina] =
+    useState(5);
+  const propostasRecentesPaginadas = paginarLista(
+    propostas,
+    propostasRecentesPagina,
+    propostasRecentesTamanhoPagina,
+  );
+  const dashboardHeroTexto = primeiraPropostaGerada
+    ? "Acompanhe suas propostas e próximos fechamentos"
+    : "Crie sua primeira proposta profissional em minutos";
 
   return (
     <>
+      <div className="dashboard-page-heading">
+        <div>
+          <p>Painel do Emprely</p>
+          <h1>Painel comercial</h1>
+          <span>
+            Acompanhe clientes, serviços, propostas e próximos fechamentos em um só lugar.
+          </span>
+        </div>
+      </div>
+
       <div className="dashboard-hero rounded-md border border-border bg-surface p-5" data-tour="dashboard-hero">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="max-w-2xl">
             <p className="inline-flex max-w-full items-center gap-2 rounded-md bg-violet-50 px-3 py-1.5 font-heading text-lg font-semibold leading-snug text-slate-950 sm:text-xl">
-              <Sparkles size={16} aria-hidden="true" />
-              Crie sua primeira proposta profissional em minutos
+              {primeiraPropostaGerada ? (
+                <BarChart3 size={16} aria-hidden="true" />
+              ) : (
+                <Sparkles size={16} aria-hidden="true" />
+              )}
+              {dashboardHeroTexto}
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap lg:justify-end">
@@ -12987,14 +13359,16 @@ function DashboardContent({
 
       {conta.plano === "Trial" ? <TrialUpsellBanner conta={conta} /> : null}
 
-      <button
-        type="button"
-        onClick={onAbrirOnboarding}
-        className="inline-flex h-10 w-fit items-center justify-center gap-2 rounded-md border border-border bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-primary hover:text-primary"
-      >
-        <Rocket size={16} aria-hidden="true" />
-        Abrir guia inicial
-      </button>
+      {!primeiraPropostaGerada ? (
+        <button
+          type="button"
+          onClick={onAbrirOnboarding}
+          className="inline-flex h-10 w-fit items-center justify-center gap-2 rounded-md border border-border bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-primary hover:text-primary"
+        >
+          <Rocket size={16} aria-hidden="true" />
+          Abrir guia inicial
+        </button>
+      ) : null}
 
       {isLoading ? <DashboardCarregando /> : null}
 
@@ -13059,7 +13433,7 @@ function DashboardContent({
             <ArrowRight size={16} aria-hidden="true" />
           </button>
         </div>
-        {propostasRecentes.length > 0 ? (
+        {propostasRecentesPaginadas.itens.length > 0 ? (
         <div className="data-table-shell mt-5">
           <table className="data-table data-table-propostas data-table-recentes w-full text-left text-sm">
             <thead>
@@ -13073,8 +13447,8 @@ function DashboardContent({
               </tr>
             </thead>
             <tbody>
-              {propostasRecentes.length > 0 ? (
-                propostasRecentes.map((proposta) => (
+              {propostasRecentesPaginadas.itens.length > 0 ? (
+                propostasRecentesPaginadas.itens.map((proposta) => (
                   <tr key={proposta.id}>
                     <td data-label="Cliente">
                       <strong>{proposta.clienteNome}</strong>
@@ -13115,6 +13489,16 @@ function DashboardContent({
               )}
             </tbody>
           </table>
+          <PaginacaoLista
+            label="propostas"
+            paginacao={propostasRecentesPaginadas}
+            tamanhoPagina={propostasRecentesTamanhoPagina}
+            onChangePagina={setPropostasRecentesPagina}
+            onChangeTamanhoPagina={(tamanho) => {
+              setPropostasRecentesTamanhoPagina(tamanho);
+              setPropostasRecentesPagina(1);
+            }}
+          />
         </div>
         ) : (
           <EstadoVazio
@@ -13414,13 +13798,13 @@ function buildOnboardingTourSteps(): Step[] {
       target: '[data-tour="menu-conta"]',
       title: "Perfil da conta",
       content:
-        "No menu da conta ficam os dados comerciais, marca, templates, cores e formatos. Essa area define como sua empresa aparece nos documentos enviados ao cliente.",
+        "No menu da conta ficam os dados comerciais, marca, templates, cores e formatos. Essa área define como sua empresa aparece nos documentos enviados ao cliente.",
     },
     {
       target: '[data-tour="configurar-dados-conta"]',
       title: "Primeiro passo: configurar a conta",
       content:
-        "Preencha nome comercial, segmento, telefone e e-mail. Esses dados dao credibilidade e ja entram automaticamente nos orcamentos.",
+        "Preencha nome comercial, segmento, telefone e e-mail. Esses dados dão credibilidade e já entram automaticamente nos orçamentos.",
     },
     {
       target: '[data-tour="configurar-logo"]',
@@ -14576,6 +14960,60 @@ function normalizarFormatoArquivoPreferido(
   return formato ?? formatoArquivoPreferidoDefault;
 }
 
+function getDescricaoCardMensagemAnexo(
+  formato: FormatoArquivoPreferido,
+): string {
+  if (formato === "Imagem") {
+    return "Texto inicial com imagem da proposta para anexar no WhatsApp.";
+  }
+
+  if (formato === "PdfImagem") {
+    return "Texto inicial com PDF e imagem da proposta para anexar no WhatsApp.";
+  }
+
+  return "Texto inicial com PDF da proposta para anexar no WhatsApp.";
+}
+
+function getDescricaoArquivoPreferidoAnexo(
+  formato: FormatoArquivoPreferido,
+): string {
+  if (formato === "Imagem") {
+    return "imagem";
+  }
+
+  if (formato === "PdfImagem") {
+    return "PDF e imagem";
+  }
+
+  return "PDF";
+}
+
+function getDescricaoArquivoPreferidoCompartilhamento(
+  formato: FormatoArquivoPreferido,
+): string {
+  if (formato === "Imagem") {
+    return "Imagem";
+  }
+
+  if (formato === "PdfImagem") {
+    return "PDF, imagem";
+  }
+
+  return "PDF";
+}
+
+function getInstrucaoAnexoWhatsapp(formato: FormatoArquivoPreferido): string {
+  if (formato === "Imagem") {
+    return "a imagem";
+  }
+
+  if (formato === "PdfImagem") {
+    return "os arquivos";
+  }
+
+  return "o PDF";
+}
+
 function getPropostaTemplateLabel(templateVisual: PropostaTemplateVisual): string {
   const templateVisualNormalizado = normalizarTemplateVisual(templateVisual);
 
@@ -15333,6 +15771,20 @@ function formatMoedaRealInput(valor: number | null | undefined): string {
   return formatMoney(valorSeguro(valor)).replace(/\u00a0/g, " ");
 }
 
+function formatMoedaRealEditavel(valor: number | null | undefined): string {
+  const valorNumerico = valorSeguro(valor);
+
+  if (valorNumerico === 0) {
+    return "";
+  }
+
+  return new Intl.NumberFormat("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+    useGrouping: false,
+  }).format(valorNumerico);
+}
+
 function parseMoedaRealInput(valor: string): number {
   const texto = valor
     .replace(/\s/g, "")
@@ -15377,6 +15829,8 @@ function formatUnidadeServico(unidade: UnidadeServico): string {
   const labels: Record<UnidadeServico, string> = {
     Unico: "único",
     Mensal: "mensal",
+    Semanal: "semanal",
+    Diario: "diário",
     PorHora: "hora",
     PorItem: "item",
   };
@@ -15469,9 +15923,9 @@ function getMensagemBloqueioPlano(
 
 function getAppViewLabel(view: AppView): string {
   const labels: Record<AppView, string> = {
-    dashboard: "Dashboard",
+    dashboard: "Painel comercial",
     clientes: "Clientes",
-    servicos: "Servicos",
+    servicos: "Serviços",
     propostas: "Propostas",
     conta: "Perfil da conta",
     personalizacao: "Perfil da conta",

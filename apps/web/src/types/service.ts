@@ -1,4 +1,10 @@
-export type UnidadeServico = "Unico" | "Mensal" | "PorHora" | "PorItem";
+export type UnidadeServico =
+  | "Unico"
+  | "Mensal"
+  | "Semanal"
+  | "Diario"
+  | "PorHora"
+  | "PorItem";
 
 export type TipoServico = "Servico" | "Pacote";
 

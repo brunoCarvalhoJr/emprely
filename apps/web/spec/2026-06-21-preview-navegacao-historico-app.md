@@ -6,6 +6,14 @@ Melhorar a continuidade de uso do app autenticado e a inspecao visual de templat
 
 ## Comportamento esperado
 
+0. Dashboard e retorno contextual
+   - A tela inicial autenticada deve ter titulo claro de produto: `Painel comercial`.
+   - O titulo deve orientar que a pagina concentra indicadores, atalhos e propostas recentes.
+   - Paginas autenticadas devem ter botao `Voltar` quando existir retorno util.
+   - A acao de voltar deve preferir contexto de trabalho interrompido, como retornar para proposta em andamento apos cadastrar cliente ou servico.
+   - Em telas internas de CRUD, `Voltar` deve retornar para a lista da propria area.
+   - No dashboard, o botao nao deve aparecer quando nao ha contexto real.
+
 1. Preview de template/proposta
    - Ao abrir, o documento deve aparecer inteiro no viewport sempre que possivel.
    - Usuario deve poder alternar entre `Inteiro`, `Zoom` e `100%`.
@@ -33,3 +41,6 @@ Melhorar a continuidade de uso do app autenticado e a inspecao visual de templat
 - Botao voltar com menu mobile aberto fecha apenas o menu.
 - Botao voltar com qualquer modal aberta fecha apenas a modal e nao joga a tela para o topo.
 - Botao voltar em formulario interno volta para a lista, sem sair do dominio.
+- Dashboard exibe `Painel comercial` como titulo principal.
+- Ao sair de uma proposta para cadastrar cliente ou servico, o botao `Voltar` retorna para a proposta em andamento.
+- Tabela `Propostas recentes` no dashboard exibe paginacao, quantidade de itens e seletor de tamanho quando houver propostas.
