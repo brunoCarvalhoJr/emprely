@@ -77,6 +77,15 @@ export type PropostaResponse = {
   beneficios: string[];
   total: number;
   itens: PropostaItemResponse[];
+  publicApprovalUrl: string;
   createdAt: string;
   updatedAt: string | null;
+};
+
+export type PublicProposalApprovalResponse = {
+  status: "Aceita" | "Bloqueado" | "Invalido" | string;
+  message: string;
+  proposalTitle: string | null;
+  clientName: string | null;
+  acceptedAt: string | null;
 };

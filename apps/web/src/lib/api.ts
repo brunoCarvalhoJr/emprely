@@ -54,6 +54,7 @@ import type {
 } from "@/types/service";
 import type {
   CreatePropostaInput,
+  PublicProposalApprovalResponse,
   PropostaResponse,
   UpdatePropostaInput,
 } from "@/types/proposal";
@@ -872,6 +873,17 @@ export async function rejectProposta(
       method: "POST",
     },
     { token },
+  );
+}
+
+export async function approvePropostaPublica(
+  token: string,
+): Promise<PublicProposalApprovalResponse> {
+  return apiFetch<PublicProposalApprovalResponse>(
+    `/api/proposals/public/${encodeURIComponent(token)}/approve`,
+    {
+      method: "POST",
+    },
   );
 }
 

@@ -86,6 +86,16 @@ public sealed class Proposta : EntidadeBase
 
     public string? BeneficiosTexto { get; private set; }
 
+    public string? PublicApprovalTokenHash { get; private set; }
+
+    public DateTimeOffset? PublicApprovalTokenCreatedAt { get; private set; }
+
+    public DateTimeOffset? PublicApprovalAcceptedAt { get; private set; }
+
+    public string? PublicApprovalAcceptedIp { get; private set; }
+
+    public string? PublicApprovalAcceptedUserAgent { get; private set; }
+
     public ICollection<PropostaItem> Itens { get; private set; } = new List<PropostaItem>();
 
     public decimal Subtotal => Itens.Sum(item => item.Total);
@@ -273,6 +283,47 @@ public sealed class Proposta : EntidadeBase
         }
 
         Status = StatusProposta.Aceita;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    public void DefinirTokenAprovacaoPublica(string tokenHash, DateTimeOffset createdAt)
+    {
+        if (string.IsNullOrWhiteSpace(tokenHash))
+        {
+            throw new ArgumentException("Hash do token de aprovacao publica e obrigatorio.", nameof(tokenHash));
+        }
+
+        PublicApprovalTokenHash = tokenHash.Trim();
+        PublicApprovalTokenCreatedAt = createdAt;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    public void AceitarPropostaPublicamente(string? ip, string? userAgent)
+    {
+        if (Status == StatusProposta.Arquivada)
+        {
+            throw new InvalidOperationException("Proposta arquivada nao pode ser aceita.");
+        }
+
+        if (Status == StatusProposta.Recusada)
+        {
+            throw new InvalidOperationException("Proposta recusada nao pode ser aceita.");
+        }
+
+        if (Status == StatusProposta.Aceita)
+        {
+            return;
+        }
+
+        if (Status is not (StatusProposta.Gerada or StatusProposta.Enviada))
+        {
+            throw new InvalidOperationException("Somente proposta gerada ou enviada pode ser aceita.");
+        }
+
+        Status = StatusProposta.Aceita;
+        PublicApprovalAcceptedAt = DateTimeOffset.UtcNow;
+        PublicApprovalAcceptedIp = NormalizarTextoOpcional(ip, nameof(ip), 80);
+        PublicApprovalAcceptedUserAgent = NormalizarTextoOpcional(userAgent, nameof(userAgent), 500);
         UpdatedAt = DateTimeOffset.UtcNow;
     }
 

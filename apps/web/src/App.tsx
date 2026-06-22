@@ -100,6 +100,7 @@ import {
   confirmEmailUsuario,
   createServico,
   createSuporteSolicitacao,
+  approvePropostaPublica,
   deleteCliente,
   deleteServico,
   forgotSenhaUsuario,
@@ -160,6 +161,7 @@ import type {
 } from "@/types/service";
 import type {
   CreatePropostaInput,
+  PublicProposalApprovalResponse,
   PropostaResponse,
   PropostaStatus,
   PropostaTemplateVisual,
@@ -237,33 +239,33 @@ const propostaTemplateVisualOpcoes: Array<{
 }> = [
   {
     value: "ComercialMinimalista",
-    label: "Orçamento rápido WhatsApp",
-    detalhe: "Escopo, preço, prazo e próximos passos para responder no chat.",
+    label: "Orçamento essencial",
+    detalhe: "Escopo, preço, prazo e próximos passos em um documento direto.",
   },
   {
     value: "OrcamentoSimplificado",
-    label: "Mídia kit e rate card",
-    detalhe: "Bio, audiência, formatos vendidos, bundles e condições para creators.",
+    label: "Resumo comercial",
+    detalhe: "Apresentação objetiva com escopo, itens, valores e condições.",
   },
   {
     value: "PropostaCompleta",
-    label: "Proposta comercial completa",
+    label: "Proposta detalhada",
     detalhe: "Documento modular com escopo, entregas, investimento, termos e aceite.",
   },
   {
     value: "LunaSocialStudio",
-    label: "Social media mensal",
-    detalhe: "Pacotes recorrentes com posts, calendário, aprovação e relatório.",
+    label: "Plano recorrente",
+    detalhe: "Proposta para serviços contínuos com rotina, entregas e acompanhamento.",
   },
   {
     value: "DarkGrowth",
-    label: "Tráfego pago e campanhas",
-    detalhe: "Setup, verba de mídia, campanhas, otimização e KPIs de resultado.",
+    label: "Plano estratégico",
+    detalhe: "Escopo com etapas, indicadores, acompanhamento e resultado esperado.",
   },
   {
     value: "InstagramPremium",
-    label: "Reels, vídeos curtos e UGC",
-    detalhe: "Peças de vídeo, captação, edição, legenda, direitos de uso e exclusividade.",
+    label: "Pacote premium",
+    detalhe: "Entrega visual com benefícios, escopo, condições e investimento.",
   },
   {
     value: "Claymorphism",
@@ -277,20 +279,20 @@ const propostaTemplateVisualOpcoes: Array<{
   },
   {
     value: "ExecutivoEditorial",
-    label: "Consultoria e diagnóstico",
-    detalhe: "Situação atual, problema, sessões, plano de ação e credenciais.",
+    label: "Executivo editorial",
+    detalhe: "Proposta consultiva e objetiva para decisões comerciais.",
     coresEstaticas: true,
   },
   {
     value: "CorporativoBoard",
-    label: "Agência growth board",
-    detalhe: "Frentes de marketing, roadmap, KPIs e recorrência para agência enxuta.",
+    label: "Board comercial",
+    detalhe: "Visão executiva com frentes, roadmap, indicadores e recorrência.",
     coresEstaticas: true,
   },
   {
     value: "InstitucionalClean",
-    label: "Design e identidade visual",
-    detalhe: "Entregáveis, conceitos, revisões, arquivos finais, mockups e direitos.",
+    label: "Institucional clean",
+    detalhe: "Documento limpo para escopo, entregáveis, revisões e direitos.",
     coresEstaticas: true,
   },
 ];
@@ -303,50 +305,50 @@ const propostaTemplateVisualOpcoesGaleria: Array<{
 }> = [
   {
     value: "ComercialMinimalista",
-    label: "Orçamento rápido WhatsApp",
-    detalhe: "Preço, escopo, prazo e CTA para responder sem perder o timing.",
+    label: "Orçamento essencial",
+    detalhe: "Preço, escopo, prazo e aceite em uma proposta direta.",
   },
   {
     value: "OrcamentoSimplificado",
-    label: "Mídia kit e rate card",
-    detalhe: "Creator, audiência, métricas, formatos vendidos, bundles e direitos.",
+    label: "Resumo comercial",
+    detalhe: "Escopo, itens, valores, condições e aceite em uma leitura rápida.",
   },
   {
     value: "PropostaCompleta",
-    label: "Proposta comercial completa",
+    label: "Proposta detalhada",
     detalhe: "Documento comercial com escopo, valor, condições, termos e aceite.",
   },
   {
     value: "LunaSocialStudio",
-    label: "Social media mensal",
-    detalhe: "Posts, reels, stories, calendário, aprovações, reuniões e relatório.",
+    label: "Plano recorrente",
+    detalhe: "Serviços contínuos, rotina de entrega, revisões e acompanhamento.",
   },
   {
     value: "InstagramPremium",
-    label: "Reels, vídeos curtos e UGC",
-    detalhe: "Vídeos, roteiro, edição, legenda, prazo, licença de uso e exclusividade.",
+    label: "Pacote premium",
+    detalhe: "Proposta visual para escopo, benefícios, entregas e condições.",
   },
   {
     value: "DarkGrowth",
-    label: "Tráfego pago e campanhas",
-    detalhe: "Setup, campanhas, verba separada, otimização, KPIs e relatórios.",
+    label: "Plano estratégico",
+    detalhe: "Etapas, indicadores, responsabilidades, acompanhamento e resultados.",
   },
   {
     value: "InstitucionalClean",
-    label: "Design e identidade visual",
-    detalhe: "Conceitos, revisões, arquivos finais, aplicações, mockups e direitos.",
+    label: "Institucional clean",
+    detalhe: "Documento limpo para entregáveis, revisões, arquivos e direitos.",
     coresEstaticas: true,
   },
   {
     value: "ExecutivoEditorial",
-    label: "Consultoria e diagnóstico",
-    detalhe: "Diagnóstico, sessões, entregáveis, plano de ação e próximos passos.",
+    label: "Executivo editorial",
+    detalhe: "Leitura executiva com escopo, entregáveis, condições e próximos passos.",
     coresEstaticas: true,
   },
   {
     value: "CorporativoBoard",
-    label: "Agência growth board",
-    detalhe: "Pacotes completos de marketing com frentes, roadmap, KPIs e cadência.",
+    label: "Board comercial",
+    detalhe: "Resumo visual com frentes, roadmap, indicadores e cadência.",
     coresEstaticas: true,
   },
 ];
@@ -578,6 +580,7 @@ type SuporteFormInput = z.infer<typeof suporteSchema>;
 type ContatoPublicoFormInput = z.infer<typeof contatoPublicoSchema>;
 type PropostaPreviewInput = Partial<Omit<PropostaFormInput, "itens">> & {
   itens?: Array<Partial<PropostaFormInput["itens"][number]>>;
+  publicApprovalUrl?: string;
 };
 type TemaVisual = "light" | "dark";
 type FiltroStatusProposta = "Todas" | PropostaStatus;
@@ -3625,7 +3628,7 @@ export default function App() {
           propostaVisualizacaoExportDocumentoRef.current ??
           propostaVisualizacaoDocumentoRef.current,
       );
-      const blob = await gerarPdfPropostaBlob(nodeExportacao);
+      const blob = await gerarPdfPropostaBlob(nodeExportacao, proposta);
       baixarBlobArquivo(blob, `${buildNomeArquivoProposta(proposta)}.pdf`);
       setPropostaExportacaoMensagem("PDF gerado. Anexe este arquivo no WhatsApp Web.");
     });
@@ -3735,7 +3738,7 @@ export default function App() {
 
     if (formatoPreferido === "PdfImagem") {
       const [pdfBlob, pngBlob] = await Promise.all([
-        gerarPdfPropostaBlob(nodeExportacao),
+        gerarPdfPropostaBlob(nodeExportacao, proposta),
         gerarPngPropostaBlob(nodeExportacao),
       ]);
 
@@ -3753,7 +3756,7 @@ export default function App() {
       ];
     }
 
-    const blob = await gerarPdfPropostaBlob(nodeExportacao);
+    const blob = await gerarPdfPropostaBlob(nodeExportacao, proposta);
 
     return [
       {
@@ -3808,38 +3811,478 @@ export default function App() {
     return blob;
   }
 
+  function buildDocumentoDadosPropostaSalva(
+    proposta: PropostaResponse,
+  ): PropostaDocumentoDados {
+    const corPrimaria = normalizarHexPreview(
+      perfilConta?.corPrimaria ?? "#6E38FF",
+    );
+    const corSecundaria = normalizarHexPreview(
+      perfilConta?.corSecundaria ?? "#13C7BD",
+    );
+    const templateVisual = normalizarTemplateVisual(proposta.templateVisual);
+    const nomeMarca = perfilConta?.nomeComercial?.trim() || conta?.nome || "Emprely";
+    const cliente = clientes.find((item) => item.id === proposta.clienteId);
+    const itens = proposta.itens ?? [];
+
+    return {
+      templateVisual,
+      templateLabel: getPropostaTemplateLabel(templateVisual),
+      nomeMarca,
+      logoUrl: resolveApiAssetUrl(perfilConta?.logoUrl) || null,
+      titulo: proposta.titulo?.trim() || "Proposta comercial",
+      introducao: proposta.introducao?.trim() || null,
+      observacoes: proposta.observacoes?.trim() || null,
+      clienteNome: cliente?.nome ?? proposta.clienteNome ?? "",
+      dataTexto: new Intl.DateTimeFormat("pt-BR").format(
+        new Date(proposta.updatedAt ?? proposta.createdAt),
+      ),
+      validadeTexto: formatValidadeProposta(proposta.validadeDias ?? undefined),
+      numeroTexto: formatNumeroProposta(proposta.numero),
+      tipoTexto: inferirTipoProposta(
+        {
+          titulo: proposta.titulo,
+          introducao: proposta.introducao ?? undefined,
+          observacoes: proposta.observacoes ?? undefined,
+          templateVisual,
+        },
+        itens.map((item) => ({
+          servicoId: item.servicoId ?? undefined,
+          nome: item.nome,
+          descricao: item.descricao ?? undefined,
+          quantidade: item.quantidade,
+          valorUnitario: item.valorUnitario,
+        })),
+      ),
+      contatoMarca: buildContatoMarca(perfilConta),
+      telefoneMarca: formatTelefoneOpcional(perfilConta?.telefoneContato),
+      emailMarca: perfilConta?.emailContato?.trim() ?? "",
+      instagramMarca: normalizarInstagramDocumento(perfilConta?.instagram),
+      siteMarca: perfilConta?.siteUrl?.trim() ?? "",
+      watermark: conta
+        ? getWatermarkDocumentoProposta(conta.plano, contaStatusComercial)
+        : "trial-expirado",
+      publicApprovalUrl: proposta.publicApprovalUrl ?? "",
+      itens: itens
+        .map((item) => ({
+          nome: item.nome?.trim() ?? "",
+          descricao: item.descricao?.trim() ?? "",
+          quantidade: valorSeguro(item.quantidade),
+          valorUnitario: valorSeguro(item.valorUnitario),
+          total: valorSeguro(item.total),
+        }))
+        .filter((item) => item.nome.length > 0),
+      beneficios: proposta.beneficios ?? [],
+      itensInclusos: proposta.itensInclusos ?? [],
+      itensNaoInclusos: proposta.itensNaoInclusos ?? [],
+      cronograma: proposta.cronograma ?? [],
+      condicoesPagamento: proposta.condicoesPagamento?.trim() || null,
+      subtotal: valorSeguro(proposta.subtotal),
+      desconto: valorSeguro(proposta.descontoValor),
+      total: valorSeguro(proposta.total),
+      corPrimaria,
+      corSecundaria,
+    };
+  }
+
   async function gerarPdfPropostaBlob(
     nodeReferencia: HTMLDivElement | null = propostaDocumentoRef.current,
+    proposta?: PropostaResponse,
   ): Promise<Blob> {
-    const pngBlob = await gerarPngPropostaBlob(nodeReferencia);
-    const pngDataUrl = await blobToDataUrl(pngBlob);
-    const tamanhoImagem = await carregarTamanhoImagem(pngDataUrl);
+    void nodeReferencia;
+
+    if (!proposta) {
+      throw new Error("Proposta nao informada para gerar PDF textual.");
+    }
+
+    const documento = buildDocumentoDadosPropostaSalva(proposta);
     const { jsPDF } = await import("jspdf");
     const pdf = new jsPDF({
       orientation: "portrait",
       unit: "pt",
       format: "a4",
     });
+
     const larguraPagina = pdf.internal.pageSize.getWidth();
     const alturaPagina = pdf.internal.pageSize.getHeight();
-    const margem = 24;
-    const larguraDisponivel = larguraPagina - margem * 2;
-    const alturaDisponivel = alturaPagina - margem * 2;
-    const escalaLargura = larguraDisponivel / tamanhoImagem.width;
-    const escalaAltura = alturaDisponivel / tamanhoImagem.height;
-    const escala = Math.min(escalaLargura, escalaAltura);
-    const larguraImagem = tamanhoImagem.width * escala;
-    const alturaImagem = tamanhoImagem.height * escala;
-    const posicaoX = (larguraPagina - larguraImagem) / 2;
+    const margem = 42;
+    const larguraConteudo = larguraPagina - margem * 2;
+    const corTexto = "#0F172A";
+    const corMuted = "#64748B";
+    const corBorda = "#D7E2F0";
+    const primary = documento.corPrimaria;
+    const secondary = documento.corSecundaria;
+    let y = margem;
 
-    pdf.addImage(
-      pngDataUrl,
-      "PNG",
-      posicaoX,
-      margem,
-      larguraImagem,
-      alturaImagem,
-    );
+    const setColor = (hex: string) => {
+      const rgb = hexToRgbDocumento(hex);
+      pdf.setTextColor(rgb.r, rgb.g, rgb.b);
+    };
+    const setFill = (hex: string) => {
+      const rgb = hexToRgbDocumento(hex);
+      pdf.setFillColor(rgb.r, rgb.g, rgb.b);
+    };
+    const setDraw = (hex: string) => {
+      const rgb = hexToRgbDocumento(hex);
+      pdf.setDrawColor(rgb.r, rgb.g, rgb.b);
+    };
+    const ensureSpace = (height: number) => {
+      if (y + height <= alturaPagina - margem) {
+        return;
+      }
+
+      pdf.addPage();
+      y = margem;
+    };
+    const text = (
+      value: string,
+      x: number,
+      currentY: number,
+      options: {
+        width?: number;
+        size?: number;
+        style?: "normal" | "bold";
+        color?: string;
+        lineHeight?: number;
+      } = {},
+    ) => {
+      const size = options.size ?? 10;
+      const lineHeight = options.lineHeight ?? size * 1.35;
+      pdf.setFont("helvetica", options.style ?? "normal");
+      pdf.setFontSize(size);
+      setColor(options.color ?? corTexto);
+      const lines = options.width
+        ? pdf.splitTextToSize(value, options.width)
+        : [value];
+      pdf.text(lines, x, currentY);
+      return currentY + lines.length * lineHeight;
+    };
+    const drawSectionTitle = (titulo: string) => {
+      ensureSpace(34);
+      setColor(primary);
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(11);
+      pdf.text(titulo.toUpperCase(), margem, y);
+      y += 14;
+      setDraw(corBorda);
+      pdf.line(margem, y, larguraPagina - margem, y);
+      y += 18;
+    };
+
+    setFill("#FFFFFF");
+    pdf.rect(0, 0, larguraPagina, alturaPagina, "F");
+    setFill(primary);
+    pdf.roundedRect(margem, y, 44, 44, 8, 8, "F");
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(15);
+    pdf.setTextColor(255, 255, 255);
+    pdf.text(getIniciaisMarca(documento.nomeMarca) || "E", margem + 22, y + 28, {
+      align: "center",
+    });
+    y = text(documento.nomeMarca, margem + 58, y + 18, {
+      size: 16,
+      style: "bold",
+      width: 190,
+    });
+    if (documento.siteMarca || documento.instagramMarca) {
+      y = text(documento.siteMarca || documento.instagramMarca, margem + 58, y + 4, {
+        size: 8,
+        color: secondary,
+        width: 190,
+      });
+    }
+
+    const titleX = margem + 280;
+    y = margem + 10;
+    text("Proposta comercial", titleX, y, {
+      size: 8,
+      style: "bold",
+      color: primary,
+      width: larguraPagina - titleX - margem,
+    });
+    y = text(documento.titulo, titleX, y + 20, {
+      size: getPdfTituloTamanho(documento.titulo),
+      style: "bold",
+      width: larguraPagina - titleX - margem,
+      lineHeight: 21,
+    });
+    if (documento.introducao) {
+      y = text(documento.introducao, titleX, y + 8, {
+        size: 9,
+        color: corMuted,
+        width: larguraPagina - titleX - margem,
+      });
+    }
+
+    y = Math.max(y + 20, margem + 96);
+    setDraw(corBorda);
+    pdf.line(margem, y, larguraPagina - margem, y);
+    y += 18;
+
+    const meta = getPdfMetadados(documento);
+    const metaWidth = larguraConteudo / meta.length;
+    meta.forEach((item, index) => {
+      const x = margem + index * metaWidth;
+      setFill("#F8FAFC");
+      setDraw(corBorda);
+      pdf.roundedRect(x, y, metaWidth - 8, 44, 6, 6, "FD");
+      text(item.label, x + 10, y + 16, { size: 7, color: corMuted, style: "bold" });
+      text(item.value, x + 10, y + 31, {
+        size: 9,
+        style: "bold",
+        width: metaWidth - 28,
+      });
+    });
+    y += 66;
+
+    if (documento.beneficios.length) {
+      drawSectionTitle("Objetivos e beneficios");
+      const beneficios = documento.beneficios.slice(0, 4);
+      const cardHeight = beneficios.length <= 2 ? 50 : 64;
+      beneficios.forEach((beneficio, index) => {
+        ensureSpace(cardHeight + 10);
+        const beneficioDocumento = parseBeneficioDocumento(beneficio);
+        const x = margem + (index % 2) * (larguraConteudo / 2);
+        const cardY = y + Math.floor(index / 2) * (cardHeight + 10);
+        setFill("#F8FAFC");
+        setDraw(corBorda);
+        pdf.roundedRect(x, cardY, larguraConteudo / 2 - 8, cardHeight, 7, 7, "FD");
+        text(beneficioDocumento.titulo, x + 12, cardY + 18, {
+          size: 10,
+          style: "bold",
+          width: larguraConteudo / 2 - 32,
+        });
+        if (beneficioDocumento.descricao) {
+          text(beneficioDocumento.descricao, x + 12, cardY + 34, {
+            size: 8,
+            color: corMuted,
+            width: larguraConteudo / 2 - 32,
+          });
+        }
+      });
+      y += Math.ceil(beneficios.length / 2) * (cardHeight + 10) + 8;
+    }
+
+    drawSectionTitle("Escopo e entregaveis");
+    const tableX = margem;
+    const colNome = larguraConteudo * 0.42;
+    const colQtd = larguraConteudo * 0.13;
+    const colValor = larguraConteudo * 0.2;
+    const colTotal = larguraConteudo - colNome - colQtd - colValor;
+    setFill(primary);
+    pdf.roundedRect(tableX, y, larguraConteudo, 30, 6, 6, "F");
+    text("Servico", tableX + 10, y + 19, { size: 8, style: "bold", color: "#FFFFFF" });
+    text("Qtd.", tableX + colNome + 10, y + 19, { size: 8, style: "bold", color: "#FFFFFF" });
+    text("Valor", tableX + colNome + colQtd + 10, y + 19, {
+      size: 8,
+      style: "bold",
+      color: "#FFFFFF",
+    });
+    text("Total", tableX + colNome + colQtd + colValor + 10, y + 19, {
+      size: 8,
+      style: "bold",
+      color: "#FFFFFF",
+    });
+    y += 30;
+
+    documento.itens.forEach((item) => {
+      const descricaoLines = item.descricao
+        ? pdf.splitTextToSize(item.descricao, colNome - 22)
+        : [];
+      const nomeLines = pdf.splitTextToSize(item.nome, colNome - 22);
+      const rowHeight = Math.max(42, 18 + (nomeLines.length + descricaoLines.length) * 11);
+      ensureSpace(rowHeight + 8);
+      setFill("#FFFFFF");
+      setDraw(corBorda);
+      pdf.rect(tableX, y, larguraConteudo, rowHeight, "S");
+      text(item.nome, tableX + 10, y + 17, {
+        size: 9,
+        style: "bold",
+        width: colNome - 22,
+      });
+      if (item.descricao) {
+        text(item.descricao, tableX + 10, y + 31, {
+          size: 8,
+          color: corMuted,
+          width: colNome - 22,
+        });
+      }
+      text(formatQuantidade(item.quantidade), tableX + colNome + 10, y + 22, {
+        size: 9,
+        width: colQtd - 18,
+      });
+      text(formatMoney(item.valorUnitario), tableX + colNome + colQtd + 10, y + 22, {
+        size: 9,
+        width: colValor - 18,
+      });
+      text(formatMoney(item.total), tableX + colNome + colQtd + colValor + 10, y + 22, {
+        size: 9,
+        style: "bold",
+        width: colTotal - 18,
+      });
+      y += rowHeight;
+    });
+
+    y += 18;
+    ensureSpace(92);
+    const totalX = larguraPagina - margem - 220;
+    setFill("#F8FAFC");
+    setDraw(corBorda);
+    pdf.roundedRect(totalX, y, 220, 84, 8, 8, "FD");
+    text("Subtotal", totalX + 16, y + 22, { size: 9, color: corMuted });
+    text(formatMoney(documento.subtotal), totalX + 204, y + 22, {
+      size: 9,
+      style: "bold",
+      width: 100,
+    });
+    if (documento.desconto > 0) {
+      text("Desconto", totalX + 16, y + 42, { size: 9, color: corMuted });
+      text(formatMoney(documento.desconto), totalX + 204, y + 42, {
+        size: 9,
+        style: "bold",
+        width: 100,
+      });
+    }
+    text("Total final", totalX + 16, y + 66, { size: 10, style: "bold" });
+    text(formatMoney(documento.total), totalX + 204, y + 66, {
+      size: 14,
+      style: "bold",
+      color: primary,
+      width: 120,
+    });
+    y += 106;
+
+    if (documento.itensInclusos.length || documento.itensNaoInclusos.length) {
+      drawSectionTitle("Inclusos e limites");
+      const listaWidth = larguraConteudo / 2 - 8;
+      y = renderPdfLista("O que esta incluso", documento.itensInclusos, margem, y, listaWidth);
+      const yRight = renderPdfLista(
+        "O que nao esta incluso",
+        documento.itensNaoInclusos,
+        margem + listaWidth + 16,
+        y - calcularAlturaListaPdf(documento.itensInclusos),
+        listaWidth,
+      );
+      y = Math.max(y, yRight) + 10;
+    }
+
+    if (documento.cronograma.length) {
+      drawSectionTitle("Cronograma");
+      documento.cronograma.forEach((item, index) => {
+        ensureSpace(28);
+        setFill(index === 0 ? primary : "#EAF0F8");
+        pdf.circle(margem + 7, y - 4, 7, "F");
+        text(item, margem + 24, y, {
+          size: 9,
+          width: larguraConteudo - 30,
+        });
+        y += 24;
+      });
+    }
+
+    if (documento.condicoesPagamento || documento.observacoes) {
+      drawSectionTitle("Condicoes e observacoes");
+      y = text(
+        [documento.condicoesPagamento, documento.observacoes].filter(Boolean).join("\n"),
+        margem,
+        y,
+        {
+          size: 9,
+          color: corMuted,
+          width: larguraConteudo,
+        },
+      ) + 10;
+    }
+
+    ensureSpace(72);
+    setDraw(corBorda);
+    pdf.line(margem, y, larguraPagina - margem, y);
+    y += 22;
+    text(documento.nomeMarca, margem, y, { size: 10, style: "bold" });
+    const contatos = [
+      documento.telefoneMarca,
+      documento.emailMarca,
+      documento.instagramMarca || documento.siteMarca,
+    ].filter(Boolean);
+    if (contatos.length) {
+      text(contatos.join("  |  "), margem, y + 16, {
+        size: 8,
+        color: corMuted,
+        width: larguraConteudo - 190,
+      });
+    }
+    setFill(primary);
+    pdf.roundedRect(larguraPagina - margem - 132, y - 14, 132, 36, 7, 7, "F");
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(11);
+    pdf.setTextColor(255, 255, 255);
+    if (documento.publicApprovalUrl) {
+      pdf.textWithLink("Aprovar", larguraPagina - margem - 66, y + 8, {
+        align: "center",
+        url: documento.publicApprovalUrl,
+      });
+    } else {
+      pdf.text("Aprovar", larguraPagina - margem - 66, y + 8, { align: "center" });
+    }
+
+    if (documento.watermark !== "nenhuma") {
+      const marcaUrl = "/brand/emprely-logo-dark.png";
+      const marcaDataUrl = await carregarImagemComoDataUrl(marcaUrl).catch(() => null);
+      const paginas = pdf.getNumberOfPages();
+      for (let page = 1; page <= paginas; page += 1) {
+        pdf.setPage(page);
+        if (marcaDataUrl) {
+          pdf.addImage(marcaDataUrl, "PNG", larguraPagina - 170, alturaPagina - 94, 118, 28);
+        } else {
+          setColor("#94A3B8");
+          pdf.setFont("helvetica", "bold");
+          pdf.setFontSize(14);
+          pdf.text("Emprely", larguraPagina - 120, alturaPagina - 66);
+        }
+      }
+    }
+
+    function renderPdfLista(
+      titulo: string,
+      itens: string[],
+      x: number,
+      startY: number,
+      width: number,
+    ) {
+      if (!itens.length) {
+        return startY;
+      }
+
+      let localY = startY;
+      text(titulo, x, localY, { size: 10, style: "bold", color: primary, width });
+      localY += 16;
+      itens.forEach((item) => {
+        const linhas = pdf.splitTextToSize(item, width - 16);
+        const altura = Math.max(18, linhas.length * 11 + 6);
+        ensureSpace(altura);
+        setFill("#F8FAFC");
+        setDraw(corBorda);
+        pdf.roundedRect(x, localY - 10, width, altura, 5, 5, "FD");
+        text(`- ${item}`, x + 8, localY + 3, {
+          size: 8,
+          color: corTexto,
+          width: width - 16,
+        });
+        localY += altura + 6;
+      });
+      return localY;
+    }
+
+    function calcularAlturaListaPdf(itens: string[]) {
+      if (!itens.length) {
+        return 0;
+      }
+
+      return 16 + itens.reduce((totalAltura, item) => {
+        const linhas = pdf.splitTextToSize(item, larguraConteudo / 2 - 24);
+        return totalAltura + Math.max(18, linhas.length * 11 + 6) + 6;
+      }, 0);
+    }
 
     return pdf.output("blob");
   }
@@ -4266,6 +4709,8 @@ export default function App() {
     aceitarPropostaMutation.isPending ||
     recusarPropostaMutation.isPending;
   const exibindoSuportePublico = isSuportePublicoPath();
+  const aprovacaoPropostaToken = getAprovacaoPropostaTokenPath();
+  const exibindoAprovacaoPropostaPublica = Boolean(aprovacaoPropostaToken);
   const tituloTelaMobile = getAppViewLabel(appView);
 
   return (
@@ -4340,7 +4785,7 @@ export default function App() {
             <button
               type="button"
               onClick={() => {
-                if (exibindoSuportePublico) {
+                if (exibindoSuportePublico || exibindoAprovacaoPropostaPublica) {
                   window.history.pushState(null, "", "/");
                 }
 
@@ -4577,7 +5022,7 @@ export default function App() {
                 })}
                 <button
                   type="button"
-                  aria-label="Abrir mais opções"
+                  aria-label="Abrir mais opcoes"
                   onClick={() => {
                     if (document.activeElement instanceof HTMLElement) {
                       document.activeElement.blur();
@@ -8287,6 +8732,8 @@ export default function App() {
                   />
                 ) : null}
               </>
+            ) : exibindoAprovacaoPropostaPublica && aprovacaoPropostaToken ? (
+              <AprovacaoPropostaPublicaContent token={aprovacaoPropostaToken} />
             ) : exibindoSuportePublico ? (
               <ContatoPublicoContent
                 contatoPublicoForm={contatoPublicoForm}
@@ -11521,6 +11968,7 @@ type PropostaDocumentoDados = {
   instagramMarca: string;
   siteMarca: string;
   watermark: "nenhuma" | "trial-ativo" | "trial-expirado";
+  publicApprovalUrl: string;
   itens: PropostaDocumentoItem[];
   beneficios: string[];
   itensInclusos: string[];
@@ -11601,6 +12049,7 @@ const PreviewPropostaVisual = forwardRef<HTMLDivElement, PreviewPropostaVisualPr
     instagramMarca: normalizarInstagramDocumento(perfilConta?.instagram),
     siteMarca: perfilConta?.siteUrl?.trim() ?? "",
     watermark,
+    publicApprovalUrl: proposta.publicApprovalUrl ?? "",
     itens: itens
       .map((item) => ({
         nome: item.nome?.trim() ?? "",
@@ -11665,7 +12114,8 @@ const TemplateDocumentoProposta = forwardRef<
   >
     {documento.watermark !== "nenhuma" ? (
       <div className={`doc-trial-watermark is-${documento.watermark}`}>
-        Emprely Trial
+        <img src="/brand/emprely-logo-dark.png" alt="" aria-hidden="true" />
+        <span>Emprely</span>
       </div>
     ) : null}
     {renderTemplateDocumento(documento)}
@@ -11817,7 +12267,6 @@ function TemplateComercialMinimalista({ d }: TemplateDocumentoBaseProps) {
       <header className="doc-minimal-header">
         <DocumentoMarca d={d} />
         <div className="doc-minimal-title">
-          <span className="doc-kicker">Orçamento rápido WhatsApp</span>
           <DocumentoTitulo titulo={d.titulo} className="doc-minimal-title-main" />
           <span className="doc-title-rule" />
         </div>
@@ -11832,7 +12281,7 @@ function TemplateComercialMinimalista({ d }: TemplateDocumentoBaseProps) {
       </section>
 
       <DocumentoCondicoes d={d} compact />
-      <DocumentoFooter d={d} cta="Aprovar e seguir" minimal />
+      <DocumentoFooter d={d} cta="Aprovar" minimal />
     </div>
   );
 }
@@ -11852,9 +12301,9 @@ function TemplateOrcamentoSimplificado({ d }: TemplateDocumentoBaseProps) {
       <section className="doc-simple-title">
         <span />
         <div>
-          <small>Mídia kit e rate card</small>
+          <small>Resumo comercial</small>
           <DocumentoTitulo titulo={d.titulo} className="doc-simple-title-main" />
-          <p>Audiência, formatos, bundles e condições comerciais para parceria com creator.</p>
+          <p>Escopo, entregas, condições e próximos passos para aprovar com clareza.</p>
         </div>
       </section>
 
@@ -11886,10 +12335,7 @@ function TemplateOrcamentoSimplificado({ d }: TemplateDocumentoBaseProps) {
 
       <section className="doc-simple-actions">
         <DocumentoCondicoes d={d} icon />
-        <div className="doc-cta doc-cta-simple">
-          <CheckCircle2 size={30} />
-          <strong>Confirmar parceria</strong>
-        </div>
+        <DocumentoCta d={d} className="doc-cta doc-cta-simple" />
       </section>
 
       <DocumentoFooter d={d} contactOnly />
@@ -11917,7 +12363,6 @@ function TemplatePropostaCompleta({ d }: TemplateDocumentoBaseProps) {
       <header className="doc-complete-header">
         <DocumentoMarca d={d} />
         <div className="doc-complete-heading">
-          <span>Proposta comercial completa</span>
           <DocumentoTitulo titulo={d.titulo} className="doc-complete-title-main" />
           <small>Escopo, entregas, prazos, condições e próximos passos para aprovar com clareza.</small>
         </div>
@@ -11982,7 +12427,7 @@ function TemplatePropostaCompleta({ d }: TemplateDocumentoBaseProps) {
         </>
       ) : null}
 
-      <DocumentoFooter d={d} cta="Aprovar proposta" />
+      <DocumentoFooter d={d} cta="Aprovar" />
     </div>
   );
 }
@@ -12001,23 +12446,23 @@ function TemplateSocialDetalhado({
 }: TemplateDocumentoBaseProps & { luna?: boolean }) {
   const texto = luna
     ? {
-        kicker: "Social media mensal",
-        titulo: "Gestão de conteúdo recorrente",
-        escopo: "Calendário, entregas e rotina mensal",
-        beneficios: "O que melhora na operação",
+        kicker: "Plano recorrente",
+        titulo: "Entrega contínua e acompanhamento",
+        escopo: "Escopo, entregas e rotina",
+        beneficios: "Benefícios para o cliente",
         listas: "Aprovações e combinados",
-        cronograma: "Cadência mensal",
-        cta: "Aprovar plano mensal",
+        cronograma: "Cronograma e cadência",
+        cta: "Aprovar",
         tipo: "social" as const,
       }
     : {
-        kicker: "Tráfego pago e campanhas",
-        titulo: "Plano de mídia e performance",
-        escopo: "Setup, campanhas e otimização",
-        beneficios: "Indicadores de resultado",
+        kicker: "Plano estratégico",
+        titulo: "Execução, acompanhamento e resultado",
+        escopo: "Escopo, etapas e otimização",
+        beneficios: "Indicadores e ganhos esperados",
         listas: "Responsabilidades e limites",
-        cronograma: "Ciclo de campanha",
-        cta: "Aprovar gestão de tráfego",
+        cronograma: "Ciclo de execução",
+        cta: "Aprovar",
         tipo: "trafego" as const,
       };
 
@@ -12074,10 +12519,7 @@ function TemplateSocialDetalhado({
             <div className="doc-observation-card">
               <DocumentoSectionTitle icon={<Sparkles size={20} />} title="Observações finais" />
               <p>{d.observacoes || d.condicoesPagamento}</p>
-              <div className="doc-cta">
-                <CheckCircle2 size={24} />
-                <strong>{texto.cta}</strong>
-              </div>
+              <DocumentoCta d={d} />
               <DocumentoContatoInline d={d} />
             </div>
           ) : null}
@@ -12096,7 +12538,7 @@ function TemplateInstagramPremium({ d }: TemplateDocumentoBaseProps) {
       <header className="doc-instagram-header">
         <div>
           <DocumentoMarca d={d} large />
-          <span className="doc-kicker">Reels, vídeos curtos e UGC</span>
+          <span className="doc-kicker">Pacote premium</span>
           <DocumentoTitulo titulo={d.titulo} className="doc-instagram-title-main" />
           {d.introducao ? <p>{d.introducao}</p> : null}
         </div>
@@ -12108,10 +12550,10 @@ function TemplateInstagramPremium({ d }: TemplateDocumentoBaseProps) {
           <div className="doc-round-icon doc-round-icon-purple">
             <InstagramGlyph size={28} />
           </div>
-          <div>
-            <h2>Objetivo da campanha</h2>
-            <p>{textoResumo}</p>
-          </div>
+        <div>
+          <h2>Objetivo da proposta</h2>
+          <p>{textoResumo}</p>
+        </div>
         </section>
       ) : null}
 
@@ -12119,11 +12561,11 @@ function TemplateInstagramPremium({ d }: TemplateDocumentoBaseProps) {
 
       <section className="doc-instagram-grid">
         <div>
-          <DocumentoSectionTitle title="Vídeos e entregáveis" />
+          <DocumentoSectionTitle title="Escopo e entregáveis" />
           <DocumentoTabelaServicos d={d} compact detailed icons />
         </div>
         <div className="doc-stack">
-          <DocumentoLista titulo="Direitos de uso e condições" itens={getInclusosDocumento(d)} positive />
+          <DocumentoLista titulo="Condições e combinados" itens={getInclusosDocumento(d)} positive />
           <DocumentoLista titulo="Fora do pacote" itens={d.itensNaoInclusos} />
         </div>
       </section>
@@ -12140,7 +12582,7 @@ function TemplateInstagramPremium({ d }: TemplateDocumentoBaseProps) {
         </div>
       ) : null}
 
-      <DocumentoFooter d={d} cta="Aprovar produção" premium />
+      <DocumentoFooter d={d} cta="Aprovar" premium />
     </div>
   );
 }
@@ -12197,7 +12639,7 @@ function TemplateClaymorphism({ d }: TemplateDocumentoBaseProps) {
         </div>
       ) : null}
 
-      <DocumentoFooter d={d} cta="Aprovar proposta" />
+      <DocumentoFooter d={d} cta="Aprovar" />
     </div>
   );
 }
@@ -12259,7 +12701,7 @@ function TemplateEmprely({ d }: TemplateDocumentoBaseProps) {
         </div>
       ) : null}
 
-      <DocumentoFooter d={d} cta="Aprovar proposta" premium />
+      <DocumentoFooter d={d} cta="Aprovar" premium />
     </div>
   );
 }
@@ -12271,16 +12713,12 @@ function TemplateExecutivoEditorial({ d }: TemplateDocumentoBaseProps) {
     <div className="doc-page doc-executive-page">
       <header className="doc-executive-header">
         <DocumentoMarca d={d} />
-        <div className="doc-executive-seal">
-          <BriefcaseBusiness size={18} />
-          <span>Consultoria e diagnóstico</span>
-        </div>
       </header>
 
       <section className="doc-executive-cover">
         <div className="doc-executive-rule" />
         <div>
-          <span className="doc-kicker">Diagnóstico, plano e acompanhamento</span>
+          <span className="doc-kicker">Plano, escopo e acompanhamento</span>
           <DocumentoTitulo titulo={d.titulo} className="doc-executive-title-main" />
           {d.introducao ? <p>{d.introducao}</p> : null}
         </div>
@@ -12297,7 +12735,7 @@ function TemplateExecutivoEditorial({ d }: TemplateDocumentoBaseProps) {
             </>
           ) : null}
 
-          <DocumentoSectionTitle icon={<PackageCheck size={20} />} title="Sessões e entregáveis" />
+          <DocumentoSectionTitle icon={<PackageCheck size={20} />} title="Escopo e entregáveis" />
           <DocumentoTabelaServicos d={d} compact totalColumn />
         </main>
 
@@ -12309,8 +12747,8 @@ function TemplateExecutivoEditorial({ d }: TemplateDocumentoBaseProps) {
 
       {inclusos.length || d.itensNaoInclusos.length ? (
         <section className="doc-executive-lists">
-          <DocumentoLista titulo="Incluído na consultoria" itens={inclusos} positive />
-          <DocumentoLista titulo="Fora do diagnóstico" itens={d.itensNaoInclusos} />
+          <DocumentoLista titulo="Incluído na proposta" itens={inclusos} positive />
+          <DocumentoLista titulo="Fora do escopo" itens={d.itensNaoInclusos} />
         </section>
       ) : null}
 
@@ -12321,7 +12759,7 @@ function TemplateExecutivoEditorial({ d }: TemplateDocumentoBaseProps) {
         </div>
       ) : null}
 
-      <DocumentoFooter d={d} cta="Aprovar diagnóstico" minimal />
+      <DocumentoFooter d={d} cta="Aprovar" minimal />
     </div>
   );
 }
@@ -12334,7 +12772,7 @@ function TemplateCorporativoBoard({ d }: TemplateDocumentoBaseProps) {
       <header className="doc-board-hero">
         <div>
           <DocumentoMarca d={d} dark large />
-          <span className="doc-board-label">Agência growth board</span>
+          <span className="doc-board-label">Board comercial</span>
           <DocumentoTitulo titulo={d.titulo} className="doc-board-title-main" />
           {d.introducao ? <p>{d.introducao}</p> : null}
         </div>
@@ -12348,12 +12786,12 @@ function TemplateCorporativoBoard({ d }: TemplateDocumentoBaseProps) {
 
       <section className="doc-board-content">
         <main>
-          <DocumentoSectionTitle icon={<ShieldCheck size={20} />} title="Frentes contratadas" />
+          <DocumentoSectionTitle icon={<ShieldCheck size={20} />} title="Frentes da proposta" />
           <DocumentoTabelaServicos d={d} compact detailed />
 
           {d.beneficios.length ? (
             <>
-              <DocumentoSectionTitle icon={<Target size={20} />} title="Metas e indicadores" />
+              <DocumentoSectionTitle icon={<Target size={20} />} title="Objetivos e indicadores" />
               <DocumentoBeneficios d={d} />
             </>
           ) : null}
@@ -12362,14 +12800,14 @@ function TemplateCorporativoBoard({ d }: TemplateDocumentoBaseProps) {
         {inclusos.length || d.itensNaoInclusos.length ? (
           <aside>
             <DocumentoLista titulo="Entregas inclusas" itens={inclusos} positive />
-            <DocumentoLista titulo="Fora da cadência" itens={d.itensNaoInclusos} />
+            <DocumentoLista titulo="Fora do escopo" itens={d.itensNaoInclusos} />
           </aside>
         ) : null}
       </section>
 
       {d.cronograma.length ? (
         <section className="doc-board-timeline">
-          <DocumentoSectionTitle icon={<Clock3 size={20} />} title="Roadmap e cadência" />
+          <DocumentoSectionTitle icon={<Clock3 size={20} />} title="Roadmap e próximos passos" />
           <DocumentoTimeline d={d} horizontal />
         </section>
       ) : null}
@@ -12381,7 +12819,7 @@ function TemplateCorporativoBoard({ d }: TemplateDocumentoBaseProps) {
         </div>
       ) : null}
 
-      <DocumentoFooter d={d} cta="Aprovar growth board" premium />
+      <DocumentoFooter d={d} cta="Aprovar" premium />
     </div>
   );
 }
@@ -12393,11 +12831,10 @@ function TemplateInstitucionalClean({ d }: TemplateDocumentoBaseProps) {
     <div className="doc-page doc-institutional-page">
       <header className="doc-institutional-header">
         <DocumentoMarca d={d} />
-        <span>Design e identidade visual</span>
       </header>
 
       <section className="doc-institutional-title">
-        <span className="doc-kicker">Marca, aplicações e arquivos finais</span>
+        <span className="doc-kicker">Escopo e entregas finais</span>
         <DocumentoTitulo titulo={d.titulo} className="doc-institutional-title-main" />
         {d.introducao ? <p>{d.introducao}</p> : null}
       </section>
@@ -12408,7 +12845,7 @@ function TemplateInstitucionalClean({ d }: TemplateDocumentoBaseProps) {
         <main>
           {d.beneficios.length ? (
             <>
-              <DocumentoSectionTitle icon={<Target size={20} />} title="Direção criativa e objetivos" />
+              <DocumentoSectionTitle icon={<Target size={20} />} title="Objetivos e benefícios" />
               <DocumentoBeneficios d={d} mode="wide" />
             </>
           ) : null}
@@ -12425,8 +12862,8 @@ function TemplateInstitucionalClean({ d }: TemplateDocumentoBaseProps) {
 
       {inclusos.length || d.itensNaoInclusos.length ? (
         <section className="doc-institutional-lists">
-          <DocumentoLista titulo="Arquivos e aplicações inclusas" itens={inclusos} positive />
-          <DocumentoLista titulo="Fora do escopo criativo" itens={d.itensNaoInclusos} />
+          <DocumentoLista titulo="Itens inclusos" itens={inclusos} positive />
+          <DocumentoLista titulo="Fora do escopo" itens={d.itensNaoInclusos} />
         </section>
       ) : null}
 
@@ -12444,7 +12881,7 @@ function TemplateInstitucionalClean({ d }: TemplateDocumentoBaseProps) {
         </div>
       ) : null}
 
-      <DocumentoFooter d={d} cta="Aprovar identidade" minimal />
+      <DocumentoFooter d={d} cta="Aprovar" minimal />
     </div>
   );
 }
@@ -13096,12 +13533,38 @@ function DocumentoFooter({
       {!contactOnly ? <strong>{d.nomeMarca}</strong> : null}
       <DocumentoContatoInline d={d} />
       {cta ? (
-        <div className="doc-footer-cta">
-          <CheckCircle2 size={22} />
-          <span>{cta}</span>
-        </div>
+        <DocumentoCta d={d} className="doc-footer-cta" />
       ) : null}
     </footer>
+  );
+}
+
+function DocumentoCta({
+  d,
+  className = "doc-cta",
+}: TemplateDocumentoBaseProps & {
+  className?: string;
+}) {
+  const content = (
+    <>
+      <CheckCircle2 size={22} />
+      <span>Aprovar</span>
+    </>
+  );
+
+  if (!d.publicApprovalUrl) {
+    return <span className={className}>{content}</span>;
+  }
+
+  return (
+    <a
+      className={className}
+      href={d.publicApprovalUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      {content}
+    </a>
   );
 }
 
@@ -13953,6 +14416,68 @@ function buildMetricasDashboard({
   ];
 }
 
+function AprovacaoPropostaPublicaContent({ token }: { token: string }) {
+  const aprovacaoMutation = useMutation<
+    PublicProposalApprovalResponse,
+    Error,
+    string
+  >({
+    mutationFn: approvePropostaPublica,
+  });
+  const { mutate: aprovarPropostaPublica } = aprovacaoMutation;
+
+  useEffect(() => {
+    aprovarPropostaPublica(token);
+  }, [aprovarPropostaPublica, token]);
+
+  const resposta = aprovacaoMutation.data;
+  const sucesso = resposta?.status === "Aceita";
+
+  return (
+    <section className="public-approval-page">
+      <div className="public-approval-card rounded-md border border-border bg-surface p-6 shadow-sm">
+        <span className={`public-approval-icon ${sucesso ? "is-success" : ""}`}>
+          {aprovacaoMutation.isPending ? (
+            <RefreshCw size={28} aria-hidden="true" />
+          ) : sucesso ? (
+            <CheckCircle2 size={30} aria-hidden="true" />
+          ) : (
+            <AlertTriangle size={30} aria-hidden="true" />
+          )}
+        </span>
+        <p className="text-sm font-semibold text-primary">Aprovação da proposta</p>
+        <h1 className="font-heading text-3xl font-bold leading-tight">
+          {aprovacaoMutation.isPending
+            ? "Confirmando aceite..."
+            : sucesso
+              ? "Proposta aprovada"
+              : "Não foi possível aprovar"}
+        </h1>
+        <p className="text-base text-muted">
+          {aprovacaoMutation.isPending
+            ? "Estamos registrando sua aprovação com segurança."
+            : resposta?.message ??
+              aprovacaoMutation.error?.message ??
+              "O link pode estar inválido, expirado ou indisponível."}
+        </p>
+        {resposta?.proposalTitle ? (
+          <div className="public-approval-summary">
+            <span>Proposta</span>
+            <strong>{resposta.proposalTitle}</strong>
+            {resposta.clientName ? <small>Cliente: {resposta.clientName}</small> : null}
+          </div>
+        ) : null}
+        <a
+          href="/"
+          className="inline-flex h-11 items-center justify-center rounded-md bg-primary px-5 text-sm font-semibold text-white shadow-sm"
+        >
+          Ir para o Emprely
+        </a>
+      </div>
+    </section>
+  );
+}
+
 function ContatoPublicoContent({
   contatoPublicoForm,
   contatoPublicoMutation,
@@ -14446,6 +14971,19 @@ function getTemaVisualInicial(): TemaVisual {
   const temaSalvo = window.localStorage.getItem(temaVisualStorageKey);
 
   return temaSalvo === "dark" ? "dark" : "light";
+}
+
+function getAprovacaoPropostaTokenPath(): string | null {
+  const partes = window.location.pathname
+    .split("/")
+    .map((parte) => parte.trim())
+    .filter(Boolean);
+
+  if (partes[0]?.toLowerCase() !== "aprovar-proposta" || !partes[1]) {
+    return null;
+  }
+
+  return decodeURIComponent(partes[1]);
 }
 
 function isSuportePublicoPath(): boolean {
@@ -15187,16 +15725,52 @@ function blobToDataUrl(blob: Blob): Promise<string> {
   });
 }
 
-function carregarTamanhoImagem(
-  src: string,
-): Promise<{ width: number; height: number }> {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    image.onload = () =>
-      resolve({ width: image.naturalWidth, height: image.naturalHeight });
-    image.onerror = reject;
-    image.src = src;
-  });
+async function carregarImagemComoDataUrl(src: string): Promise<string> {
+  const response = await fetch(src);
+  if (!response.ok) {
+    throw new Error("Imagem nao carregada.");
+  }
+
+  return blobToDataUrl(await response.blob());
+}
+
+function hexToRgbDocumento(hex: string): { r: number; g: number; b: number } {
+  const normalizado = normalizarHexPreview(hex).replace("#", "");
+  return {
+    r: Number.parseInt(normalizado.slice(0, 2), 16),
+    g: Number.parseInt(normalizado.slice(2, 4), 16),
+    b: Number.parseInt(normalizado.slice(4, 6), 16),
+  };
+}
+
+function getPdfTituloTamanho(titulo: string): number {
+  const tamanho = titulo.trim().length;
+
+  if (tamanho > 92) {
+    return 14;
+  }
+
+  if (tamanho > 64) {
+    return 16;
+  }
+
+  if (tamanho > 38) {
+    return 18;
+  }
+
+  return 20;
+}
+
+function getPdfMetadados(d: PropostaDocumentoDados): Array<{
+  label: string;
+  value: string;
+}> {
+  return [
+    { label: "Cliente", value: d.clienteNome },
+    { label: "Data", value: d.dataTexto },
+    { label: "Validade", value: d.validadeTexto },
+    { label: "Tipo", value: d.tipoTexto },
+  ].filter((item) => item.value.trim().length > 0);
 }
 
 function slugifyArquivo(valor: string): string {

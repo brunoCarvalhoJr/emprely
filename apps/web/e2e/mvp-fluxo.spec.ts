@@ -1,4 +1,5 @@
 import { expect, type Page, type Route, test } from "@playwright/test";
+import { readFile } from "node:fs/promises";
 
 type ClienteMock = {
   id: string;
@@ -55,6 +56,7 @@ type PropostaMock = {
   status: string;
   total: number;
   itens: PropostaItemMock[];
+  publicApprovalUrl: string;
   createdAt: string;
   updatedAt: string | null;
 };
@@ -203,6 +205,19 @@ test("fluxo principal do MVP no web", async ({ page }) => {
     page.getByRole("button", { name: /WhatsApp/ }).first(),
   ).toBeVisible();
   await expect(page.getByTestId("proposal-view-modal-dialog")).toBeVisible();
+  const downloadPdfPromise = page.waitForEvent("download");
+  await page.getByTestId("proposal-view-modal-pdf").click();
+  const downloadPdf = await downloadPdfPromise;
+  expect(downloadPdf.suggestedFilename()).toMatch(/\.pdf$/);
+  const caminhoPdf = await downloadPdf.path();
+  expect(caminhoPdf).not.toBeNull();
+  const conteudoPdf = await readFile(caminhoPdf!);
+  const textoPdfBruto = conteudoPdf.toString("latin1");
+  expect(textoPdfBruto).toContain("Proposta MVP E2E");
+  expect(textoPdfBruto).toContain("Aprovar");
+  expect(textoPdfBruto).toContain(
+    "/URI (https://app.emprely.test/aprovar-proposta/token-proposta-1)",
+  );
   await page.keyboard.press("Escape");
   await expect(page.getByTestId("proposal-view-modal-dialog")).toBeHidden();
 
@@ -582,6 +597,7 @@ async function configurarApiMockada(page: Page) {
           itens.reduce((total, item) => total + item.total, 0) -
           (input.descontoValor ?? 0),
         itens,
+        publicApprovalUrl: `https://app.emprely.test/aprovar-proposta/token-proposta-${propostas.length + 1}`,
         createdAt: agora,
         updatedAt: null,
       };

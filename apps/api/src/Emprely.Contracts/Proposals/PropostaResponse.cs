@@ -20,5 +20,6 @@ public sealed record PropostaResponse(
     IReadOnlyList<string> Beneficios,
     decimal Total,
     IReadOnlyList<PropostaItemResponse> Itens,
+    string PublicApprovalUrl,
     DateTimeOffset CreatedAt,
     DateTimeOffset? UpdatedAt);

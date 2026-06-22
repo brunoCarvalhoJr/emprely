@@ -1,14 +1,22 @@
 using Emprely.Application.Auth;
 using Emprely.Contracts.Proposals;
+using Emprely.Api.Auth;
+using Emprely.Api.Configuracoes;
 using Emprely.Domain.Clientes;
 using Emprely.Domain.Contas;
 using Emprely.Domain.Onboarding;
 using Emprely.Domain.Propostas;
 using Emprely.Domain.Servicos;
+using Emprely.Infrastructure.Comunicacoes;
 using Emprely.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.Options;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace Emprely.Api.Controllers;
 
@@ -22,11 +30,19 @@ public sealed class ProposalsController : ControllerBase
 
     private readonly ICurrentContaContext currentContaContext;
     private readonly EmprelyDbContext dbContext;
+    private readonly AppPublicOptions appPublicOptions;
+    private readonly JwtOptions jwtOptions;
 
-    public ProposalsController(ICurrentContaContext currentContaContext, EmprelyDbContext dbContext)
+    public ProposalsController(
+        ICurrentContaContext currentContaContext,
+        EmprelyDbContext dbContext,
+        IOptions<AppPublicOptions> appPublicOptions,
+        IOptions<JwtOptions> jwtOptions)
     {
         this.currentContaContext = currentContaContext;
         this.dbContext = dbContext;
+        this.appPublicOptions = appPublicOptions.Value;
+        this.jwtOptions = jwtOptions.Value;
     }
 
     [HttpGet]
@@ -34,7 +50,6 @@ public sealed class ProposalsController : ControllerBase
         CancellationToken cancellationToken)
     {
         var propostas = await dbContext.Propostas
-            .AsNoTracking()
             .Include(proposta => proposta.Cliente)
             .Include(proposta => proposta.Itens)
             .Where(proposta =>
@@ -42,6 +57,11 @@ public sealed class ProposalsController : ControllerBase
                 proposta.Status != StatusProposta.Arquivada)
             .OrderByDescending(proposta => proposta.CreatedAt)
             .ToListAsync(cancellationToken);
+
+        if (GarantirTokensAprovacaoPublica(propostas))
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
 
         return Ok(propostas.Select(BuildPropostaResponse).ToList());
     }
@@ -56,6 +76,11 @@ public sealed class ProposalsController : ControllerBase
         if (proposta is null || proposta.Status == StatusProposta.Arquivada)
         {
             return NotFound();
+        }
+
+        if (GarantirTokenAprovacaoPublica(proposta))
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
         }
 
         return Ok(BuildPropostaResponse(proposta));
@@ -104,6 +129,7 @@ public sealed class ProposalsController : ControllerBase
         }
 
         dbContext.Propostas.Add(proposta);
+        GarantirTokenAprovacaoPublica(proposta);
         await dbContext.SaveChangesAsync(cancellationToken);
 
         var propostaSalva = await FindPropostaConta(proposta.Id, cancellationToken)
@@ -210,6 +236,7 @@ public sealed class ProposalsController : ControllerBase
             await GetNextNumeroProposta(cancellationToken));
 
         dbContext.Propostas.Add(copia);
+        GarantirTokenAprovacaoPublica(copia);
         await dbContext.SaveChangesAsync(cancellationToken);
 
         var propostaSalva = await FindPropostaConta(copia.Id, cancellationToken)
@@ -248,6 +275,51 @@ public sealed class ProposalsController : ControllerBase
         CancellationToken cancellationToken)
     {
         return await AlterarStatusProposta(id, proposta => proposta.RecusarProposta(), cancellationToken);
+    }
+
+    [AllowAnonymous]
+    [EnableRateLimiting(RateLimitAplicacaoOptions.PublicProposalPolicyName)]
+    [HttpPost("public/{token}/approve")]
+    public async Task<ActionResult<PublicProposalApprovalResponse>> ApprovePropostaPublica(
+        string token,
+        CancellationToken cancellationToken)
+    {
+        if (!TryParsePublicApprovalToken(token, out var propostaId, out var tokenCriadoEm))
+        {
+            return NotFound(BuildPublicApprovalResponse(null, "Invalido", "Link de aprovacao invalido."));
+        }
+
+        var proposta = await dbContext.Propostas
+            .Include(item => item.Cliente)
+            .FirstOrDefaultAsync(item => item.Id == propostaId, cancellationToken);
+
+        if (proposta is null ||
+            proposta.PublicApprovalTokenCreatedAt is null ||
+            proposta.PublicApprovalTokenCreatedAt.Value.ToUnixTimeSeconds() != tokenCriadoEm.ToUnixTimeSeconds() ||
+            !string.Equals(proposta.PublicApprovalTokenHash, HashPublicApprovalToken(token), StringComparison.Ordinal))
+        {
+            return NotFound(BuildPublicApprovalResponse(null, "Invalido", "Link de aprovacao invalido."));
+        }
+
+        try
+        {
+            proposta.AceitarPropostaPublicamente(
+                HttpContext.Connection.RemoteIpAddress?.ToString(),
+                Request.Headers.UserAgent.ToString());
+        }
+        catch (InvalidOperationException exception)
+        {
+            return Conflict(BuildPublicApprovalResponse(proposta, "Bloqueado", exception.Message));
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return Ok(BuildPublicApprovalResponse(
+            proposta,
+            "Aceita",
+            proposta.PublicApprovalAcceptedAt is null
+                ? "Proposta ja estava aceita."
+                : "Proposta aprovada com sucesso."));
     }
 
     [HttpDelete("{id:guid}")]
@@ -359,6 +431,7 @@ public sealed class ProposalsController : ControllerBase
                 proposta.Id));
         }
 
+        GarantirTokenAprovacaoPublica(proposta);
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return Ok(BuildPropostaResponse(proposta));
@@ -436,7 +509,7 @@ public sealed class ProposalsController : ControllerBase
             item.ValorUnitario));
     }
 
-    private static PropostaResponse BuildPropostaResponse(Proposta proposta)
+    private PropostaResponse BuildPropostaResponse(Proposta proposta)
     {
         return new PropostaResponse(
             proposta.Id,
@@ -461,8 +534,112 @@ public sealed class ProposalsController : ControllerBase
                 .OrderBy(item => item.Ordem)
                 .Select(BuildPropostaItemResponse)
                 .ToList(),
+            BuildPublicApprovalUrl(proposta),
             proposta.CreatedAt,
             proposta.UpdatedAt);
+    }
+
+    private bool GarantirTokensAprovacaoPublica(IEnumerable<Proposta> propostas)
+    {
+        var alterou = false;
+        foreach (var proposta in propostas)
+        {
+            alterou |= GarantirTokenAprovacaoPublica(proposta);
+        }
+
+        return alterou;
+    }
+
+    private bool GarantirTokenAprovacaoPublica(Proposta proposta)
+    {
+        if (!string.IsNullOrWhiteSpace(proposta.PublicApprovalTokenHash) &&
+            proposta.PublicApprovalTokenCreatedAt is not null)
+        {
+            return false;
+        }
+
+        var criadoEm = DateTimeOffset.UtcNow;
+        var token = BuildPublicApprovalToken(proposta.Id, criadoEm);
+        proposta.DefinirTokenAprovacaoPublica(HashPublicApprovalToken(token), criadoEm);
+        return true;
+    }
+
+    private string BuildPublicApprovalUrl(Proposta proposta)
+    {
+        if (proposta.PublicApprovalTokenCreatedAt is null)
+        {
+            throw new InvalidOperationException("Token publico da proposta nao foi gerado.");
+        }
+
+        var token = BuildPublicApprovalToken(proposta.Id, proposta.PublicApprovalTokenCreatedAt.Value);
+        return BuildPublicWebUrl($"aprovar-proposta/{Uri.EscapeDataString(token)}");
+    }
+
+    private string BuildPublicApprovalToken(Guid propostaId, DateTimeOffset criadoEm)
+    {
+        var timestamp = criadoEm.ToUnixTimeSeconds();
+        var payload = $"{propostaId:N}.{timestamp}";
+        return $"{payload}.{AssinarPayloadAprovacaoPublica(payload)}";
+    }
+
+    private bool TryParsePublicApprovalToken(
+        string token,
+        out Guid propostaId,
+        out DateTimeOffset criadoEm)
+    {
+        propostaId = Guid.Empty;
+        criadoEm = DateTimeOffset.MinValue;
+
+        var tokenNormalizado = Uri.UnescapeDataString(token ?? string.Empty).Trim();
+        var partes = tokenNormalizado.Split('.');
+        if (partes.Length != 3 ||
+            !Guid.TryParseExact(partes[0], "N", out propostaId) ||
+            !long.TryParse(partes[1], out var timestamp))
+        {
+            return false;
+        }
+
+        var payload = $"{partes[0]}.{partes[1]}";
+        var assinaturaEsperada = AssinarPayloadAprovacaoPublica(payload);
+        if (!CryptographicOperations.FixedTimeEquals(
+                Encoding.UTF8.GetBytes(assinaturaEsperada),
+                Encoding.UTF8.GetBytes(partes[2])))
+        {
+            return false;
+        }
+
+        criadoEm = DateTimeOffset.FromUnixTimeSeconds(timestamp);
+        return true;
+    }
+
+    private string AssinarPayloadAprovacaoPublica(string payload)
+    {
+        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(jwtOptions.SigningKey));
+        return WebEncoders.Base64UrlEncode(hmac.ComputeHash(Encoding.UTF8.GetBytes(payload)));
+    }
+
+    private static string HashPublicApprovalToken(string token)
+    {
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
+    }
+
+    private string BuildPublicWebUrl(string pathAndQuery)
+    {
+        var baseUrl = appPublicOptions.PublicWebUrl.Trim().TrimEnd('/');
+        return $"{baseUrl}/{pathAndQuery.TrimStart('/')}";
+    }
+
+    private static PublicProposalApprovalResponse BuildPublicApprovalResponse(
+        Proposta? proposta,
+        string status,
+        string message)
+    {
+        return new PublicProposalApprovalResponse(
+            status,
+            message,
+            proposta?.Titulo,
+            proposta?.Cliente?.Nome,
+            proposta?.PublicApprovalAcceptedAt);
     }
 
     private static bool TryParseTemplateVisualProposta(

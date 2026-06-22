@@ -355,6 +355,49 @@ public sealed class PropostaTests
     }
 
     [Fact]
+    public void AceitarPropostaPublicamente_DeveAceitarPropostaGerada()
+    {
+        var proposta = CreatePropostaValida();
+        proposta.GerarProposta();
+
+        proposta.AceitarPropostaPublicamente("127.0.0.1", "Teste");
+
+        Assert.Equal(StatusProposta.Aceita, proposta.Status);
+        Assert.NotNull(proposta.PublicApprovalAcceptedAt);
+        Assert.Equal("127.0.0.1", proposta.PublicApprovalAcceptedIp);
+        Assert.Equal("Teste", proposta.PublicApprovalAcceptedUserAgent);
+    }
+
+    [Fact]
+    public void AceitarPropostaPublicamente_DeveSerIdempotenteQuandoJaAceita()
+    {
+        var proposta = CreatePropostaValida();
+        proposta.GerarProposta();
+        proposta.EnviarProposta();
+        proposta.AceitarPropostaPublicamente("127.0.0.1", "Teste");
+
+        proposta.AceitarPropostaPublicamente("127.0.0.2", "Outro");
+
+        Assert.Equal(StatusProposta.Aceita, proposta.Status);
+        Assert.Equal("127.0.0.1", proposta.PublicApprovalAcceptedIp);
+    }
+
+    [Fact]
+    public void AceitarPropostaPublicamente_DeveRejeitarPropostaRecusada()
+    {
+        var proposta = CreatePropostaValida();
+        proposta.GerarProposta();
+        proposta.EnviarProposta();
+        proposta.RecusarProposta();
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            proposta.AceitarPropostaPublicamente("127.0.0.1", "Teste"));
+
+        Assert.Equal("Proposta recusada nao pode ser aceita.", exception.Message);
+        Assert.Equal(StatusProposta.Recusada, proposta.Status);
+    }
+
+    [Fact]
     public void RecusarProposta_DeveMudarStatusParaRecusada()
     {
         var proposta = CreatePropostaValida();

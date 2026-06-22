@@ -8,6 +8,8 @@ public sealed class RateLimitAplicacaoOptions
 
     public const string PublicSupportPolicyName = "PublicSupport";
 
+    public const string PublicProposalPolicyName = "PublicProposal";
+
     public const string SectionName = "RateLimit";
 
     public int AuthPermitLimit { get; init; } = 120;
@@ -15,6 +17,8 @@ public sealed class RateLimitAplicacaoOptions
     public int AdminPermitLimit { get; init; } = 60;
 
     public int PublicSupportPermitLimit { get; init; } = 10;
+
+    public int PublicProposalPermitLimit { get; init; } = 30;
 
     public int WindowSeconds { get; init; } = 60;
 }

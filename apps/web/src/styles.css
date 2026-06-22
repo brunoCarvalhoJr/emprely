@@ -4362,6 +4362,54 @@ body.is-mobile-menu-open {
   background: transparent;
 }
 
+.public-approval-page {
+  display: grid;
+  min-height: calc(100vh - 4.5rem);
+  place-items: center;
+  padding: clamp(2rem, 6vw, 5rem) 1rem;
+}
+
+.public-approval-card {
+  display: grid;
+  width: min(100%, 560px);
+  gap: 1rem;
+}
+
+.public-approval-icon {
+  display: inline-grid;
+  width: 4rem;
+  height: 4rem;
+  place-items: center;
+  border-radius: 16px;
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.public-approval-icon.is-success {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.public-approval-summary {
+  display: grid;
+  gap: 0.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 1rem;
+}
+
+.public-approval-summary span,
+.public-approval-summary small {
+  color: var(--color-muted);
+  font-size: 0.82rem;
+}
+
+.public-approval-summary strong {
+  color: var(--color-foreground);
+  font-size: 1rem;
+}
+
 .auth-isolated-page {
   position: relative;
   display: flex;
@@ -9144,23 +9192,33 @@ button[class*="border-accent"]:not(:disabled):hover {
   padding: 0.34rem 0.7rem;
 }
 
+.doc-trial-watermark img {
+  display: inline-block;
+  width: 5.6rem;
+  height: auto;
+  vertical-align: middle;
+}
+
+.doc-trial-watermark span {
+  display: none;
+}
+
 .doc-trial-watermark.is-trial-expirado {
   top: 50%;
   left: 50%;
   right: auto;
-  width: max-content;
-  max-width: 115%;
+  width: min(72%, 520px);
+  max-width: 72%;
   transform: translate(-50%, -50%) rotate(-28deg);
   border: 0;
   border-radius: 0;
   background: transparent;
-  color: rgba(127, 29, 29, 0.16);
-  font-size: clamp(4rem, 12vw, 9rem);
-  font-weight: 900;
-  letter-spacing: 0.12em;
-  line-height: 1;
   padding: 0;
-  white-space: nowrap;
+  opacity: 0.12;
+}
+
+.doc-trial-watermark.is-trial-expirado img {
+  width: 100%;
 }
 
 .doc-brand {
@@ -9666,12 +9724,12 @@ button[class*="border-accent"]:not(:disabled):hover {
 
 .doc-benefit-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
   gap: 0.68rem;
 }
 
 .doc-benefit-grid-wide {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
 }
 
 .doc-benefit-grid-single {
@@ -9915,13 +9973,17 @@ button[class*="border-accent"]:not(:disabled):hover {
   margin-top: 0.58rem;
   color: #06173a;
   font-weight: 900;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  word-break: normal;
+  hyphens: auto;
 }
 
 .doc-benefit-card p {
   margin-top: 0.34rem;
   color: #182847;
   font-size: 0.82rem;
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 .doc-social-page .doc-benefit-grid {
@@ -10059,6 +10121,8 @@ button[class*="border-accent"]:not(:disabled):hover {
   color: #ffffff;
   font-weight: 900;
   padding: 0.85rem 1.55rem;
+  text-decoration: none;
+  white-space: nowrap;
 }
 
 .doc-default-header,
@@ -10150,6 +10214,14 @@ button[class*="border-accent"]:not(:disabled):hover {
 .doc-instagram-bottom {
   grid-template-columns: minmax(0, 1fr) minmax(0, 0.85fr);
   margin-top: 1.25rem;
+}
+
+.doc-simple-page .doc-simple-grid {
+  grid-template-columns: minmax(0, 1.48fr) minmax(220px, 0.62fr);
+}
+
+.doc-simple-page .doc-benefit-grid {
+  grid-template-columns: 1fr;
 }
 
 .doc-instagram-grid,
@@ -10584,6 +10656,7 @@ button[class*="border-accent"]:not(:disabled):hover {
   margin: 1.4rem 0;
   border-bottom: 1px solid rgba(128, 148, 178, 0.22);
   padding-bottom: 1rem;
+  overflow: visible;
 }
 
 .doc-instagram-resumo h2 {
@@ -10595,6 +10668,8 @@ button[class*="border-accent"]:not(:disabled):hover {
 .doc-instagram-resumo p {
   color: #182847;
   font-size: 0.9rem;
+  max-width: 100%;
+  overflow-wrap: break-word;
 }
 
 .doc-stack {
@@ -11000,13 +11075,13 @@ button[class*="border-accent"]:not(:disabled):hover {
 
 .doc-board-hero {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 280px;
-  gap: 1.2rem;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 2rem;
   align-items: stretch;
   border-radius: 14px;
   background: #111827;
   color: #ffffff;
-  padding: 1.65rem;
+  padding: 2rem;
 }
 
 .doc-board-hero .doc-brand strong,
@@ -11016,7 +11091,7 @@ button[class*="border-accent"]:not(:disabled):hover {
 }
 
 .doc-board-label {
-  margin-top: 1.8rem;
+  margin-top: 1.2rem;
   border-color: rgba(176, 141, 87, 0.42);
   color: #d8bd8c;
 }

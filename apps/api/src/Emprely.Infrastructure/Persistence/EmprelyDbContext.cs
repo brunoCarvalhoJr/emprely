@@ -282,10 +282,14 @@ public sealed class EmprelyDbContext
             entity.Property(proposta => proposta.ItensNaoInclusosTexto).HasMaxLength(4000);
             entity.Property(proposta => proposta.CronogramaTexto).HasMaxLength(4000);
             entity.Property(proposta => proposta.BeneficiosTexto).HasMaxLength(4000);
+            entity.Property(proposta => proposta.PublicApprovalTokenHash).HasMaxLength(128);
+            entity.Property(proposta => proposta.PublicApprovalAcceptedIp).HasMaxLength(80);
+            entity.Property(proposta => proposta.PublicApprovalAcceptedUserAgent).HasMaxLength(500);
             entity.Ignore(proposta => proposta.Subtotal);
             entity.Ignore(proposta => proposta.Total);
             entity.HasIndex(proposta => proposta.ContaId);
             entity.HasIndex(proposta => proposta.ClienteId);
+            entity.HasIndex(proposta => proposta.PublicApprovalTokenHash).IsUnique();
             entity.HasIndex(proposta => new { proposta.ContaId, proposta.Status });
             entity.HasIndex(proposta => new { proposta.ContaId, proposta.Numero }).IsUnique();
             entity.HasOne(proposta => proposta.Conta)

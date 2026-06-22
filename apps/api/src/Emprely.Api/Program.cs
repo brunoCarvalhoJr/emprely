@@ -72,6 +72,7 @@ var rateLimitWindow = TimeSpan.FromSeconds(Math.Max(1, rateLimitOptions.WindowSe
 var authPermitLimit = Math.Max(1, rateLimitOptions.AuthPermitLimit);
 var adminPermitLimit = Math.Max(1, rateLimitOptions.AdminPermitLimit);
 var publicSupportPermitLimit = Math.Max(1, rateLimitOptions.PublicSupportPermitLimit);
+var publicProposalPermitLimit = Math.Max(1, rateLimitOptions.PublicProposalPermitLimit);
 
 builder.Services
     .AddIdentity<UsuarioAplicacao, IdentityRole<Guid>>(options =>
@@ -211,6 +212,19 @@ builder.Services.AddRateLimiter(options =>
                 });
         }
 
+        if (context.Request.Path.StartsWithSegments("/api/proposals/public"))
+        {
+            return RateLimitPartition.GetFixedWindowLimiter(
+                GetRateLimitPartitionKey(context, RateLimitAplicacaoOptions.PublicProposalPolicyName),
+                _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = publicProposalPermitLimit,
+                    Window = rateLimitWindow,
+                    QueueLimit = 0,
+                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                });
+        }
+
         return RateLimitPartition.GetNoLimiter("sem-limite");
     });
     options.AddPolicy(RateLimitAplicacaoOptions.AuthPolicyName, context =>
@@ -239,6 +253,16 @@ builder.Services.AddRateLimiter(options =>
             _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = publicSupportPermitLimit,
+                Window = rateLimitWindow,
+                QueueLimit = 0,
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+            }));
+    options.AddPolicy(RateLimitAplicacaoOptions.PublicProposalPolicyName, context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            GetRateLimitPartitionKey(context, RateLimitAplicacaoOptions.PublicProposalPolicyName),
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = publicProposalPermitLimit,
                 Window = rateLimitWindow,
                 QueueLimit = 0,
                 QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
