@@ -4362,54 +4362,6 @@ body.is-mobile-menu-open {
   background: transparent;
 }
 
-.public-approval-page {
-  display: grid;
-  min-height: calc(100vh - 4.5rem);
-  place-items: center;
-  padding: clamp(2rem, 6vw, 5rem) 1rem;
-}
-
-.public-approval-card {
-  display: grid;
-  width: min(100%, 560px);
-  gap: 1rem;
-}
-
-.public-approval-icon {
-  display: inline-grid;
-  width: 4rem;
-  height: 4rem;
-  place-items: center;
-  border-radius: 16px;
-  background: #fff7ed;
-  color: #c2410c;
-}
-
-.public-approval-icon.is-success {
-  background: #ecfdf5;
-  color: #047857;
-}
-
-.public-approval-summary {
-  display: grid;
-  gap: 0.25rem;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: #f8fafc;
-  padding: 1rem;
-}
-
-.public-approval-summary span,
-.public-approval-summary small {
-  color: var(--color-muted);
-  font-size: 0.82rem;
-}
-
-.public-approval-summary strong {
-  color: var(--color-foreground);
-  font-size: 1rem;
-}
-
 .auth-isolated-page {
   position: relative;
   display: flex;
@@ -9151,10 +9103,12 @@ button[class*="border-accent"]:not(:disabled):hover {
 .proposal-template-document.template-document {
   position: relative;
   width: 920px;
+  height: 1302px;
   max-width: none;
   overflow: hidden;
-  border: 1px solid rgba(128, 148, 178, 0.24);
+  border: 0;
   border-radius: 8px;
+  background: #ffffff;
   font-family: Inter, Arial, sans-serif;
   line-height: 1.35;
 }
@@ -9166,37 +9120,36 @@ button[class*="border-accent"]:not(:disabled):hover {
 
 .doc-page {
   position: relative;
-  min-height: 1180px;
+  z-index: 1;
+  height: 100%;
+  min-height: 100%;
   overflow: hidden;
-  background: #ffffff;
+  background: transparent;
   color: #06173a;
   padding: 42px 46px;
 }
 
 .doc-trial-watermark {
   position: absolute;
-  z-index: 3;
-  top: 1rem;
-  right: 1rem;
-  width: auto;
+  z-index: 2;
+  top: 1.15rem;
+  left: auto;
+  right: 1.25rem;
+  width: 5.4rem;
   transform: none;
   pointer-events: none;
-  border: 1px solid rgba(245, 158, 11, 0.32);
-  border-radius: 999px;
-  background: rgba(245, 158, 11, 0.1);
-  color: #92400e;
-  font-size: 0.72rem;
-  font-weight: 800;
-  text-align: center;
-  text-transform: uppercase;
-  padding: 0.34rem 0.7rem;
+  display: block;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  opacity: 0.62;
 }
 
 .doc-trial-watermark img {
-  display: inline-block;
-  width: 5.6rem;
+  display: block;
+  width: 100%;
   height: auto;
-  vertical-align: middle;
+  filter: grayscale(0.08) contrast(1.04) brightness(0.98);
 }
 
 .doc-trial-watermark span {
@@ -9204,21 +9157,18 @@ button[class*="border-accent"]:not(:disabled):hover {
 }
 
 .doc-trial-watermark.is-trial-expirado {
+  width: min(72%, 560px);
+  max-width: 72%;
   top: 50%;
   left: 50%;
   right: auto;
-  width: min(72%, 520px);
-  max-width: 72%;
   transform: translate(-50%, -50%) rotate(-28deg);
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  padding: 0;
-  opacity: 0.12;
+  opacity: 0.13;
 }
 
-.doc-trial-watermark.is-trial-expirado img {
-  width: 100%;
+.template-document.is-exporting-image .doc-footer-cta,
+.template-document.is-exporting-image .doc-cta {
+  display: none !important;
 }
 
 .doc-brand {
@@ -9256,8 +9206,8 @@ button[class*="border-accent"]:not(:disabled):hover {
   z-index: 2;
   width: 100%;
   height: 100%;
-  background: #ffffff;
-  padding: 0.2rem;
+  background: transparent;
+  padding: 0;
 }
 
 .doc-brand-fallback {
@@ -9285,6 +9235,16 @@ button[class*="border-accent"]:not(:disabled):hover {
   font-size: 0.74rem;
   font-weight: 800;
   text-transform: uppercase;
+}
+
+.doc-brand-contact-link {
+  display: inline-block;
+  color: inherit;
+  text-decoration: none;
+}
+
+.doc-brand-contact-link:hover {
+  color: var(--proposal-primary);
 }
 
 .doc-brand-large strong {
@@ -9724,12 +9684,12 @@ button[class*="border-accent"]:not(:disabled):hover {
 
 .doc-benefit-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.68rem;
 }
 
 .doc-benefit-grid-wide {
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .doc-benefit-grid-single {
@@ -9973,17 +9933,13 @@ button[class*="border-accent"]:not(:disabled):hover {
   margin-top: 0.58rem;
   color: #06173a;
   font-weight: 900;
-  overflow-wrap: break-word;
-  word-break: normal;
-  hyphens: auto;
+  overflow-wrap: anywhere;
 }
 
 .doc-benefit-card p {
   margin-top: 0.34rem;
   color: #182847;
   font-size: 0.82rem;
-  overflow-wrap: break-word;
-  word-break: normal;
 }
 
 .doc-social-page .doc-benefit-grid {
@@ -10097,7 +10053,23 @@ button[class*="border-accent"]:not(:disabled):hover {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.72);
   padding: 0.34rem 0.52rem;
+  color: inherit;
   line-height: 1.1;
+  text-decoration: none;
+}
+
+a.doc-contact-item {
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    color 0.2s ease;
+}
+
+a.doc-contact-item:hover {
+  border-color: color-mix(in srgb, var(--proposal-primary) 36%, rgba(128, 148, 178, 0.34));
+  background: color-mix(in srgb, var(--proposal-primary) 7%, #ffffff);
+  color: var(--proposal-primary-strong);
 }
 
 .doc-contact-item svg {
@@ -10122,7 +10094,6 @@ button[class*="border-accent"]:not(:disabled):hover {
   font-weight: 900;
   padding: 0.85rem 1.55rem;
   text-decoration: none;
-  white-space: nowrap;
 }
 
 .doc-default-header,
@@ -10216,14 +10187,6 @@ button[class*="border-accent"]:not(:disabled):hover {
   margin-top: 1.25rem;
 }
 
-.doc-simple-page .doc-simple-grid {
-  grid-template-columns: minmax(0, 1.48fr) minmax(220px, 0.62fr);
-}
-
-.doc-simple-page .doc-benefit-grid {
-  grid-template-columns: 1fr;
-}
-
 .doc-instagram-grid,
 .doc-instagram-bottom {
   grid-template-columns: minmax(0, 1.38fr) minmax(0, 0.62fr);
@@ -10267,7 +10230,110 @@ button[class*="border-accent"]:not(:disabled):hover {
 }
 
 .doc-simple-page {
-  padding: 44px 46px;
+  padding: 36px 46px;
+}
+
+.doc-simple-page .doc-simple-grid-main {
+  grid-template-columns: minmax(0, 1.5fr) minmax(236px, 0.56fr);
+  align-items: stretch;
+  gap: 1rem;
+}
+
+.doc-simple-grid-main > div:first-child {
+  min-width: 0;
+}
+
+.doc-simple-summary {
+  display: flex;
+  min-width: 0;
+}
+
+.doc-simple-summary .doc-total-card {
+  width: 100%;
+  align-self: stretch;
+  padding: 1.02rem 1.04rem;
+}
+
+.doc-simple-summary .doc-total-card > div {
+  gap: 0.7rem;
+}
+
+.doc-simple-summary .doc-total-final-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 0.65rem;
+}
+
+.doc-simple-summary .doc-total-final-row strong {
+  font-size: 1.22rem;
+  line-height: 1;
+}
+
+.doc-simple-page .doc-simple-grid-main .doc-table-card table {
+  font-size: 0.72rem;
+}
+
+.doc-simple-page .doc-simple-grid-main .doc-table-card th,
+.doc-simple-page .doc-simple-grid-main .doc-table-card td {
+  padding: 0.48rem 0.48rem;
+  overflow-wrap: break-word;
+}
+
+.doc-simple-page .doc-simple-grid-main .doc-table-card-detailed th:first-child,
+.doc-simple-page .doc-simple-grid-main .doc-table-card-detailed td:first-child {
+  width: 35%;
+}
+
+.doc-simple-page .doc-simple-grid-main .doc-table-card-detailed th:nth-child(2),
+.doc-simple-page .doc-simple-grid-main .doc-table-card-detailed td:nth-child(2) {
+  width: 37%;
+}
+
+.doc-simple-page .doc-simple-grid-main .doc-table-card-detailed th:nth-child(3),
+.doc-simple-page .doc-simple-grid-main .doc-table-card-detailed td:nth-child(3) {
+  width: 10%;
+  text-align: center;
+}
+
+.doc-simple-page .doc-simple-grid-main .doc-table-card-detailed th:nth-child(4),
+.doc-simple-page .doc-simple-grid-main .doc-table-card-detailed td:nth-child(4) {
+  width: 18%;
+}
+
+.doc-simple-page .doc-simple-grid-main .doc-service-name {
+  gap: 0.42rem;
+}
+
+.doc-simple-page .doc-simple-grid-main .doc-service-icon {
+  width: 1.45rem;
+  height: 1.45rem;
+}
+
+.doc-simple-page .doc-benefit-card {
+  gap: 0.48rem;
+}
+
+.doc-simple-page .doc-benefit-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.doc-simple-page .doc-benefit-card:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
+.doc-simple-page .doc-benefit-card h3 {
+  font-size: 0.78rem;
+  line-height: 1.22;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+.doc-simple-page .doc-benefit-card p {
+  font-size: 0.72rem;
+  line-height: 1.22;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .doc-simple-corner {
@@ -10309,13 +10375,13 @@ button[class*="border-accent"]:not(:disabled):hover {
   grid-template-columns: 0.35rem minmax(0, 1fr);
   gap: 1.25rem;
   align-items: center;
-  margin-top: 2.4rem;
+  margin-top: 1.3rem;
   padding-right: clamp(2rem, 10%, 5rem);
 }
 
 .doc-simple-title > span {
   width: 0.35rem;
-  height: 5.6rem;
+  height: 4.9rem;
   background: var(--proposal-secondary);
 }
 
@@ -10323,7 +10389,7 @@ button[class*="border-accent"]:not(:disabled):hover {
   color: #06173a;
   font-size: 2.75rem;
   font-weight: 900;
-  line-height: 1.04;
+  line-height: 1;
   overflow-wrap: anywhere;
 }
 
@@ -10352,23 +10418,23 @@ button[class*="border-accent"]:not(:disabled):hover {
 }
 
 .doc-simple-title p {
-  margin-top: 0.5rem;
+  margin-top: 0.34rem;
   color: #56667f;
-  font-size: 1.1rem;
+  font-size: 1rem;
 }
 
 .doc-simple-intro {
   display: grid;
-  grid-template-columns: 5.8rem minmax(0, 1fr);
-  gap: 1.2rem;
+  grid-template-columns: 4.8rem minmax(0, 1fr);
+  gap: 0.9rem;
   align-items: center;
-  margin: 1.4rem 0;
+  margin: 1rem 0;
 }
 
 .doc-round-icon {
   display: inline-flex;
-  width: 5.2rem;
-  height: 5.2rem;
+  width: 4.6rem;
+  height: 4.6rem;
   align-items: center;
   justify-content: center;
   border-radius: 999px;
@@ -10386,7 +10452,7 @@ button[class*="border-accent"]:not(:disabled):hover {
 .doc-simple-actions {
   grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr);
   align-items: center;
-  margin-top: 1.8rem;
+  margin-top: 1.25rem;
 }
 
 .doc-simple-actions .doc-payment-card {
@@ -10394,12 +10460,14 @@ button[class*="border-accent"]:not(:disabled):hover {
 }
 
 .doc-cta-simple {
-  min-height: 4.4rem;
+  min-height: 4rem;
   font-size: 1.15rem;
 }
 
 .doc-footer-contact-only {
   grid-template-columns: 1fr;
+  margin-top: 1.15rem;
+  padding-top: 0.85rem;
 }
 
 .doc-footer-contact-only .doc-contact-inline {
@@ -10594,13 +10662,289 @@ button[class*="border-accent"]:not(:disabled):hover {
   background: color-mix(in srgb, var(--proposal-primary) 5%, #ffffff);
 }
 
+.proposal-template--luna-social-studio .doc-social-hero {
+  grid-template-columns: minmax(0, 1fr) 235px;
+  gap: 1rem;
+  min-height: 284px;
+  padding: 28px 44px;
+}
+
+.proposal-template--luna-social-studio .doc-social-hero h1 {
+  margin-top: 1.02rem;
+  font-size: 2.2rem;
+}
+
+.proposal-template--luna-social-studio .doc-social-hero h2 {
+  margin-top: 0.56rem;
+  font-size: 1.72rem;
+  line-height: 1.05;
+}
+
+.proposal-template--luna-social-studio .doc-social-hero p {
+  max-width: 520px;
+  margin-top: 0.6rem;
+  font-size: 0.84rem;
+  line-height: 1.26;
+}
+
+.proposal-template--luna-social-studio .doc-social-hero .doc-meta-panel {
+  gap: 0;
+  padding: 0.68rem 0.86rem;
+}
+
+.proposal-template--luna-social-studio .doc-social-hero .doc-meta-panel li {
+  padding: 0.52rem 0;
+}
+
+.proposal-template--luna-social-studio .doc-social-content {
+  padding: 14px 44px 24px;
+}
+
+.proposal-template--luna-social-studio .doc-section-title {
+  margin: 0.54rem 0 0.38rem;
+  font-size: 0.7rem;
+}
+
+.proposal-template--luna-social-studio .doc-benefit-grid {
+  gap: 0.54rem;
+}
+
+.proposal-template--luna-social-studio .doc-social-page .doc-benefit-card {
+  min-height: 0;
+  padding: 0.52rem 0.7rem;
+}
+
+.proposal-template--luna-social-studio .doc-social-page .doc-benefit-card > span {
+  width: 2.28rem;
+  height: 2.28rem;
+}
+
+.proposal-template--luna-social-studio .doc-social-page .doc-benefit-card strong,
+.proposal-template--luna-social-studio .doc-social-page .doc-benefit-card p {
+  font-size: 0.7rem;
+  line-height: 1.16;
+}
+
+.proposal-template--luna-social-studio .doc-table-card table {
+  font-size: 0.66rem;
+}
+
+.proposal-template--luna-social-studio .doc-table-card th,
+.proposal-template--luna-social-studio .doc-table-card td {
+  padding: 0.31rem 0.4rem;
+}
+
+.proposal-template--luna-social-studio .doc-social-lists {
+  gap: 0.62rem;
+  margin-top: 0.64rem;
+}
+
+.proposal-template--luna-social-studio .doc-list-card {
+  padding: 0.66rem 0.78rem;
+}
+
+.proposal-template--luna-social-studio .doc-list-card li {
+  font-size: 0.66rem;
+  line-height: 1.18;
+}
+
+.proposal-template--luna-social-studio .doc-timeline-horizontal {
+  gap: 0.48rem;
+}
+
+.proposal-template--luna-social-studio .doc-timeline article {
+  padding: 0.48rem 0.64rem;
+}
+
+.proposal-template--luna-social-studio .doc-timeline p {
+  font-size: 0.66rem;
+  line-height: 1.16;
+}
+
+.proposal-template--luna-social-studio .doc-social-bottom {
+  gap: 0.64rem;
+  margin-top: 0.64rem;
+}
+
+.proposal-template--luna-social-studio .doc-investment-card h3,
+.proposal-template--luna-social-studio .doc-investment-card > div {
+  padding: 0.48rem 0.78rem;
+}
+
+.proposal-template--luna-social-studio .doc-observation-card {
+  padding: 0.68rem 0.78rem;
+}
+
+.proposal-template--luna-social-studio .doc-observation-card p {
+  font-size: 0.68rem;
+  line-height: 1.18;
+}
+
+.proposal-template--luna-social-studio .doc-observation-card .doc-cta {
+  margin-top: 0.48rem;
+  padding: 0.52rem 0.9rem;
+}
+
+.proposal-template--luna-social-studio .doc-observation-card .doc-contact-inline {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.24rem;
+  margin-top: 0.36rem;
+}
+
+.proposal-template--luna-social-studio .doc-observation-card .doc-contact-item {
+  padding: 0.2rem 0.32rem;
+  font-size: 0.6rem;
+  line-height: 1;
+}
+
+.proposal-template--dark-growth .doc-social-hero {
+  grid-template-columns: minmax(0, 1fr) 235px;
+  gap: 1rem;
+  min-height: 286px;
+  padding: 28px 44px;
+}
+
+.proposal-template--dark-growth .doc-social-hero h1 {
+  margin-top: 1.05rem;
+  font-size: 2.2rem;
+}
+
+.proposal-template--dark-growth .doc-social-hero h2 {
+  margin-top: 0.6rem;
+  font-size: 1.75rem;
+  line-height: 1.08;
+}
+
+.proposal-template--dark-growth .doc-social-hero p {
+  max-width: 520px;
+  margin-top: 0.62rem;
+  font-size: 0.86rem;
+  line-height: 1.28;
+}
+
+.proposal-template--dark-growth .doc-social-hero .doc-meta-panel {
+  gap: 0;
+  padding: 0.7rem 0.88rem;
+}
+
+.proposal-template--dark-growth .doc-social-hero .doc-meta-panel li {
+  padding: 0.55rem 0;
+}
+
+.proposal-template--dark-growth .doc-social-content {
+  padding: 14px 44px 26px;
+}
+
+.proposal-template--dark-growth .doc-section-title {
+  margin: 0.58rem 0 0.42rem;
+  font-size: 0.72rem;
+}
+
+.proposal-template--dark-growth .doc-benefit-grid {
+  gap: 0.56rem;
+}
+
+.proposal-template--dark-growth .doc-social-page .doc-benefit-card {
+  min-height: 0;
+  padding: 0.54rem 0.72rem;
+}
+
+.proposal-template--dark-growth .doc-social-page .doc-benefit-card > span {
+  width: 2.35rem;
+  height: 2.35rem;
+}
+
+.proposal-template--dark-growth .doc-social-page .doc-benefit-card strong,
+.proposal-template--dark-growth .doc-social-page .doc-benefit-card p {
+  font-size: 0.72rem;
+  line-height: 1.18;
+}
+
+.proposal-template--dark-growth .doc-table-card table {
+  font-size: 0.68rem;
+}
+
+.proposal-template--dark-growth .doc-table-card th,
+.proposal-template--dark-growth .doc-table-card td {
+  padding: 0.34rem 0.42rem;
+}
+
+.proposal-template--dark-growth .doc-social-lists {
+  gap: 0.7rem;
+  margin-top: 0.72rem;
+}
+
+.proposal-template--dark-growth .doc-list-card {
+  padding: 0.72rem 0.86rem;
+}
+
+.proposal-template--dark-growth .doc-list-card li {
+  font-size: 0.68rem;
+  line-height: 1.22;
+}
+
+.proposal-template--dark-growth .doc-timeline-horizontal {
+  gap: 0.55rem;
+}
+
+.proposal-template--dark-growth .doc-timeline article {
+  padding: 0.52rem 0.7rem;
+}
+
+.proposal-template--dark-growth .doc-timeline p {
+  font-size: 0.68rem;
+  line-height: 1.2;
+}
+
+.proposal-template--dark-growth .doc-social-bottom {
+  gap: 0.72rem;
+  margin-top: 0.72rem;
+}
+
+.proposal-template--dark-growth .doc-investment-card h3,
+.proposal-template--dark-growth .doc-investment-card > div {
+  padding: 0.54rem 0.82rem;
+}
+
+.proposal-template--dark-growth .doc-observation-card {
+  padding: 0.78rem 0.88rem;
+}
+
+.proposal-template--dark-growth .doc-observation-card p {
+  font-size: 0.72rem;
+  line-height: 1.25;
+}
+
+.proposal-template--dark-growth .doc-observation-card .doc-cta {
+  margin-top: 0.54rem;
+  padding: 0.58rem 1rem;
+}
+
+.proposal-template--dark-growth .doc-observation-card .doc-contact-inline {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.28rem;
+  margin-top: 0.42rem;
+}
+
+.proposal-template--dark-growth .doc-observation-card .doc-contact-item {
+  padding: 0.22rem 0.36rem;
+  font-size: 0.62rem;
+  line-height: 1;
+}
+
 .doc-instagram-header {
-  grid-template-columns: minmax(0, 1fr) 300px;
+  grid-template-columns: minmax(0, 0.94fr) 286px;
   align-items: start;
-  gap: 1.6rem;
+  gap: 1.9rem;
 }
 
 .doc-instagram-header .doc-meta-panel {
+  position: relative;
+  z-index: 1;
   min-height: 226px;
   border-radius: 18px;
   background:
@@ -10610,7 +10954,8 @@ button[class*="border-accent"]:not(:disabled):hover {
       color-mix(in srgb, var(--proposal-primary) 44%, #06173a),
       color-mix(in srgb, var(--proposal-secondary) 28%, #06173a) 80%
     );
-  box-shadow: 0 22px 40px rgba(6, 23, 58, 0.16);
+  box-shadow: 0 16px 26px rgba(6, 23, 58, 0.14);
+  backdrop-filter: none;
 }
 
 .proposal-template--instagram-premium .doc-footer-premium {
@@ -10624,12 +10969,28 @@ button[class*="border-accent"]:not(:disabled):hover {
 }
 
 .doc-instagram-header h1 {
-  font-size: 2.5rem;
-  max-width: 520px;
+  font-size: 2.38rem;
+  max-width: 100%;
 }
 
 .doc-instagram-page {
   padding: 40px 42px;
+}
+
+.doc-instagram-header > div:first-child {
+  position: relative;
+  z-index: 2;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.doc-instagram-header > div:first-child > p {
+  max-width: 100%;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
 }
 
 .doc-instagram-page .doc-brand-large strong {
@@ -10656,7 +11017,6 @@ button[class*="border-accent"]:not(:disabled):hover {
   margin: 1.4rem 0;
   border-bottom: 1px solid rgba(128, 148, 178, 0.22);
   padding-bottom: 1rem;
-  overflow: visible;
 }
 
 .doc-instagram-resumo h2 {
@@ -10668,8 +11028,6 @@ button[class*="border-accent"]:not(:disabled):hover {
 .doc-instagram-resumo p {
   color: #182847;
   font-size: 0.9rem;
-  max-width: 100%;
-  overflow-wrap: break-word;
 }
 
 .doc-stack {
@@ -11069,19 +11427,19 @@ button[class*="border-accent"]:not(:disabled):hover {
 
 .doc-board-page {
   background: #f4f5f7;
-  padding: 40px 44px;
+  padding: 32px 44px;
   color: #111827;
 }
 
 .doc-board-hero {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
-  gap: 2rem;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 1rem;
   align-items: stretch;
-  border-radius: 14px;
+  border-radius: 12px;
   background: #111827;
   color: #ffffff;
-  padding: 2rem;
+  padding: 1.25rem 1.45rem;
 }
 
 .doc-board-hero .doc-brand strong,
@@ -11091,20 +11449,23 @@ button[class*="border-accent"]:not(:disabled):hover {
 }
 
 .doc-board-label {
-  margin-top: 1.2rem;
+  margin-top: 1.8rem;
   border-color: rgba(176, 141, 87, 0.42);
   color: #d8bd8c;
 }
 
 .doc-board-title-main {
-  margin-top: 0.75rem;
+  margin-top: 0.48rem;
   max-width: 560px;
-  font-size: 2.85rem;
+  font-size: 2.46rem;
   line-height: 1;
 }
 
 .doc-board-hero p {
+  margin-top: 0.7rem;
   color: rgba(255, 255, 255, 0.78);
+  font-size: 0.9rem;
+  line-height: 1.35;
 }
 
 .doc-board-hero .doc-meta-panel {
@@ -11116,8 +11477,8 @@ button[class*="border-accent"]:not(:disabled):hover {
 .doc-board-summary {
   display: grid;
   grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
-  gap: 1rem;
-  margin-top: 1rem;
+  gap: 0.75rem;
+  margin-top: 0.7rem;
 }
 
 .doc-board-summary:has(> :only-child) {
@@ -11128,9 +11489,9 @@ button[class*="border-accent"]:not(:disabled):hover {
 .doc-board-content {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 260px;
-  gap: 1rem;
+  gap: 0.75rem;
   align-items: start;
-  margin-top: 1rem;
+  margin-top: 0.72rem;
 }
 
 .doc-board-content:has(> main:only-child) {
@@ -11144,11 +11505,11 @@ button[class*="border-accent"]:not(:disabled):hover {
 
 .doc-board-content aside {
   display: grid;
-  gap: 1rem;
+  gap: 0.7rem;
 }
 
 .doc-board-timeline {
-  margin-top: 1rem;
+  margin-top: 0.62rem;
 }
 
 .doc-board-page .doc-table-card,
@@ -11167,16 +11528,100 @@ button[class*="border-accent"]:not(:disabled):hover {
 }
 
 .doc-board-page .doc-benefit-card {
+  min-height: 88px;
   border-color: rgba(17, 24, 39, 0.14);
   box-shadow: none;
+  padding: 0.72rem;
 }
 
 .doc-board-page .doc-benefit-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
 }
 
 .doc-board-page .doc-footer-premium {
   background: #111827;
+  margin-top: 0.75rem;
+  align-items: center;
+  padding: 1rem 1.15rem 1.1rem;
+}
+
+.doc-board-page .doc-meta-panel {
+  gap: 0;
+  padding: 0.72rem 0.9rem;
+}
+
+.doc-board-page .doc-meta-panel li {
+  padding: 0.62rem 0;
+}
+
+.doc-board-page .doc-total-card,
+.doc-board-page .doc-payment-card,
+.doc-board-page .doc-list-card,
+.doc-board-page .doc-info-strip {
+  padding: 0.82rem 1rem;
+}
+
+.doc-board-page .doc-total-card > div,
+.doc-board-page .doc-list-card ul {
+  gap: 0.46rem;
+}
+
+.doc-board-page .doc-table-card table {
+  font-size: 0.72rem;
+}
+
+.doc-board-page .doc-table-card th,
+.doc-board-page .doc-table-card td {
+  padding: 0.44rem 0.48rem;
+}
+
+.doc-board-page .doc-section-title {
+  margin: 0.62rem 0 0.46rem;
+  font-size: 0.72rem;
+}
+
+.doc-board-page .doc-timeline-horizontal {
+  gap: 0.55rem;
+}
+
+.doc-board-page .doc-timeline article {
+  min-height: 0;
+  padding: 0.56rem 0.72rem;
+}
+
+.doc-board-page .doc-info-strip {
+  margin-top: 0.65rem;
+  gap: 0.58rem;
+}
+
+.doc-board-page .doc-info-strip p,
+.doc-board-page .doc-list-card li,
+.doc-board-page .doc-timeline p {
+  font-size: 0.7rem;
+  line-height: 1.25;
+}
+
+.doc-board-page .doc-footer-premium .doc-contact-inline {
+  display: grid;
+  grid-template-columns: repeat(2, max-content);
+  justify-content: center;
+  gap: 0.38rem 0.5rem;
+}
+
+.doc-board-page .doc-footer-premium .doc-contact-item {
+  justify-content: center;
+  padding: 0.24rem 0.42rem;
+  font-size: 0.68rem;
+}
+
+.doc-board-page .doc-footer-premium .doc-contact-item:nth-child(3):last-child {
+  grid-column: 1 / -1;
+  justify-self: center;
+}
+
+.doc-board-page .doc-footer-premium .doc-footer-cta {
+  padding: 0.68rem 1.15rem;
 }
 
 .doc-institutional-page {
@@ -11255,10 +11700,10 @@ button[class*="border-accent"]:not(:disabled):hover {
 .proposal-template--instagram-premium .doc-benefit-card {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  column-gap: 0.9rem;
+  column-gap: 0.72rem;
   align-items: start;
-  min-height: 96px;
-  padding: 0.85rem;
+  min-height: 0;
+  padding: 0.58rem 0.68rem;
 }
 
 .proposal-template--instagram-premium .doc-benefit-card strong,
@@ -11271,6 +11716,14 @@ button[class*="border-accent"]:not(:disabled):hover {
   word-break: normal;
 }
 
+.proposal-template--instagram-premium .doc-benefit-card strong,
+.proposal-template--instagram-premium .doc-benefit-card p,
+.proposal-template--instagram-premium .doc-list-card li,
+.proposal-template--instagram-premium .doc-timeline p {
+  font-size: 0.68rem;
+  line-height: 1.18;
+}
+
 .proposal-template--instagram-premium .doc-benefit-card > span {
   grid-row: 1 / span 2;
   align-self: start;
@@ -11278,19 +11731,162 @@ button[class*="border-accent"]:not(:disabled):hover {
 
 .proposal-template--instagram-premium .doc-benefit-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.58rem;
 }
 
 .proposal-template--instagram-premium .doc-benefit-card > span {
-  width: 3rem;
-  height: 3rem;
+  width: 2.35rem;
+  height: 2.35rem;
 }
 
 .proposal-template--instagram-premium .doc-instagram-bottom .doc-timeline {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.proposal-template--instagram-premium .doc-instagram-page {
+  padding: 30px 42px 28px;
+}
+
+.proposal-template--instagram-premium .doc-instagram-header {
+  grid-template-columns: minmax(0, 1fr) 252px;
+  gap: 1.35rem;
+}
+
+.proposal-template--instagram-premium .doc-instagram-header .doc-meta-panel {
+  min-height: 178px;
+  padding: 0.7rem 0.86rem;
+}
+
+.proposal-template--instagram-premium .doc-instagram-header .doc-meta-panel li {
+  padding: 0.5rem 0;
+}
+
+.proposal-template--instagram-premium .doc-instagram-header h1 {
+  margin-top: 0.25rem;
+  line-height: 1;
+}
+
+.proposal-template--instagram-premium .doc-instagram-title-main.doc-title-curto {
+  font-size: 2.18rem !important;
+}
+
+.proposal-template--instagram-premium .doc-instagram-title-main.doc-title-medio {
+  font-size: 1.9rem !important;
+}
+
+.proposal-template--instagram-premium .doc-instagram-title-main.doc-title-longo {
+  font-size: 1.62rem !important;
+}
+
+.proposal-template--instagram-premium .doc-instagram-title-main.doc-title-muito-longo {
+  font-size: 1.32rem !important;
+}
+
+.proposal-template--instagram-premium .doc-instagram-page .doc-brand-large strong {
+  font-size: 1.72rem;
+}
+
+.proposal-template--instagram-premium .doc-instagram-page .doc-brand-large img,
+.proposal-template--instagram-premium .doc-instagram-page .doc-brand-large .doc-brand-fallback {
+  width: 3.4rem;
+  height: 3.4rem;
+}
+
+.proposal-template--instagram-premium .doc-instagram-header > div:first-child > p {
+  -webkit-line-clamp: 2;
+  font-size: 0.78rem;
+  line-height: 1.24;
+}
+
+.proposal-template--instagram-premium .doc-instagram-resumo {
+  gap: 0.72rem;
+  margin: 0.88rem 0;
+  padding-bottom: 0.72rem;
+}
+
+.proposal-template--instagram-premium .doc-instagram-resumo .doc-round-icon {
+  width: 3.25rem;
+  height: 3.25rem;
+}
+
+.proposal-template--instagram-premium .doc-instagram-resumo h2 {
+  font-size: 0.98rem;
+}
+
+.proposal-template--instagram-premium .doc-instagram-resumo p {
+  font-size: 0.72rem;
+  line-height: 1.25;
+}
+
+.proposal-template--instagram-premium .doc-instagram-grid,
+.proposal-template--instagram-premium .doc-instagram-bottom {
+  gap: 0.72rem;
+  margin-top: 0.72rem;
+}
+
+.proposal-template--instagram-premium .doc-stack {
+  gap: 0.62rem;
+}
+
+.proposal-template--instagram-premium .doc-section-title {
+  margin: 0.58rem 0 0.42rem;
+  font-size: 0.72rem;
+}
+
+.proposal-template--instagram-premium .doc-table-card table {
+  font-size: 0.66rem;
+}
+
+.proposal-template--instagram-premium .doc-table-card th,
+.proposal-template--instagram-premium .doc-table-card td {
+  padding: 0.32rem 0.38rem;
+}
+
+.proposal-template--instagram-premium .doc-list-card {
+  padding: 0.68rem 0.78rem;
+}
+
+.proposal-template--instagram-premium .doc-timeline {
+  gap: 0.55rem;
+}
+
+.proposal-template--instagram-premium .doc-timeline article {
+  padding: 0.5rem 0.68rem;
+}
+
+.proposal-template--instagram-premium .doc-investment-card h3,
+.proposal-template--instagram-premium .doc-investment-card > div {
+  padding: 0.5rem 0.78rem;
+}
+
+.proposal-template--instagram-premium .doc-info-strip {
+  gap: 0.62rem;
+  margin-top: 0.62rem;
+  padding: 0.58rem 0.72rem;
+}
+
+.proposal-template--instagram-premium .doc-info-strip p {
+  font-size: 0.72rem;
+  line-height: 1.22;
+}
+
 .proposal-template--instagram-premium .doc-footer-premium {
-  margin-top: 1rem;
+  margin-top: 0.62rem;
+  padding: 0.62rem 0.88rem;
+}
+
+.proposal-template--instagram-premium .doc-footer-premium .doc-contact-inline {
+  gap: 0.28rem;
+}
+
+.proposal-template--instagram-premium .doc-footer-premium .doc-contact-item {
+  padding: 0.22rem 0.36rem;
+  font-size: 0.62rem;
+  line-height: 1;
+}
+
+.proposal-template--instagram-premium .doc-footer-premium .doc-footer-cta {
+  padding: 0.52rem 0.85rem;
 }
 
 .doc-social-title-main.doc-title-curto {

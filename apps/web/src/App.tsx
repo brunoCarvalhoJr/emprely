@@ -100,7 +100,6 @@ import {
   confirmEmailUsuario,
   createServico,
   createSuporteSolicitacao,
-  approvePropostaPublica,
   deleteCliente,
   deleteServico,
   forgotSenhaUsuario,
@@ -161,7 +160,6 @@ import type {
 } from "@/types/service";
 import type {
   CreatePropostaInput,
-  PublicProposalApprovalResponse,
   PropostaResponse,
   PropostaStatus,
   PropostaTemplateVisual,
@@ -240,16 +238,16 @@ const propostaTemplateVisualOpcoes: Array<{
   {
     value: "ComercialMinimalista",
     label: "Orçamento essencial",
-    detalhe: "Escopo, preço, prazo e próximos passos em um documento direto.",
+    detalhe: "Escopo, valores, prazos e próximos passos em leitura rápida.",
   },
   {
     value: "OrcamentoSimplificado",
     label: "Resumo comercial",
-    detalhe: "Apresentação objetiva com escopo, itens, valores e condições.",
+    detalhe: "Apresentação objetiva com itens, valores, condições e aceite.",
   },
   {
     value: "PropostaCompleta",
-    label: "Proposta detalhada",
+    label: "Proposta comercial completa",
     detalhe: "Documento modular com escopo, entregas, investimento, termos e aceite.",
   },
   {
@@ -315,7 +313,7 @@ const propostaTemplateVisualOpcoesGaleria: Array<{
   },
   {
     value: "PropostaCompleta",
-    label: "Proposta detalhada",
+    label: "Proposta comercial completa",
     detalhe: "Documento comercial com escopo, valor, condições, termos e aceite.",
   },
   {
@@ -643,6 +641,7 @@ type AppReturnIntent = {
 };
 
 const emprelyFaviconSrc = "/brand/emprely-favicon.svg";
+const emprelyLogoMarcaDaguaSrc = "/brand/emprely-logo-watermark-black.png";
 const logoArquivoTamanhoMaximoBytes = 2 * 1024 * 1024;
 const logoArquivoTamanhoMaximoLabel = "2 MB";
 const logoArquivoTiposPermitidos = ["image/png", "image/jpeg", "image/webp"];
@@ -2064,7 +2063,10 @@ export default function App() {
       ? propostaSelecionada
       : null);
   const propostaPreviewVisual = propostaFontePreview
-    ? mapPropostaForm(propostaFontePreview)
+    ? {
+        ...mapPropostaForm(propostaFontePreview),
+        publicApprovalUrl: propostaFontePreview.publicApprovalUrl,
+      }
     : propostaPreview;
   const propostaSubtotalVisual = propostaFontePreview
     ? getSubtotalProposta(propostaFontePreview)
@@ -2121,7 +2123,10 @@ export default function App() {
     clienteNomePreviewFallback?.trim() ||
     "Cliente pendente";
   const propostaVisualizacaoModalForm = propostaVisualizacaoModal
-    ? mapPropostaForm(propostaVisualizacaoModal)
+    ? {
+        ...mapPropostaForm(propostaVisualizacaoModal),
+        publicApprovalUrl: propostaVisualizacaoModal.publicApprovalUrl,
+      }
     : null;
   const clienteVisualizacaoModal = clientes.find(
     (cliente) => cliente.id === propostaVisualizacaoModal?.clienteId,
@@ -2130,7 +2135,10 @@ export default function App() {
     propostas.find((proposta) => proposta.id === propostaCompartilhamentoId) ??
     null;
   const propostaCompartilhamentoForm = propostaCompartilhamentoAtiva
-    ? mapPropostaForm(propostaCompartilhamentoAtiva)
+    ? {
+        ...mapPropostaForm(propostaCompartilhamentoAtiva),
+        publicApprovalUrl: propostaCompartilhamentoAtiva.publicApprovalUrl,
+      }
     : null;
   const clienteCompartilhamentoAtivo = clientes.find(
     (cliente) => cliente.id === propostaCompartilhamentoAtiva?.clienteId,
@@ -3603,7 +3611,9 @@ export default function App() {
       const nodeExportacao = await aguardarNodeExportacaoProposta(
         () => node ?? propostaCompartilhamentoDocumentoRef.current,
       );
-      const blob = await gerarPngPropostaBlob(nodeExportacao);
+      const blob = await gerarPngPropostaBlob(nodeExportacao, {
+        ocultarCtaAprovacao: true,
+      });
       baixarBlobArquivo(blob, `${buildNomeArquivoProposta(proposta)}.png`);
       setPropostaExportacaoMensagem("Imagem gerada. Anexe este arquivo no WhatsApp Web.");
     });
@@ -3725,7 +3735,9 @@ export default function App() {
     const nomeBase = buildNomeArquivoProposta(proposta);
 
     if (formatoPreferido === "Imagem") {
-      const blob = await gerarPngPropostaBlob(nodeExportacao);
+      const blob = await gerarPngPropostaBlob(nodeExportacao, {
+        ocultarCtaAprovacao: true,
+      });
 
       return [
         {
@@ -3739,7 +3751,9 @@ export default function App() {
     if (formatoPreferido === "PdfImagem") {
       const [pdfBlob, pngBlob] = await Promise.all([
         gerarPdfPropostaBlob(nodeExportacao, proposta),
-        gerarPngPropostaBlob(nodeExportacao),
+        gerarPngPropostaBlob(nodeExportacao, {
+          ocultarCtaAprovacao: true,
+        }),
       ]);
 
       return [
@@ -3785,30 +3799,6 @@ export default function App() {
     }
 
     throw new Error("Documento da proposta nao encontrado para exportacao.");
-  }
-
-  async function gerarPngPropostaBlob(
-    nodeReferencia: HTMLDivElement | null = propostaDocumentoRef.current,
-  ): Promise<Blob> {
-    const node = nodeReferencia;
-
-    if (!node) {
-      throw new Error("Preview da proposta não encontrado.");
-    }
-
-    const { toBlob } = await import("html-to-image");
-    const blob = await toBlob(node, {
-      backgroundColor: "#ffffff",
-      cacheBust: true,
-      imagePlaceholder: imagemTransparenteExportacaoDataUrl,
-      pixelRatio: 2,
-    });
-
-    if (!blob) {
-      throw new Error("Imagem da proposta não gerada.");
-    }
-
-    return blob;
   }
 
   function buildDocumentoDadosPropostaSalva(
@@ -3859,10 +3849,11 @@ export default function App() {
       emailMarca: perfilConta?.emailContato?.trim() ?? "",
       instagramMarca: normalizarInstagramDocumento(perfilConta?.instagram),
       siteMarca: perfilConta?.siteUrl?.trim() ?? "",
-      watermark: conta
-        ? getWatermarkDocumentoProposta(conta.plano, contaStatusComercial)
-        : "trial-expirado",
-      publicApprovalUrl: proposta.publicApprovalUrl ?? "",
+      publicApprovalUrl: proposta.publicApprovalUrl?.trim() || null,
+      watermark: getWatermarkDocumentoProposta(
+        conta?.plano ?? "Trial",
+        conta ? getStatusComercialContaEfetivo(conta) : "TrialAtivo",
+      ),
       itens: itens
         .map((item) => ({
           nome: item.nome?.trim() ?? "",
@@ -3877,7 +3868,7 @@ export default function App() {
       itensNaoInclusos: proposta.itensNaoInclusos ?? [],
       cronograma: proposta.cronograma ?? [],
       condicoesPagamento: proposta.condicoesPagamento?.trim() || null,
-      subtotal: valorSeguro(proposta.subtotal),
+      subtotal: getSubtotalProposta(proposta),
       desconto: valorSeguro(proposta.descontoValor),
       total: valorSeguro(proposta.total),
       corPrimaria,
@@ -3885,403 +3876,106 @@ export default function App() {
     };
   }
 
+  async function gerarPngPropostaBlob(
+    nodeReferencia: HTMLDivElement | null = propostaDocumentoRef.current,
+    options: { ocultarCtaAprovacao?: boolean } = {},
+  ): Promise<Blob> {
+    const node = nodeReferencia;
+
+    if (!node) {
+      throw new Error("Preview da proposta não encontrado.");
+    }
+
+    const { toBlob } = await import("html-to-image");
+    if (options.ocultarCtaAprovacao) {
+      node.classList.add("is-exporting-image");
+    }
+
+    let blob: Blob | null = null;
+
+    try {
+      blob = await toBlob(node, {
+        backgroundColor: "#ffffff",
+        cacheBust: true,
+        imagePlaceholder: imagemTransparenteExportacaoDataUrl,
+        pixelRatio: 2,
+      });
+    } finally {
+      if (options.ocultarCtaAprovacao) {
+        node.classList.remove("is-exporting-image");
+      }
+    }
+
+    if (!blob) {
+      throw new Error("Imagem da proposta não gerada.");
+    }
+
+    return blob;
+  }
+
   async function gerarPdfPropostaBlob(
     nodeReferencia: HTMLDivElement | null = propostaDocumentoRef.current,
     proposta?: PropostaResponse,
   ): Promise<Blob> {
-    void nodeReferencia;
-
     if (!proposta) {
-      throw new Error("Proposta nao informada para gerar PDF textual.");
+      throw new Error("Proposta nao informada para gerar PDF.");
     }
 
     const documento = buildDocumentoDadosPropostaSalva(proposta);
+    const pngBlob = await gerarPngPropostaBlob(nodeReferencia);
+    const pngDataUrl = await blobToDataUrl(pngBlob);
+    const tamanhoImagem = await carregarTamanhoImagem(pngDataUrl);
     const { jsPDF } = await import("jspdf");
     const pdf = new jsPDF({
       orientation: "portrait",
       unit: "pt",
       format: "a4",
     });
-
     const larguraPagina = pdf.internal.pageSize.getWidth();
     const alturaPagina = pdf.internal.pageSize.getHeight();
-    const margem = 42;
-    const larguraConteudo = larguraPagina - margem * 2;
-    const corTexto = "#0F172A";
-    const corMuted = "#64748B";
-    const corBorda = "#D7E2F0";
-    const primary = documento.corPrimaria;
-    const secondary = documento.corSecundaria;
-    let y = margem;
+    const margem = 24;
+    const larguraDisponivel = larguraPagina - margem * 2;
+    const alturaDisponivel = alturaPagina - margem * 2;
+    const escalaLargura = larguraDisponivel / tamanhoImagem.width;
+    const escalaAltura = alturaDisponivel / tamanhoImagem.height;
+    const escala = Math.min(escalaLargura, escalaAltura);
+    const larguraImagem = tamanhoImagem.width * escala;
+    const alturaImagem = tamanhoImagem.height * escala;
+    const posicaoX = (larguraPagina - larguraImagem) / 2;
 
-    const setColor = (hex: string) => {
-      const rgb = hexToRgbDocumento(hex);
-      pdf.setTextColor(rgb.r, rgb.g, rgb.b);
-    };
-    const setFill = (hex: string) => {
-      const rgb = hexToRgbDocumento(hex);
-      pdf.setFillColor(rgb.r, rgb.g, rgb.b);
-    };
-    const setDraw = (hex: string) => {
-      const rgb = hexToRgbDocumento(hex);
-      pdf.setDrawColor(rgb.r, rgb.g, rgb.b);
-    };
-    const ensureSpace = (height: number) => {
-      if (y + height <= alturaPagina - margem) {
-        return;
-      }
-
-      pdf.addPage();
-      y = margem;
-    };
-    const text = (
-      value: string,
-      x: number,
-      currentY: number,
-      options: {
-        width?: number;
-        size?: number;
-        style?: "normal" | "bold";
-        color?: string;
-        lineHeight?: number;
-      } = {},
-    ) => {
-      const size = options.size ?? 10;
-      const lineHeight = options.lineHeight ?? size * 1.35;
-      pdf.setFont("helvetica", options.style ?? "normal");
-      pdf.setFontSize(size);
-      setColor(options.color ?? corTexto);
-      const lines = options.width
-        ? pdf.splitTextToSize(value, options.width)
-        : [value];
-      pdf.text(lines, x, currentY);
-      return currentY + lines.length * lineHeight;
-    };
-    const drawSectionTitle = (titulo: string) => {
-      ensureSpace(34);
-      setColor(primary);
-      pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(11);
-      pdf.text(titulo.toUpperCase(), margem, y);
-      y += 14;
-      setDraw(corBorda);
-      pdf.line(margem, y, larguraPagina - margem, y);
-      y += 18;
-    };
-
-    setFill("#FFFFFF");
-    pdf.rect(0, 0, larguraPagina, alturaPagina, "F");
-    setFill(primary);
-    pdf.roundedRect(margem, y, 44, 44, 8, 8, "F");
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(15);
-    pdf.setTextColor(255, 255, 255);
-    pdf.text(getIniciaisMarca(documento.nomeMarca) || "E", margem + 22, y + 28, {
-      align: "center",
-    });
-    y = text(documento.nomeMarca, margem + 58, y + 18, {
-      size: 16,
-      style: "bold",
-      width: 190,
-    });
-    if (documento.siteMarca || documento.instagramMarca) {
-      y = text(documento.siteMarca || documento.instagramMarca, margem + 58, y + 4, {
-        size: 8,
-        color: secondary,
-        width: 190,
-      });
-    }
-
-    const titleX = margem + 280;
-    y = margem + 10;
-    text("Proposta comercial", titleX, y, {
-      size: 8,
-      style: "bold",
-      color: primary,
-      width: larguraPagina - titleX - margem,
-    });
-    y = text(documento.titulo, titleX, y + 20, {
-      size: getPdfTituloTamanho(documento.titulo),
-      style: "bold",
-      width: larguraPagina - titleX - margem,
-      lineHeight: 21,
-    });
-    if (documento.introducao) {
-      y = text(documento.introducao, titleX, y + 8, {
-        size: 9,
-        color: corMuted,
-        width: larguraPagina - titleX - margem,
-      });
-    }
-
-    y = Math.max(y + 20, margem + 96);
-    setDraw(corBorda);
-    pdf.line(margem, y, larguraPagina - margem, y);
-    y += 18;
-
-    const meta = getPdfMetadados(documento);
-    const metaWidth = larguraConteudo / meta.length;
-    meta.forEach((item, index) => {
-      const x = margem + index * metaWidth;
-      setFill("#F8FAFC");
-      setDraw(corBorda);
-      pdf.roundedRect(x, y, metaWidth - 8, 44, 6, 6, "FD");
-      text(item.label, x + 10, y + 16, { size: 7, color: corMuted, style: "bold" });
-      text(item.value, x + 10, y + 31, {
-        size: 9,
-        style: "bold",
-        width: metaWidth - 28,
-      });
-    });
-    y += 66;
-
-    if (documento.beneficios.length) {
-      drawSectionTitle("Objetivos e beneficios");
-      const beneficios = documento.beneficios.slice(0, 4);
-      const cardHeight = beneficios.length <= 2 ? 50 : 64;
-      beneficios.forEach((beneficio, index) => {
-        ensureSpace(cardHeight + 10);
-        const beneficioDocumento = parseBeneficioDocumento(beneficio);
-        const x = margem + (index % 2) * (larguraConteudo / 2);
-        const cardY = y + Math.floor(index / 2) * (cardHeight + 10);
-        setFill("#F8FAFC");
-        setDraw(corBorda);
-        pdf.roundedRect(x, cardY, larguraConteudo / 2 - 8, cardHeight, 7, 7, "FD");
-        text(beneficioDocumento.titulo, x + 12, cardY + 18, {
-          size: 10,
-          style: "bold",
-          width: larguraConteudo / 2 - 32,
-        });
-        if (beneficioDocumento.descricao) {
-          text(beneficioDocumento.descricao, x + 12, cardY + 34, {
-            size: 8,
-            color: corMuted,
-            width: larguraConteudo / 2 - 32,
-          });
-        }
-      });
-      y += Math.ceil(beneficios.length / 2) * (cardHeight + 10) + 8;
-    }
-
-    drawSectionTitle("Escopo e entregaveis");
-    const tableX = margem;
-    const colNome = larguraConteudo * 0.42;
-    const colQtd = larguraConteudo * 0.13;
-    const colValor = larguraConteudo * 0.2;
-    const colTotal = larguraConteudo - colNome - colQtd - colValor;
-    setFill(primary);
-    pdf.roundedRect(tableX, y, larguraConteudo, 30, 6, 6, "F");
-    text("Servico", tableX + 10, y + 19, { size: 8, style: "bold", color: "#FFFFFF" });
-    text("Qtd.", tableX + colNome + 10, y + 19, { size: 8, style: "bold", color: "#FFFFFF" });
-    text("Valor", tableX + colNome + colQtd + 10, y + 19, {
-      size: 8,
-      style: "bold",
-      color: "#FFFFFF",
-    });
-    text("Total", tableX + colNome + colQtd + colValor + 10, y + 19, {
-      size: 8,
-      style: "bold",
-      color: "#FFFFFF",
-    });
-    y += 30;
-
-    documento.itens.forEach((item) => {
-      const descricaoLines = item.descricao
-        ? pdf.splitTextToSize(item.descricao, colNome - 22)
-        : [];
-      const nomeLines = pdf.splitTextToSize(item.nome, colNome - 22);
-      const rowHeight = Math.max(42, 18 + (nomeLines.length + descricaoLines.length) * 11);
-      ensureSpace(rowHeight + 8);
-      setFill("#FFFFFF");
-      setDraw(corBorda);
-      pdf.rect(tableX, y, larguraConteudo, rowHeight, "S");
-      text(item.nome, tableX + 10, y + 17, {
-        size: 9,
-        style: "bold",
-        width: colNome - 22,
-      });
-      if (item.descricao) {
-        text(item.descricao, tableX + 10, y + 31, {
-          size: 8,
-          color: corMuted,
-          width: colNome - 22,
-        });
-      }
-      text(formatQuantidade(item.quantidade), tableX + colNome + 10, y + 22, {
-        size: 9,
-        width: colQtd - 18,
-      });
-      text(formatMoney(item.valorUnitario), tableX + colNome + colQtd + 10, y + 22, {
-        size: 9,
-        width: colValor - 18,
-      });
-      text(formatMoney(item.total), tableX + colNome + colQtd + colValor + 10, y + 22, {
-        size: 9,
-        style: "bold",
-        width: colTotal - 18,
-      });
-      y += rowHeight;
+    pdf.addImage(
+      pngDataUrl,
+      "PNG",
+      posicaoX,
+      margem,
+      larguraImagem,
+      alturaImagem,
+    );
+    adicionarLinksPdfPorDataAttribute(pdf, nodeReferencia, {
+      x: posicaoX,
+      y: margem,
+      width: larguraImagem,
+      height: alturaImagem,
     });
 
-    y += 18;
-    ensureSpace(92);
-    const totalX = larguraPagina - margem - 220;
-    setFill("#F8FAFC");
-    setDraw(corBorda);
-    pdf.roundedRect(totalX, y, 220, 84, 8, 8, "FD");
-    text("Subtotal", totalX + 16, y + 22, { size: 9, color: corMuted });
-    text(formatMoney(documento.subtotal), totalX + 204, y + 22, {
-      size: 9,
-      style: "bold",
-      width: 100,
-    });
-    if (documento.desconto > 0) {
-      text("Desconto", totalX + 16, y + 42, { size: 9, color: corMuted });
-      text(formatMoney(documento.desconto), totalX + 204, y + 42, {
-        size: 9,
-        style: "bold",
-        width: 100,
-      });
-    }
-    text("Total final", totalX + 16, y + 66, { size: 10, style: "bold" });
-    text(formatMoney(documento.total), totalX + 204, y + 66, {
-      size: 14,
-      style: "bold",
-      color: primary,
-      width: 120,
-    });
-    y += 106;
-
-    if (documento.itensInclusos.length || documento.itensNaoInclusos.length) {
-      drawSectionTitle("Inclusos e limites");
-      const listaWidth = larguraConteudo / 2 - 8;
-      y = renderPdfLista("O que esta incluso", documento.itensInclusos, margem, y, listaWidth);
-      const yRight = renderPdfLista(
-        "O que nao esta incluso",
-        documento.itensNaoInclusos,
-        margem + listaWidth + 16,
-        y - calcularAlturaListaPdf(documento.itensInclusos),
-        listaWidth,
-      );
-      y = Math.max(y, yRight) + 10;
-    }
-
-    if (documento.cronograma.length) {
-      drawSectionTitle("Cronograma");
-      documento.cronograma.forEach((item, index) => {
-        ensureSpace(28);
-        setFill(index === 0 ? primary : "#EAF0F8");
-        pdf.circle(margem + 7, y - 4, 7, "F");
-        text(item, margem + 24, y, {
-          size: 9,
-          width: larguraConteudo - 30,
-        });
-        y += 24;
-      });
-    }
-
-    if (documento.condicoesPagamento || documento.observacoes) {
-      drawSectionTitle("Condicoes e observacoes");
-      y = text(
-        [documento.condicoesPagamento, documento.observacoes].filter(Boolean).join("\n"),
-        margem,
-        y,
-        {
-          size: 9,
-          color: corMuted,
-          width: larguraConteudo,
-        },
-      ) + 10;
-    }
-
-    ensureSpace(72);
-    setDraw(corBorda);
-    pdf.line(margem, y, larguraPagina - margem, y);
-    y += 22;
-    text(documento.nomeMarca, margem, y, { size: 10, style: "bold" });
-    const contatos = [
-      documento.telefoneMarca,
-      documento.emailMarca,
-      documento.instagramMarca || documento.siteMarca,
-    ].filter(Boolean);
-    if (contatos.length) {
-      text(contatos.join("  |  "), margem, y + 16, {
-        size: 8,
-        color: corMuted,
-        width: larguraConteudo - 190,
-      });
-    }
-    setFill(primary);
-    pdf.roundedRect(larguraPagina - margem - 132, y - 14, 132, 36, 7, 7, "F");
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(11);
-    pdf.setTextColor(255, 255, 255);
     if (documento.publicApprovalUrl) {
-      pdf.textWithLink("Aprovar", larguraPagina - margem - 66, y + 8, {
-        align: "center",
+      const areaLink = calcularAreaLinkAprovacaoPdf(nodeReferencia, {
+        x: posicaoX,
+        y: margem,
+        width: larguraImagem,
+        height: alturaImagem,
+      });
+      const areaFallback = {
+        x: larguraPagina - margem - 150,
+        y: alturaPagina - margem - 54,
+        width: 126,
+        height: 38,
+      };
+      const area = areaLink ?? areaFallback;
+
+      pdf.link(area.x, area.y, area.width, area.height, {
         url: documento.publicApprovalUrl,
       });
-    } else {
-      pdf.text("Aprovar", larguraPagina - margem - 66, y + 8, { align: "center" });
-    }
-
-    if (documento.watermark !== "nenhuma") {
-      const marcaUrl = "/brand/emprely-logo-dark.png";
-      const marcaDataUrl = await carregarImagemComoDataUrl(marcaUrl).catch(() => null);
-      const paginas = pdf.getNumberOfPages();
-      for (let page = 1; page <= paginas; page += 1) {
-        pdf.setPage(page);
-        if (marcaDataUrl) {
-          pdf.addImage(marcaDataUrl, "PNG", larguraPagina - 170, alturaPagina - 94, 118, 28);
-        } else {
-          setColor("#94A3B8");
-          pdf.setFont("helvetica", "bold");
-          pdf.setFontSize(14);
-          pdf.text("Emprely", larguraPagina - 120, alturaPagina - 66);
-        }
-      }
-    }
-
-    function renderPdfLista(
-      titulo: string,
-      itens: string[],
-      x: number,
-      startY: number,
-      width: number,
-    ) {
-      if (!itens.length) {
-        return startY;
-      }
-
-      let localY = startY;
-      text(titulo, x, localY, { size: 10, style: "bold", color: primary, width });
-      localY += 16;
-      itens.forEach((item) => {
-        const linhas = pdf.splitTextToSize(item, width - 16);
-        const altura = Math.max(18, linhas.length * 11 + 6);
-        ensureSpace(altura);
-        setFill("#F8FAFC");
-        setDraw(corBorda);
-        pdf.roundedRect(x, localY - 10, width, altura, 5, 5, "FD");
-        text(`- ${item}`, x + 8, localY + 3, {
-          size: 8,
-          color: corTexto,
-          width: width - 16,
-        });
-        localY += altura + 6;
-      });
-      return localY;
-    }
-
-    function calcularAlturaListaPdf(itens: string[]) {
-      if (!itens.length) {
-        return 0;
-      }
-
-      return 16 + itens.reduce((totalAltura, item) => {
-        const linhas = pdf.splitTextToSize(item, larguraConteudo / 2 - 24);
-        return totalAltura + Math.max(18, linhas.length * 11 + 6) + 6;
-      }, 0);
     }
 
     return pdf.output("blob");
@@ -4652,20 +4346,20 @@ export default function App() {
     perfilContaChecklistConcluidos === perfilContaChecklist.length;
   const personalizacaoPreviewItens: NonNullable<PropostaPreviewInput["itens"]> = [
     {
-      nome: "Gestão mensal de Instagram",
-      descricao: "Planejamento, conteúdo e acompanhamento estratégico.",
+      nome: "Plano de execução mensal",
+      descricao: "Planejamento, entregas e acompanhamento estratégico.",
       quantidade: 1,
       valorUnitario: 1200,
     },
     {
-      nome: "Criação de posts para feed",
-      descricao: "Artes profissionais alinhadas à identidade da marca.",
+      nome: "Pacote de entregáveis",
+      descricao: "Itens profissionais alinhados ao escopo contratado.",
       quantidade: 8,
       valorUnitario: 80,
     },
     {
-      nome: "Produção de reels",
-      descricao: "Roteiro, edição e finalização para publicação.",
+      nome: "Entrega complementar",
+      descricao: "Produção, revisão e finalização do material combinado.",
       quantidade: 4,
       valorUnitario: 140,
     },
@@ -4679,7 +4373,7 @@ export default function App() {
     personalizacaoPreviewDesconto,
   );
   const propostaPersonalizacaoPreview: PropostaPreviewInput = {
-    titulo: "Proposta comercial de Social Media",
+    titulo: "Proposta comercial",
     introducao:
       "Preview real para conferir como o template padrão será impresso e compartilhado.",
     observacoes:
@@ -4692,13 +4386,13 @@ export default function App() {
     condicoesPagamento:
       "50% na aprovação e 50% em até 15 dias após o início dos serviços.",
     itensInclusosTexto:
-      "Planejamento mensal\nCalendário editorial\nLegendas otimizadas\nRelatório simples",
+      "Planejamento inicial\nCronograma de execução\nAcompanhamento do projeto\nRelatório simples",
     itensNaoInclusosTexto:
-      "Mídia paga\nCobertura presencial\nProdução fotográfica profissional",
+      "Custos de terceiros\nDeslocamentos presenciais\nItens fora do escopo aprovado",
     cronogramaTexto:
       "Início em até 3 dias úteis\nPlano mensal com recorrência mínima de 3 meses\n2 rodadas de revisão",
     beneficiosTexto:
-      "Presença consistente\nConexão com a marca\nOrganização do conteúdo\nMais performance",
+      "Execução organizada\nComunicação clara\nControle de entregas\nMais previsibilidade",
   };
 
   const podeLimparLogomarca = Boolean(
@@ -4709,8 +4403,6 @@ export default function App() {
     aceitarPropostaMutation.isPending ||
     recusarPropostaMutation.isPending;
   const exibindoSuportePublico = isSuportePublicoPath();
-  const aprovacaoPropostaToken = getAprovacaoPropostaTokenPath();
-  const exibindoAprovacaoPropostaPublica = Boolean(aprovacaoPropostaToken);
   const tituloTelaMobile = getAppViewLabel(appView);
 
   return (
@@ -4785,7 +4477,7 @@ export default function App() {
             <button
               type="button"
               onClick={() => {
-                if (exibindoSuportePublico || exibindoAprovacaoPropostaPublica) {
+                if (exibindoSuportePublico) {
                   window.history.pushState(null, "", "/");
                 }
 
@@ -5022,7 +4714,7 @@ export default function App() {
                 })}
                 <button
                   type="button"
-                  aria-label="Abrir mais opcoes"
+                  aria-label="Abrir mais opções"
                   onClick={() => {
                     if (document.activeElement instanceof HTMLElement) {
                       document.activeElement.blur();
@@ -7500,7 +7192,10 @@ export default function App() {
                                 cliente.id === propostaParaImpressao.clienteId,
                             )}
                             clienteNomeFallback={propostaParaImpressao.clienteNome}
-                            proposta={mapPropostaForm(propostaParaImpressao)}
+                            proposta={{
+                              ...mapPropostaForm(propostaParaImpressao),
+                              publicApprovalUrl: propostaParaImpressao.publicApprovalUrl,
+                            }}
                             numeroProposta={propostaParaImpressao.numero}
                             subtotal={getSubtotalProposta(propostaParaImpressao)}
                             desconto={propostaParaImpressao.descontoValor}
@@ -8732,8 +8427,6 @@ export default function App() {
                   />
                 ) : null}
               </>
-            ) : exibindoAprovacaoPropostaPublica && aprovacaoPropostaToken ? (
-              <AprovacaoPropostaPublicaContent token={aprovacaoPropostaToken} />
             ) : exibindoSuportePublico ? (
               <ContatoPublicoContent
                 contatoPublicoForm={contatoPublicoForm}
@@ -11967,8 +11660,8 @@ type PropostaDocumentoDados = {
   emailMarca: string;
   instagramMarca: string;
   siteMarca: string;
+  publicApprovalUrl: string | null;
   watermark: "nenhuma" | "trial-ativo" | "trial-expirado";
-  publicApprovalUrl: string;
   itens: PropostaDocumentoItem[];
   beneficios: string[];
   itensInclusos: string[];
@@ -12048,8 +11741,8 @@ const PreviewPropostaVisual = forwardRef<HTMLDivElement, PreviewPropostaVisualPr
     emailMarca: perfilConta?.emailContato?.trim() ?? "",
     instagramMarca: normalizarInstagramDocumento(perfilConta?.instagram),
     siteMarca: perfilConta?.siteUrl?.trim() ?? "",
+    publicApprovalUrl: proposta.publicApprovalUrl?.trim() || null,
     watermark,
-    publicApprovalUrl: proposta.publicApprovalUrl ?? "",
     itens: itens
       .map((item) => ({
         nome: item.nome?.trim() ?? "",
@@ -12114,8 +11807,8 @@ const TemplateDocumentoProposta = forwardRef<
   >
     {documento.watermark !== "nenhuma" ? (
       <div className={`doc-trial-watermark is-${documento.watermark}`}>
-        <img src="/brand/emprely-logo-dark.png" alt="" aria-hidden="true" />
-        <span>Emprely</span>
+        <img src={emprelyLogoMarcaDaguaSrc} alt="" aria-hidden="true" />
+        <span>Orçamentos</span>
       </div>
     ) : null}
     {renderTemplateDocumento(documento)}
@@ -12267,6 +11960,7 @@ function TemplateComercialMinimalista({ d }: TemplateDocumentoBaseProps) {
       <header className="doc-minimal-header">
         <DocumentoMarca d={d} />
         <div className="doc-minimal-title">
+          <span className="doc-kicker">Orçamento essencial</span>
           <DocumentoTitulo titulo={d.titulo} className="doc-minimal-title-main" />
           <span className="doc-title-rule" />
         </div>
@@ -12303,7 +11997,7 @@ function TemplateOrcamentoSimplificado({ d }: TemplateDocumentoBaseProps) {
         <div>
           <small>Resumo comercial</small>
           <DocumentoTitulo titulo={d.titulo} className="doc-simple-title-main" />
-          <p>Escopo, entregas, condições e próximos passos para aprovar com clareza.</p>
+          <p>Itens, condições comerciais e próximos passos em uma apresentação objetiva.</p>
         </div>
       </section>
 
@@ -12318,24 +12012,26 @@ function TemplateOrcamentoSimplificado({ d }: TemplateDocumentoBaseProps) {
         </section>
       ) : null}
 
-      <section className="doc-simple-grid">
+      <section className="doc-simple-grid doc-simple-grid-main">
         <div>
-          <DocumentoSectionTitle icon={<Tags size={20} />} title="Formatos e pacotes" />
+          <DocumentoSectionTitle icon={<Tags size={20} />} title="Itens e pacotes" />
           <DocumentoTabelaServicos d={d} compact detailed icons />
         </div>
-        <DocumentoTotalCard d={d} variant="receipt" />
+        <div className="doc-simple-summary">
+          <DocumentoTotalCard d={d} variant="receipt" />
+        </div>
       </section>
 
       {d.beneficios.length || inclusos.length ? (
         <section className="doc-simple-grid">
           <DocumentoBeneficios d={d} />
-          <DocumentoLista titulo="Condições de uso e entrega" itens={inclusos} positive />
+          <DocumentoLista titulo="Condições de entrega" itens={inclusos} positive />
         </section>
       ) : null}
 
       <section className="doc-simple-actions">
         <DocumentoCondicoes d={d} icon />
-        <DocumentoCta d={d} className="doc-cta doc-cta-simple" />
+        <DocumentoAprovacaoCta d={d} className="doc-cta doc-cta-simple" iconSize={30} strong />
       </section>
 
       <DocumentoFooter d={d} contactOnly />
@@ -12363,6 +12059,7 @@ function TemplatePropostaCompleta({ d }: TemplateDocumentoBaseProps) {
       <header className="doc-complete-header">
         <DocumentoMarca d={d} />
         <div className="doc-complete-heading">
+          <span>Proposta comercial completa</span>
           <DocumentoTitulo titulo={d.titulo} className="doc-complete-title-main" />
           <small>Escopo, entregas, prazos, condições e próximos passos para aprovar com clareza.</small>
         </div>
@@ -12447,18 +12144,18 @@ function TemplateSocialDetalhado({
   const texto = luna
     ? {
         kicker: "Plano recorrente",
-        titulo: "Entrega contínua e acompanhamento",
+        titulo: "Plano de entregas recorrentes",
         escopo: "Escopo, entregas e rotina",
-        beneficios: "Benefícios para o cliente",
-        listas: "Aprovações e combinados",
-        cronograma: "Cronograma e cadência",
+        beneficios: "Benefícios esperados",
+        listas: "Combinados e responsabilidades",
+        cronograma: "Cadência de execução",
         cta: "Aprovar",
         tipo: "social" as const,
       }
     : {
         kicker: "Plano estratégico",
-        titulo: "Execução, acompanhamento e resultado",
-        escopo: "Escopo, etapas e otimização",
+        titulo: "Plano de execução e resultado",
+        escopo: "Etapas, entregas e otimização",
         beneficios: "Indicadores e ganhos esperados",
         listas: "Responsabilidades e limites",
         cronograma: "Ciclo de execução",
@@ -12515,14 +12212,16 @@ function TemplateSocialDetalhado({
 
         <section className="doc-social-bottom">
           <DocumentoInvestimentoBloco d={d} />
-          {d.observacoes || d.condicoesPagamento ? (
-            <div className="doc-observation-card">
+          <div className="doc-observation-card">
+            {d.observacoes || d.condicoesPagamento ? (
+              <>
               <DocumentoSectionTitle icon={<Sparkles size={20} />} title="Observações finais" />
               <p>{d.observacoes || d.condicoesPagamento}</p>
-              <DocumentoCta d={d} />
+              </>
+            ) : null}
+              <DocumentoAprovacaoCta d={d} className="doc-cta" iconSize={24} strong />
               <DocumentoContatoInline d={d} />
-            </div>
-          ) : null}
+          </div>
         </section>
       </main>
     </div>
@@ -12550,10 +12249,10 @@ function TemplateInstagramPremium({ d }: TemplateDocumentoBaseProps) {
           <div className="doc-round-icon doc-round-icon-purple">
             <InstagramGlyph size={28} />
           </div>
-        <div>
-          <h2>Objetivo da proposta</h2>
-          <p>{textoResumo}</p>
-        </div>
+          <div>
+            <h2>Objetivo da proposta</h2>
+            <p>{textoResumo}</p>
+          </div>
         </section>
       ) : null}
 
@@ -12561,11 +12260,11 @@ function TemplateInstagramPremium({ d }: TemplateDocumentoBaseProps) {
 
       <section className="doc-instagram-grid">
         <div>
-          <DocumentoSectionTitle title="Escopo e entregáveis" />
+          <DocumentoSectionTitle title="Entregáveis" />
           <DocumentoTabelaServicos d={d} compact detailed icons />
         </div>
         <div className="doc-stack">
-          <DocumentoLista titulo="Condições e combinados" itens={getInclusosDocumento(d)} positive />
+          <DocumentoLista titulo="Condições e entregas" itens={getInclusosDocumento(d)} positive />
           <DocumentoLista titulo="Fora do pacote" itens={d.itensNaoInclusos} />
         </div>
       </section>
@@ -12649,7 +12348,6 @@ function TemplateEmprely({ d }: TemplateDocumentoBaseProps) {
     <div className="doc-page doc-emprely-page">
       <header className="doc-emprely-header">
         <DocumentoMarca d={d} />
-        <div className="doc-emprely-pill">Emprely Orçamentos</div>
       </header>
 
       <section className="doc-emprely-hero">
@@ -12718,7 +12416,7 @@ function TemplateExecutivoEditorial({ d }: TemplateDocumentoBaseProps) {
       <section className="doc-executive-cover">
         <div className="doc-executive-rule" />
         <div>
-          <span className="doc-kicker">Plano, escopo e acompanhamento</span>
+          <span className="doc-kicker">Escopo, plano e acompanhamento</span>
           <DocumentoTitulo titulo={d.titulo} className="doc-executive-title-main" />
           {d.introducao ? <p>{d.introducao}</p> : null}
         </div>
@@ -12730,7 +12428,7 @@ function TemplateExecutivoEditorial({ d }: TemplateDocumentoBaseProps) {
         <main>
           {d.beneficios.length ? (
             <>
-              <DocumentoSectionTitle icon={<BadgeCheck size={20} />} title="Problemas e ganhos esperados" />
+              <DocumentoSectionTitle icon={<BadgeCheck size={20} />} title="Objetivos e ganhos esperados" />
               <DocumentoBeneficios d={d} mode="wide" />
             </>
           ) : null}
@@ -12772,7 +12470,6 @@ function TemplateCorporativoBoard({ d }: TemplateDocumentoBaseProps) {
       <header className="doc-board-hero">
         <div>
           <DocumentoMarca d={d} dark large />
-          <span className="doc-board-label">Board comercial</span>
           <DocumentoTitulo titulo={d.titulo} className="doc-board-title-main" />
           {d.introducao ? <p>{d.introducao}</p> : null}
         </div>
@@ -12786,12 +12483,12 @@ function TemplateCorporativoBoard({ d }: TemplateDocumentoBaseProps) {
 
       <section className="doc-board-content">
         <main>
-          <DocumentoSectionTitle icon={<ShieldCheck size={20} />} title="Frentes da proposta" />
+          <DocumentoSectionTitle icon={<ShieldCheck size={20} />} title="Frentes contratadas" />
           <DocumentoTabelaServicos d={d} compact detailed />
 
           {d.beneficios.length ? (
             <>
-              <DocumentoSectionTitle icon={<Target size={20} />} title="Objetivos e indicadores" />
+              <DocumentoSectionTitle icon={<Target size={20} />} title="Metas e indicadores" />
               <DocumentoBeneficios d={d} />
             </>
           ) : null}
@@ -12807,7 +12504,7 @@ function TemplateCorporativoBoard({ d }: TemplateDocumentoBaseProps) {
 
       {d.cronograma.length ? (
         <section className="doc-board-timeline">
-          <DocumentoSectionTitle icon={<Clock3 size={20} />} title="Roadmap e próximos passos" />
+          <DocumentoSectionTitle icon={<Clock3 size={20} />} title="Roadmap e cadência comercial" />
           <DocumentoTimeline d={d} horizontal />
         </section>
       ) : null}
@@ -12834,7 +12531,7 @@ function TemplateInstitucionalClean({ d }: TemplateDocumentoBaseProps) {
       </header>
 
       <section className="doc-institutional-title">
-        <span className="doc-kicker">Escopo e entregas finais</span>
+        <span className="doc-kicker">Escopo, aplicações e entregas finais</span>
         <DocumentoTitulo titulo={d.titulo} className="doc-institutional-title-main" />
         {d.introducao ? <p>{d.introducao}</p> : null}
       </section>
@@ -12862,8 +12559,8 @@ function TemplateInstitucionalClean({ d }: TemplateDocumentoBaseProps) {
 
       {inclusos.length || d.itensNaoInclusos.length ? (
         <section className="doc-institutional-lists">
-          <DocumentoLista titulo="Itens inclusos" itens={inclusos} positive />
-          <DocumentoLista titulo="Fora do escopo" itens={d.itensNaoInclusos} />
+          <DocumentoLista titulo="Arquivos e aplicações inclusas" itens={inclusos} positive />
+          <DocumentoLista titulo="Fora do escopo criativo" itens={d.itensNaoInclusos} />
         </section>
       ) : null}
 
@@ -12903,11 +12600,34 @@ function DocumentoMarca({
       />
       <div>
         <strong>{d.nomeMarca}</strong>
-        {d.instagramMarca || d.siteMarca ? (
-          <small>{d.instagramMarca || d.siteMarca}</small>
-        ) : null}
+        <DocumentoMarcaContato d={d} />
       </div>
     </div>
+  );
+}
+
+function DocumentoMarcaContato({ d }: TemplateDocumentoBaseProps) {
+  const contato = getContatoPrincipalMarca(d);
+
+  if (!contato) {
+    return null;
+  }
+
+  const conteudo = <small>{contato.valor}</small>;
+
+  return contato.href ? (
+    <a
+      className="doc-brand-contact-link"
+      data-pdf-link-url={contato.href}
+      href={contato.href}
+      target={contato.href.startsWith("mailto:") ? undefined : "_blank"}
+      rel={contato.href.startsWith("mailto:") ? undefined : "noreferrer"}
+      aria-label={contato.label}
+    >
+      {conteudo}
+    </a>
+  ) : (
+    conteudo
   );
 }
 
@@ -13079,148 +12799,6 @@ function InstagramGlyph({
   );
 }
 
-/*
-function DocumentoImagemRamo({
-  tipo: _tipo,
-  dark = false,
-}: {
-  tipo:
-    | "rapido"
-    | "social"
-    | "ugc"
-    | "creator"
-    | "trafego"
-    | "design"
-    | "consultoria"
-    | "agencia";
-  dark?: boolean;
-}) {
-  void _tipo;
-  void dark;
-  return null;
-
-  const config = {
-    rapido: {
-      kicker: "WhatsApp",
-      title: "Escopo, prazo e preço",
-      metric: "24h",
-      bars: [82, 56, 68],
-    },
-    social: {
-      kicker: "rotina mensal",
-      title: "Posts, reels e aprovações",
-      metric: "30d",
-      bars: [62, 84, 44],
-    },
-    ugc: {
-      kicker: "conteúdo curto",
-      title: "Reels, UGC e licença",
-      metric: "9:16",
-      bars: [76, 50, 88],
-    },
-    creator: {
-      kicker: "creator commerce",
-      title: "Audiência, formatos e rate card",
-      metric: "ER%",
-      bars: [58, 82, 64],
-    },
-    trafego: {
-      kicker: "performance",
-      title: "Campanhas, verba e KPIs",
-      metric: "ROAS",
-      bars: [44, 70, 92],
-    },
-    design: {
-      kicker: "identidade",
-      title: "Marca e social kit",
-      metric: "RGB",
-      bars: [78, 38, 58],
-    },
-    consultoria: {
-      kicker: "plano de ação",
-      title: "Diagnóstico e roadmap",
-      metric: "OKR",
-      bars: [36, 58, 86],
-    },
-    agencia: {
-      kicker: "growth board",
-      title: "Aquisição, conteúdo e CRM",
-      metric: "KPI",
-      bars: [54, 76, 94],
-    },
-  }[tipo];
-
-  return (
-    <div className={`doc-ramo-visual doc-ramo-visual-${tipo} ${dark ? "doc-ramo-visual-dark" : ""}`}>
-      <div className="doc-ramo-visual-copy">
-        <span>{config.kicker}</span>
-        <strong>{config.title}</strong>
-        <small>{config.metric}</small>
-      </div>
-      <svg viewBox="0 0 420 220" role="img" aria-label={`Imagem do template ${config.title}`}>
-        <rect className="doc-ramo-card-main" x="18" y="18" width="236" height="172" rx="22" />
-        <rect className="doc-ramo-card-side" x="276" y="38" width="116" height="132" rx="18" />
-        <circle className="doc-ramo-orb" cx="336" cy="66" r="20" />
-        <path className="doc-ramo-line-strong" d="M48 58h104" />
-        <path className="doc-ramo-line" d="M48 86h152" />
-        <path className="doc-ramo-line" d="M48 112h128" />
-        <path className="doc-ramo-line-muted" d="M48 148h172" />
-        <g className="doc-ramo-bars">
-          {config.bars.map((bar, index) => (
-            <rect
-              key={`${tipo}-${bar}`}
-              x={298 + index * 24}
-              y={142 - bar * 0.62}
-              width="14"
-              height={bar * 0.62}
-              rx="7"
-            />
-          ))}
-        </g>
-        <path className="doc-ramo-path" d="M278 158c22-42 48-34 70-72 12-21 26-31 46-34" />
-        {tipo === "social" || tipo === "design" ? (
-          <>
-            <rect className="doc-ramo-media" x="64" y="126" width="56" height="42" rx="10" />
-            <rect className="doc-ramo-media doc-ramo-media-alt" x="130" y="126" width="56" height="42" rx="10" />
-          </>
-        ) : null}
-        {tipo === "ugc" ? (
-          <>
-            <rect className="doc-ramo-phone" x="62" y="116" width="42" height="66" rx="13" />
-            <rect className="doc-ramo-phone doc-ramo-phone-alt" x="116" y="108" width="42" height="74" rx="13" />
-            <path className="doc-ramo-play" d="M132 132l16 10-16 10z" />
-            <rect className="doc-ramo-license" x="172" y="126" width="54" height="28" rx="14" />
-          </>
-        ) : null}
-        {tipo === "creator" ? (
-          <>
-            <circle className="doc-ramo-avatar" cx="84" cy="139" r="22" />
-            <path className="doc-ramo-profile" d="M52 176c8-22 56-22 64 0" />
-            <rect className="doc-ramo-chip" x="134" y="124" width="78" height="18" rx="9" />
-            <rect className="doc-ramo-chip doc-ramo-chip-alt" x="134" y="152" width="58" height="18" rx="9" />
-          </>
-        ) : null}
-        {tipo === "trafego" || tipo === "agencia" ? (
-          <>
-            <path className="doc-ramo-funnel" d="M60 124h132l-42 46H102z" />
-            <circle className="doc-ramo-dot" cx="192" cy="58" r="10" />
-            <circle className="doc-ramo-dot" cx="222" cy="86" r="7" />
-          </>
-        ) : null}
-        {tipo === "consultoria" ? (
-          <>
-            <circle className="doc-ramo-step" cx="72" cy="144" r="11" />
-            <circle className="doc-ramo-step" cx="128" cy="144" r="11" />
-            <circle className="doc-ramo-step" cx="184" cy="144" r="11" />
-            <path className="doc-ramo-step-line" d="M83 144h34M139 144h34" />
-          </>
-        ) : null}
-      </svg>
-    </div>
-  );
-}
-
-*/
 function DocumentoBeneficios({
   d,
   mode,
@@ -13532,74 +13110,46 @@ function DocumentoFooter({
     >
       {!contactOnly ? <strong>{d.nomeMarca}</strong> : null}
       <DocumentoContatoInline d={d} />
-      {cta ? (
-        <DocumentoCta d={d} className="doc-footer-cta" />
-      ) : null}
+      {cta ? <DocumentoAprovacaoCta d={d} className="doc-footer-cta" /> : null}
     </footer>
   );
 }
 
-function DocumentoCta({
+function DocumentoAprovacaoCta({
   d,
-  className = "doc-cta",
+  className,
+  iconSize = 22,
+  strong = false,
 }: TemplateDocumentoBaseProps & {
-  className?: string;
+  className: string;
+  iconSize?: number;
+  strong?: boolean;
 }) {
-  const content = (
+  const conteudo = (
     <>
-      <CheckCircle2 size={22} />
-      <span>Aprovar</span>
+      <CheckCircle2 size={iconSize} />
+      {strong ? <strong>Aprovar</strong> : <span>Aprovar</span>}
     </>
   );
 
-  if (!d.publicApprovalUrl) {
-    return <span className={className}>{content}</span>;
+  if (d.publicApprovalUrl) {
+    return (
+      <a
+        className={className}
+        href={d.publicApprovalUrl}
+        target="_blank"
+        rel="noreferrer"
+      >
+        {conteudo}
+      </a>
+    );
   }
 
-  return (
-    <a
-      className={className}
-      href={d.publicApprovalUrl}
-      target="_blank"
-      rel="noopener noreferrer"
-    >
-      {content}
-    </a>
-  );
+  return <span className={className}>{conteudo}</span>;
 }
 
 function DocumentoContatoInline({ d }: TemplateDocumentoBaseProps) {
-  const contatos: Array<{ key: string; valor: string; icon: ReactNode }> = [];
-
-  if (d.telefoneMarca) {
-    contatos.push({
-      key: "telefone",
-      valor: d.telefoneMarca,
-      icon: <Phone size={14} />,
-    });
-  }
-
-  if (d.emailMarca) {
-    contatos.push({
-      key: "email",
-      valor: d.emailMarca,
-      icon: <Mail size={14} />,
-    });
-  }
-
-  if (d.instagramMarca) {
-    contatos.push({
-      key: "instagram",
-      valor: d.instagramMarca,
-      icon: <AtSign size={14} />,
-    });
-  } else if (d.siteMarca) {
-    contatos.push({
-      key: "site",
-      valor: d.siteMarca,
-      icon: <Globe2 size={14} />,
-    });
-  }
+  const contatos = getContatosDocumento(d);
 
   if (!contatos.length && !d.contatoMarca) {
     return null;
@@ -13608,12 +13158,32 @@ function DocumentoContatoInline({ d }: TemplateDocumentoBaseProps) {
   return (
     <div className="doc-contact-inline">
       {contatos.length ? (
-        contatos.map((contato) => (
-          <span className="doc-contact-item" key={contato.key}>
+        contatos.map((contato) => {
+          const conteudo = (
+            <>
             {contato.icon}
             <span>{contato.valor}</span>
-          </span>
-        ))
+            </>
+          );
+
+          return contato.href ? (
+            <a
+              className="doc-contact-item"
+              data-pdf-link-url={contato.href}
+              href={contato.href}
+              key={contato.key}
+              target={contato.href.startsWith("mailto:") ? undefined : "_blank"}
+              rel={contato.href.startsWith("mailto:") ? undefined : "noreferrer"}
+              aria-label={contato.label}
+            >
+              {conteudo}
+            </a>
+          ) : (
+            <span className="doc-contact-item" key={contato.key}>
+              {conteudo}
+            </span>
+          );
+        })
       ) : (
         <span className="doc-contact-item">
           <Mail size={14} />
@@ -13622,6 +13192,124 @@ function DocumentoContatoInline({ d }: TemplateDocumentoBaseProps) {
       )}
     </div>
   );
+}
+
+type DocumentoContatoLink = {
+  key: string;
+  valor: string;
+  icon: ReactNode;
+  href?: string;
+  label: string;
+};
+
+function getContatosDocumento(d: PropostaDocumentoDados): DocumentoContatoLink[] {
+  const contatos: DocumentoContatoLink[] = [];
+
+  if (d.telefoneMarca) {
+    const whatsappUrl = buildWhatsappContatoUrl(d.telefoneMarca);
+
+    contatos.push({
+      key: "telefone",
+      valor: d.telefoneMarca,
+      icon: whatsappUrl ? <WhatsAppIcon size={14} /> : <Phone size={14} />,
+      href: whatsappUrl,
+      label: whatsappUrl
+        ? `Enviar mensagem pelo WhatsApp para ${d.telefoneMarca}`
+        : `Telefone ${d.telefoneMarca}`,
+    });
+  }
+
+  if (d.emailMarca) {
+    const emailUrl = buildEmailContatoUrl(d.emailMarca);
+
+    contatos.push({
+      key: "email",
+      valor: d.emailMarca,
+      icon: <Mail size={14} />,
+      href: emailUrl,
+      label: `Enviar email para ${d.emailMarca}`,
+    });
+  }
+
+  if (d.instagramMarca) {
+    const instagramUrl = buildInstagramContatoUrl(d.instagramMarca);
+
+    contatos.push({
+      key: "instagram",
+      valor: d.instagramMarca,
+      icon: <AtSign size={14} />,
+      href: instagramUrl,
+      label: `Abrir Instagram ${d.instagramMarca}`,
+    });
+  }
+
+  if (d.siteMarca) {
+    const siteUrl = buildSiteContatoUrl(d.siteMarca);
+
+    contatos.push({
+      key: "site",
+      valor: d.siteMarca,
+      icon: <Globe2 size={14} />,
+      href: siteUrl,
+      label: `Abrir site ${d.siteMarca}`,
+    });
+  }
+
+  return contatos;
+}
+
+function getContatoPrincipalMarca(d: PropostaDocumentoDados): DocumentoContatoLink | null {
+  const contatos = getContatosDocumento(d);
+
+  return (
+    contatos.find((contato) => contato.key === "instagram") ??
+    contatos.find((contato) => contato.key === "site") ??
+    contatos.find((contato) => contato.key === "email") ??
+    contatos.find((contato) => contato.key === "telefone") ??
+    null
+  );
+}
+
+function buildWhatsappContatoUrl(telefone: string): string | undefined {
+  const digitos = telefone.replace(/\D/g, "");
+
+  if (digitos.length < 10) {
+    return undefined;
+  }
+
+  const numero = digitos.startsWith("55") ? digitos : `55${digitos}`;
+
+  return `https://wa.me/${numero}`;
+}
+
+function buildEmailContatoUrl(email: string): string | undefined {
+  const valor = email.trim();
+
+  if (!valor || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(valor)) {
+    return undefined;
+  }
+
+  return `mailto:${valor}`;
+}
+
+function buildInstagramContatoUrl(instagram: string): string | undefined {
+  const usuario = instagram.trim().replace(/^@+/, "");
+
+  if (!usuario) {
+    return undefined;
+  }
+
+  return `https://www.instagram.com/${encodeURIComponent(usuario)}`;
+}
+
+function buildSiteContatoUrl(site: string): string | undefined {
+  const valor = site.trim();
+
+  if (!valor) {
+    return undefined;
+  }
+
+  return /^https?:\/\//i.test(valor) ? valor : `https://${valor}`;
 }
 
 function getMetadadosDocumento(d: PropostaDocumentoDados) {
@@ -14416,68 +14104,6 @@ function buildMetricasDashboard({
   ];
 }
 
-function AprovacaoPropostaPublicaContent({ token }: { token: string }) {
-  const aprovacaoMutation = useMutation<
-    PublicProposalApprovalResponse,
-    Error,
-    string
-  >({
-    mutationFn: approvePropostaPublica,
-  });
-  const { mutate: aprovarPropostaPublica } = aprovacaoMutation;
-
-  useEffect(() => {
-    aprovarPropostaPublica(token);
-  }, [aprovarPropostaPublica, token]);
-
-  const resposta = aprovacaoMutation.data;
-  const sucesso = resposta?.status === "Aceita";
-
-  return (
-    <section className="public-approval-page">
-      <div className="public-approval-card rounded-md border border-border bg-surface p-6 shadow-sm">
-        <span className={`public-approval-icon ${sucesso ? "is-success" : ""}`}>
-          {aprovacaoMutation.isPending ? (
-            <RefreshCw size={28} aria-hidden="true" />
-          ) : sucesso ? (
-            <CheckCircle2 size={30} aria-hidden="true" />
-          ) : (
-            <AlertTriangle size={30} aria-hidden="true" />
-          )}
-        </span>
-        <p className="text-sm font-semibold text-primary">Aprovação da proposta</p>
-        <h1 className="font-heading text-3xl font-bold leading-tight">
-          {aprovacaoMutation.isPending
-            ? "Confirmando aceite..."
-            : sucesso
-              ? "Proposta aprovada"
-              : "Não foi possível aprovar"}
-        </h1>
-        <p className="text-base text-muted">
-          {aprovacaoMutation.isPending
-            ? "Estamos registrando sua aprovação com segurança."
-            : resposta?.message ??
-              aprovacaoMutation.error?.message ??
-              "O link pode estar inválido, expirado ou indisponível."}
-        </p>
-        {resposta?.proposalTitle ? (
-          <div className="public-approval-summary">
-            <span>Proposta</span>
-            <strong>{resposta.proposalTitle}</strong>
-            {resposta.clientName ? <small>Cliente: {resposta.clientName}</small> : null}
-          </div>
-        ) : null}
-        <a
-          href="/"
-          className="inline-flex h-11 items-center justify-center rounded-md bg-primary px-5 text-sm font-semibold text-white shadow-sm"
-        >
-          Ir para o Emprely
-        </a>
-      </div>
-    </section>
-  );
-}
-
 function ContatoPublicoContent({
   contatoPublicoForm,
   contatoPublicoMutation,
@@ -14971,19 +14597,6 @@ function getTemaVisualInicial(): TemaVisual {
   const temaSalvo = window.localStorage.getItem(temaVisualStorageKey);
 
   return temaSalvo === "dark" ? "dark" : "light";
-}
-
-function getAprovacaoPropostaTokenPath(): string | null {
-  const partes = window.location.pathname
-    .split("/")
-    .map((parte) => parte.trim())
-    .filter(Boolean);
-
-  if (partes[0]?.toLowerCase() !== "aprovar-proposta" || !partes[1]) {
-    return null;
-  }
-
-  return decodeURIComponent(partes[1]);
 }
 
 function isSuportePublicoPath(): boolean {
@@ -15600,22 +15213,8 @@ function getTemplateCssClass(templateVisual: PropostaTemplateVisual): string {
   return classes[normalizarTemplateVisual(templateVisual)];
 }
 
-function inferirTipoProposta(
-  proposta: PropostaPreviewInput,
-  itens: PropostaPreviewInput["itens"],
-): string {
-  const texto = [
-    proposta.titulo,
-    proposta.introducao,
-    ...(itens ?? []).flatMap((item) => [item.nome, item.descricao]),
-  ]
-    .join(" ")
-    .toLowerCase();
-
-  if (/(instagram|social|reels|stories|post|conteudo|conteúdo|feed)/i.test(texto)) {
-    return "Social Media";
-  }
-
+function inferirTipoProposta(..._args: unknown[]): string {
+  void _args;
   return "";
 }
 
@@ -15725,52 +15324,16 @@ function blobToDataUrl(blob: Blob): Promise<string> {
   });
 }
 
-async function carregarImagemComoDataUrl(src: string): Promise<string> {
-  const response = await fetch(src);
-  if (!response.ok) {
-    throw new Error("Imagem nao carregada.");
-  }
-
-  return blobToDataUrl(await response.blob());
-}
-
-function hexToRgbDocumento(hex: string): { r: number; g: number; b: number } {
-  const normalizado = normalizarHexPreview(hex).replace("#", "");
-  return {
-    r: Number.parseInt(normalizado.slice(0, 2), 16),
-    g: Number.parseInt(normalizado.slice(2, 4), 16),
-    b: Number.parseInt(normalizado.slice(4, 6), 16),
-  };
-}
-
-function getPdfTituloTamanho(titulo: string): number {
-  const tamanho = titulo.trim().length;
-
-  if (tamanho > 92) {
-    return 14;
-  }
-
-  if (tamanho > 64) {
-    return 16;
-  }
-
-  if (tamanho > 38) {
-    return 18;
-  }
-
-  return 20;
-}
-
-function getPdfMetadados(d: PropostaDocumentoDados): Array<{
-  label: string;
-  value: string;
-}> {
-  return [
-    { label: "Cliente", value: d.clienteNome },
-    { label: "Data", value: d.dataTexto },
-    { label: "Validade", value: d.validadeTexto },
-    { label: "Tipo", value: d.tipoTexto },
-  ].filter((item) => item.value.trim().length > 0);
+function carregarTamanhoImagem(
+  src: string,
+): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () =>
+      resolve({ width: image.naturalWidth, height: image.naturalHeight });
+    image.onerror = reject;
+    image.src = src;
+  });
 }
 
 function slugifyArquivo(valor: string): string {
@@ -16403,6 +15966,99 @@ function parseMoedaRealInput(valor: string): number {
 
 function hasDescontoDocumento(d: PropostaDocumentoDados): boolean {
   return Math.abs(d.desconto) >= 0.01;
+}
+
+type PdfLinkAnnotation = {
+  link: (x: number, y: number, w: number, h: number, options: { url: string }) => void;
+};
+
+function adicionarLinksPdfPorDataAttribute(
+  pdf: PdfLinkAnnotation,
+  node: HTMLDivElement | null,
+  pdfBox: { x: number; y: number; width: number; height: number },
+): void {
+  if (!node) {
+    return;
+  }
+
+  const links = Array.from(
+    node.querySelectorAll<HTMLElement>("[data-pdf-link-url]"),
+  );
+
+  links.forEach((elemento) => {
+    const url = elemento.dataset.pdfLinkUrl?.trim();
+    const area = calcularAreaElementoPdf(node, elemento, pdfBox);
+
+    if (!url || !area) {
+      return;
+    }
+
+    pdf.link(area.x, area.y, area.width, area.height, { url });
+  });
+}
+
+function calcularAreaLinkAprovacaoPdf(
+  node: HTMLDivElement | null,
+  pdfBox: { x: number; y: number; width: number; height: number },
+): { x: number; y: number; width: number; height: number } | null {
+  if (!node) {
+    return null;
+  }
+
+  const nodeRect = node.getBoundingClientRect();
+
+  if (nodeRect.width <= 0 || nodeRect.height <= 0) {
+    return null;
+  }
+
+  const ctas = Array.from(
+    node.querySelectorAll<HTMLElement>(".doc-footer-cta, .doc-cta"),
+  ).filter((elemento) => {
+    const rect = elemento.getBoundingClientRect();
+    const estilo = window.getComputedStyle(elemento);
+
+    return (
+      rect.width > 1 &&
+      rect.height > 1 &&
+      estilo.display !== "none" &&
+      estilo.visibility !== "hidden"
+    );
+  });
+  const cta = ctas.at(-1);
+
+  if (!cta) {
+    return null;
+  }
+
+  return calcularAreaElementoPdf(node, cta, pdfBox);
+}
+
+function calcularAreaElementoPdf(
+  node: HTMLDivElement,
+  elemento: HTMLElement,
+  pdfBox: { x: number; y: number; width: number; height: number },
+): { x: number; y: number; width: number; height: number } | null {
+  const nodeRect = node.getBoundingClientRect();
+  const elementoRect = elemento.getBoundingClientRect();
+
+  if (
+    nodeRect.width <= 0 ||
+    nodeRect.height <= 0 ||
+    elementoRect.width <= 1 ||
+    elementoRect.height <= 1
+  ) {
+    return null;
+  }
+
+  const escalaX = pdfBox.width / nodeRect.width;
+  const escalaY = pdfBox.height / nodeRect.height;
+
+  return {
+    x: pdfBox.x + (elementoRect.left - nodeRect.left) * escalaX,
+    y: pdfBox.y + (elementoRect.top - nodeRect.top) * escalaY,
+    width: elementoRect.width * escalaX,
+    height: elementoRect.height * escalaY,
+  };
 }
 
 function formatUnidadeServico(unidade: UnidadeServico): string {
