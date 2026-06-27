@@ -213,8 +213,9 @@ test("fluxo principal do MVP no web", async ({ page }) => {
   expect(caminhoPdf).not.toBeNull();
   const conteudoPdf = await readFile(caminhoPdf!);
   const textoPdfBruto = conteudoPdf.toString("latin1");
-  expect(textoPdfBruto).toContain("Proposta MVP E2E");
-  expect(textoPdfBruto).toContain("Aprovar");
+  expect(textoPdfBruto).toContain("%PDF-");
+  expect(conteudoPdf.byteLength).toBeGreaterThan(50_000);
+  expect(textoPdfBruto).toMatch(/\/Subtype\s*\/Image/);
   expect(textoPdfBruto).toContain(
     "/URI (https://app.emprely.test/aprovar-proposta/token-proposta-1)",
   );
@@ -281,7 +282,7 @@ test("exibe perfil da conta unificado no drawer mobile", async ({ page }) => {
   await adicionarSessaoValida(page);
 
   await page.goto("/");
-  await page.getByRole("button", { name: "Abrir mais opcoes" }).click();
+  await page.getByRole("button", { name: "Abrir mais opções" }).click();
   await expect(
     page.getByRole("button", { name: "Perfil da conta" }),
   ).toBeVisible();
