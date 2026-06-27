@@ -13479,20 +13479,56 @@ a.doc-contact-item:hover {
     @apply rounded-md bg-white px-2 py-1 text-xs font-semibold text-slate-600 ring-1 ring-slate-200;
   }
 
+  .onboarding-progress {
+    @apply mt-4 h-2 overflow-hidden rounded-full bg-slate-200;
+  }
+
+  .onboarding-progress span {
+    @apply block h-full rounded-full bg-primary transition-all;
+  }
+
   .onboarding-step-list {
     @apply grid gap-2;
+  }
+
+  .onboarding-step-list-legacy {
+    @apply hidden;
   }
 
   .onboarding-step-item {
     @apply flex gap-3 rounded-md border border-slate-200 bg-white p-3;
   }
 
+  .onboarding-step-item.is-active {
+    @apply border-primary bg-blue-50;
+  }
+
+  .onboarding-step-item.is-complete {
+    @apply border-emerald-200 bg-emerald-50;
+  }
+
   .onboarding-step-item span {
     @apply inline-flex h-7 min-w-7 items-center justify-center rounded-md bg-slate-100 text-xs font-semibold text-slate-700;
   }
 
+  .onboarding-step-item.is-active span {
+    @apply bg-primary text-white;
+  }
+
+  .onboarding-step-item.is-complete span {
+    @apply bg-emerald-600 text-white;
+  }
+
+  .onboarding-step-item strong {
+    @apply block text-sm font-semibold text-slate-950;
+  }
+
   .onboarding-step-item p {
     @apply text-sm leading-5 text-slate-700;
+  }
+
+  .onboarding-modal-hint {
+    @apply max-w-sm text-xs leading-5 text-slate-500;
   }
 
   .onboarding-modal-footer {

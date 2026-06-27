@@ -414,6 +414,7 @@ public sealed class MvpFluxoApiTests : IClassFixture<EmprelyApiFactory>
 
         Assert.Equal("Concluido", onboardingPerfilConcluido.ConfiguracaoConta.Status);
         Assert.True(onboardingPerfilConcluido.ConfiguracaoConta.ConcluidoPorDados);
+        Assert.True(onboardingPerfilConcluido.DeveLembrarAposPular);
 
         var cliente = await PostJsonAsync<ClienteResponse>(
             "/api/customers",
@@ -460,6 +461,31 @@ public sealed class MvpFluxoApiTests : IClassFixture<EmprelyApiFactory>
                         servico.Preco),
                 }),
             HttpStatusCode.Created);
+
+        using (var salvarRascunhoRequest = new HttpRequestMessage(HttpMethod.Patch, "/api/onboarding"))
+        {
+            salvarRascunhoRequest.Content = JsonContent.Create(
+                new UpdateOnboardingRequest(
+                    StatusPrimeiraProposta: "EmAndamento",
+                    EtapaPrimeiraProposta: "orcamento",
+                    PropostaRascunhoId: proposta.Id),
+                options: JsonOptions);
+            var salvarRascunhoResponse = await httpClient.SendAsync(salvarRascunhoRequest);
+            Assert.Equal(HttpStatusCode.OK, salvarRascunhoResponse.StatusCode);
+            var onboardingComRascunho = await salvarRascunhoResponse.Content.ReadFromJsonAsync<OnboardingResponse>(JsonOptions);
+            Assert.Equal(proposta.Id, onboardingComRascunho?.PropostaRascunhoId);
+        }
+
+        using (var limparRascunhoRequest = new HttpRequestMessage(HttpMethod.Patch, "/api/onboarding"))
+        {
+            limparRascunhoRequest.Content = JsonContent.Create(
+                new UpdateOnboardingRequest(LimparPropostaRascunhoId: true),
+                options: JsonOptions);
+            var limparRascunhoResponse = await httpClient.SendAsync(limparRascunhoRequest);
+            Assert.Equal(HttpStatusCode.OK, limparRascunhoResponse.StatusCode);
+            var onboardingSemRascunho = await limparRascunhoResponse.Content.ReadFromJsonAsync<OnboardingResponse>(JsonOptions);
+            Assert.Null(onboardingSemRascunho?.PropostaRascunhoId);
+        }
 
         await PostJsonAsync<PropostaResponse>(
             $"/api/proposals/{proposta.Id}/generate",

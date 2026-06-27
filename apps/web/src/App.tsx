@@ -1044,6 +1044,8 @@ export default function App() {
   const [onboardingTourRodando, setOnboardingTourRodando] = useState(false);
   const [onboardingTourStepIndex, setOnboardingTourStepIndex] = useState(0);
   const [onboardingTourKey, setOnboardingTourKey] = useState(0);
+  const onboardingModalAutoAberturaRef = useRef<string | null>(null);
+  const onboardingModalLembreteRef = useRef<string | null>(null);
   const onboardingTourAutoInicioRef = useRef<string | null>(null);
   const onboardingTourEncerradoSessaoRef = useRef<string | null>(null);
   const [
@@ -2385,7 +2387,48 @@ export default function App() {
   });
 
   useEffect(() => {
-    if (!usuario || !conta || !onboarding || onboardingTourRodando) {
+    if (!usuario || !conta || !onboarding || onboardingTourRodando || onboardingModalAberto) {
+      return;
+    }
+
+    const chaveBase = `${conta.id}:${usuario.id}:${onboarding.updatedAt ?? "inicial"}`;
+    const jornadaInicial =
+      onboarding.configuracaoConta.status !== "Concluido" ? "conta" : "proposta";
+
+    if (onboarding.deveAbrirAutomaticamente) {
+      const chave = `auto:${chaveBase}`;
+      if (onboardingModalAutoAberturaRef.current === chave) {
+        return;
+      }
+
+      onboardingModalAutoAberturaRef.current = chave;
+      setOnboardingJornadaAtiva(jornadaInicial);
+      setMobileMenuAberto(false);
+      setContaMenuAberto(false);
+      setOnboardingModalAberto(true);
+      return;
+    }
+
+    if (onboarding.deveLembrarAposPular) {
+      const chave = `lembrete:${chaveBase}`;
+      if (onboardingModalLembreteRef.current === chave) {
+        return;
+      }
+
+      onboardingModalLembreteRef.current = chave;
+      setOnboardingJornadaAtiva(jornadaInicial);
+      setMobileMenuAberto(false);
+      setContaMenuAberto(false);
+      setOnboardingModalAberto(true);
+    }
+  }, [conta, onboarding, onboardingModalAberto, onboardingTourRodando, usuario]);
+
+  useEffect(() => {
+    if (!usuario || !conta || !onboarding || onboardingTourRodando || onboardingModalAberto) {
+      return;
+    }
+
+    if (onboarding.deveAbrirAutomaticamente || onboarding.deveLembrarAposPular) {
       return;
     }
 
@@ -2417,7 +2460,7 @@ export default function App() {
 
       return () => window.clearTimeout(timeoutId);
     }
-  }, [conta, onboarding, onboardingEventoMutation, onboardingTourRodando, usuario]);
+  }, [conta, onboarding, onboardingEventoMutation, onboardingModalAberto, onboardingTourRodando, usuario]);
 
   useEffect(() => {
     if (!onboardingTourRodando) {
@@ -9434,6 +9477,56 @@ function OnboardingModal({
           onClick: onPrimeiraProposta,
           concluido: primeiraPropostaGerada,
         };
+  const etapasWizard =
+    jornadaAtiva === "conta"
+      ? [
+          {
+            titulo: "Dados da marca",
+            detalhe: "Nome comercial, segmento, cidade/UF e contato.",
+            concluido: perfilCompleto,
+          },
+          {
+            titulo: "Logomarca",
+            detalhe: "Adicione a marca ou continue com iniciais no documento.",
+            concluido: perfilCompleto,
+          },
+          {
+            titulo: "Template e envio",
+            detalhe: "Escolha template, cores e formato preferido.",
+            concluido: perfilCompleto,
+          },
+          {
+            titulo: "Revisao",
+            detalhe: "Salve o perfil para concluir a configuracao.",
+            concluido: perfilCompleto,
+          },
+        ]
+      : [
+          {
+            titulo: "Cliente",
+            detalhe: "Selecione ou cadastre quem vai receber a proposta.",
+            concluido: primeiraPropostaGerada,
+          },
+          {
+            titulo: "Servico",
+            detalhe: "Escolha o pacote ou servico que sera vendido.",
+            concluido: primeiraPropostaGerada,
+          },
+          {
+            titulo: "Orcamento",
+            detalhe: "Monte itens, valores e detalhes comerciais.",
+            concluido: primeiraPropostaGerada,
+          },
+          {
+            titulo: "Geracao e envio",
+            detalhe: "Gere a proposta e deixe o material pronto para WhatsApp.",
+            concluido: primeiraPropostaGerada,
+          },
+        ];
+  const etapasConcluidas = etapasWizard.filter((etapa) => etapa.concluido).length;
+  const progressoPercentual = Math.round((etapasConcluidas / etapasWizard.length) * 100);
+  const statusJornadaAtual =
+    jornadaAtiva === "conta" ? configuracaoStatusVisual : propostaStatusVisual;
 
   return createPortal(
     <div
@@ -9507,10 +9600,42 @@ function OnboardingModal({
                 <span>Conta: {getOnboardingStatusLabel(configuracaoStatusVisual)}</span>
                 <span>Proposta: {getOnboardingStatusLabel(propostaStatusVisual)}</span>
               </div>
+              <div className="onboarding-progress" aria-label={`Progresso ${progressoPercentual}%`}>
+                <span style={{ width: `${progressoPercentual}%` }} />
+              </div>
             </div>
           </div>
 
           <div className="onboarding-step-list">
+            {etapasWizard.map((passo, index) => {
+              const etapaConcluida = passo.concluido;
+              const etapaAtiva =
+                !etapaConcluida &&
+                statusJornadaAtual !== "Pulado" &&
+                index === etapasConcluidas;
+
+              return (
+                <div
+                  key={passo.titulo}
+                  className={[
+                    "onboarding-step-item",
+                    etapaConcluida ? "is-complete" : "",
+                    etapaAtiva ? "is-active" : "",
+                  ].filter(Boolean).join(" ")}
+                >
+                  <span>
+                    {etapaConcluida ? <CheckCircle2 size={14} aria-hidden="true" /> : index + 1}
+                  </span>
+                  <div>
+                    <strong>{passo.titulo}</strong>
+                    <p>{passo.detalhe}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="onboarding-step-list onboarding-step-list-legacy" aria-hidden="true">
             {(jornadaAtiva === "conta"
               ? [
                   "Preencher nome, segmento, cidade/UF e contato.",
@@ -9532,6 +9657,9 @@ function OnboardingModal({
         </div>
 
         <footer className="onboarding-modal-footer">
+          <p className="onboarding-modal-hint">
+            Lembrar depois adia todo o guia inicial; voce pode retomar pelo dashboard.
+          </p>
           <button
             type="button"
             onClick={onIniciarTour}

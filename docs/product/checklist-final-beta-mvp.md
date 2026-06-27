@@ -125,7 +125,8 @@ Este checklist define o estado atual do MVP antes de abrir um beta controlado. E
 - [x] Configurar e validar email transacional real via SES.
 - [ ] Fazer deploy da nova imagem da API com templates transacionais revisados.
 - [ ] Revalidar confirmação de e-mail, recuperação de senha e suporte em Gmail e Hotmail após deploy.
-- [ ] Implementar onboarding guiado do beta em uma entrega unica: abertura automatica no primeiro login, checklist persistente, Wizard 1 de conta/marca, Wizard 2 de primeira proposta, tour React Joyride e progresso por usuario no backend.
+- [x] Implementar onboarding guiado do beta em uma entrega unica: abertura automatica no primeiro login, checklist persistente, Wizard 1 de conta/marca, Wizard 2 de primeira proposta, tour React Joyride e progresso por usuario no backend.
+- [x] Corrigir alinhamento do onboarding guiado: modal automatica, lembrete apos pulo, tour sem sobreposicao, progresso visual e limpeza de rascunho.
 - [ ] Validar onboarding guiado em producao com uma conta nova.
 - [ ] Rodar aceite manual completo com dados reais de teste.
 - [ ] Rodar aceite manual especifico de ciclo de proposta/trial: editar `Gerada`, bloquear `Enviada`/`Aceita`/`Recusada`, duplicar, expirar trial, validar watermark grande e CTA “Ativar plano”.

@@ -83,7 +83,8 @@ public sealed class OnboardingUsuario : EntidadeBase
         string? statusPrimeiraProposta,
         string? etapaPrimeiraProposta,
         Guid? propostaRascunhoId,
-        string? statusTour)
+        string? statusTour,
+        bool limparPropostaRascunhoId = false)
     {
         var agora = DateTimeOffset.UtcNow;
 
@@ -109,7 +110,11 @@ public sealed class OnboardingUsuario : EntidadeBase
             EtapaPrimeiraProposta = NormalizarEtapa(etapaPrimeiraProposta);
         }
 
-        if (propostaRascunhoId.HasValue)
+        if (limparPropostaRascunhoId)
+        {
+            PropostaRascunhoId = null;
+        }
+        else if (propostaRascunhoId.HasValue)
         {
             PropostaRascunhoId = propostaRascunhoId;
         }

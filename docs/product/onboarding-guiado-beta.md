@@ -94,6 +94,27 @@ O dashboard deve mostrar progresso real do onboarding e permitir iniciar, contin
 
 Tours com overlay devem ser usados para explicar pontos especificos da interface ja na primeira versao. A decisao tecnica atual e usar React Joyride, por compatibilidade com React 19 e suporte a steps, progresso, skip e callbacks. No mobile, o tour deve ser simplificado.
 
+## Atualizacao 2026-06-27
+
+Foi aplicada uma correcao de alinhamento entre API e webapp para o onboarding
+guiado:
+
+- o webapp passa a respeitar `deveAbrirAutomaticamente` e abre a modal do guia
+  inicial em tela cheia quando a API indicar;
+- o webapp passa a respeitar `deveLembrarAposPular` e mostra o lembrete apos o
+  usuario adiar o onboarding;
+- o tour React Joyride continua existindo, mas nao substitui nem sobrepoe a
+  modal automatica;
+- a modal do guia inicial agora mostra etapas, status e progresso visual das
+  jornadas de conta e primeira proposta;
+- `Lembrar depois` adia todo o guia inicial, com retomada pelo dashboard;
+- a API permite limpar o `propostaRascunhoId` persistido no onboarding.
+
+Arquivos SDD da correcao:
+
+- `.cursor/analise/2026-06-27-correcoes-onboarding-guiado.md`
+- `spec/2026-06-27-correcoes-onboarding-guiado.md`
+
 ## Nao fazer agora
 
 - Nao transformar onboarding em bloqueio obrigatorio.

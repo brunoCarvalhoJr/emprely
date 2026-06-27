@@ -6,4 +6,5 @@ public sealed record UpdateOnboardingRequest(
     string? StatusPrimeiraProposta = null,
     string? EtapaPrimeiraProposta = null,
     Guid? PropostaRascunhoId = null,
-    string? StatusTour = null);
+    string? StatusTour = null,
+    bool LimparPropostaRascunhoId = false);

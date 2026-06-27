@@ -43,6 +43,11 @@ public sealed class OnboardingController : ControllerBase
     {
         var onboarding = await GetOrCreateOnboardingAsync(cancellationToken);
 
+        if (request.LimparPropostaRascunhoId && request.PropostaRascunhoId.HasValue)
+        {
+            return BadRequest(new { message = "Informe apenas um rascunho ou a limpeza do rascunho." });
+        }
+
         if (request.PropostaRascunhoId.HasValue)
         {
             var propostaExiste = await dbContext.Propostas.AnyAsync(
@@ -65,7 +70,8 @@ public sealed class OnboardingController : ControllerBase
                 request.StatusPrimeiraProposta,
                 request.EtapaPrimeiraProposta,
                 request.PropostaRascunhoId,
-                request.StatusTour);
+                request.StatusTour,
+                request.LimparPropostaRascunhoId);
         }
         catch (ArgumentException exception)
         {
@@ -231,11 +237,16 @@ public sealed class OnboardingController : ControllerBase
             progresso.PrimeiraPropostaConcluida;
 
         var deveAbrirAutomaticamente =
-            !configuracaoConcluida &&
-            onboarding.StatusConfiguracaoConta != OnboardingUsuario.StatusPulado;
+            (!configuracaoConcluida &&
+                onboarding.StatusConfiguracaoConta != OnboardingUsuario.StatusPulado) ||
+            (configuracaoConcluida &&
+                !primeiraPropostaConcluida &&
+                onboarding.StatusPrimeiraProposta != OnboardingUsuario.StatusPulado);
         var deveLembrarAposPular =
-            !configuracaoConcluida &&
-            onboarding.StatusConfiguracaoConta == OnboardingUsuario.StatusPulado;
+            (!configuracaoConcluida &&
+                onboarding.StatusConfiguracaoConta == OnboardingUsuario.StatusPulado) ||
+            (!primeiraPropostaConcluida &&
+                onboarding.StatusPrimeiraProposta == OnboardingUsuario.StatusPulado);
 
         return new OnboardingResponse(
             onboarding.Id,

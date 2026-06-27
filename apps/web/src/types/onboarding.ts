@@ -33,6 +33,7 @@ export type UpdateOnboardingInput = {
   etapaPrimeiraProposta?: string | null;
   propostaRascunhoId?: string | null;
   statusTour?: OnboardingStatus | null;
+  limparPropostaRascunhoId?: boolean;
 };
 
 export type CreateOnboardingEventoInput = {
