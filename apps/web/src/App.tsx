@@ -779,6 +779,13 @@ function isViewportDesktopInicial() {
   );
 }
 
+function isViewportMobileAtual() {
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia("(max-width: 1023.98px)").matches
+  );
+}
+
 type ConfirmacaoSistemaVariante = "danger" | "warning" | "info" | "success";
 
 type ConfirmacaoSistemaConfig = {
@@ -1046,6 +1053,7 @@ export default function App() {
   const [onboardingTourKey, setOnboardingTourKey] = useState(0);
   const onboardingModalAutoAberturaRef = useRef<string | null>(null);
   const onboardingModalLembreteRef = useRef<string | null>(null);
+  const onboardingModalDispensadaSessaoRef = useRef<string | null>(null);
   const onboardingTourAutoInicioRef = useRef<string | null>(null);
   const onboardingTourEncerradoSessaoRef = useRef<string | null>(null);
   const [
@@ -2391,7 +2399,12 @@ export default function App() {
       return;
     }
 
-    const chaveBase = `${conta.id}:${usuario.id}:${onboarding.updatedAt ?? "inicial"}`;
+    const chaveUsuarioOnboarding = `${conta.id}:${usuario.id}`;
+    if (onboardingModalDispensadaSessaoRef.current === chaveUsuarioOnboarding) {
+      return;
+    }
+
+    const chaveBase = `${chaveUsuarioOnboarding}:${onboarding.updatedAt ?? "inicial"}`;
     const jornadaInicial =
       onboarding.configuracaoConta.status !== "Concluido" ? "conta" : "proposta";
 
@@ -2446,9 +2459,10 @@ export default function App() {
 
       onboardingTourAutoInicioRef.current = chaveTour;
       const timeoutId = window.setTimeout(() => {
+        const abrirMenuMobile = shouldAbrirMenuMobileOnboardingTour(0);
         setOnboardingTourStepIndex(0);
         setAppView(getOnboardingTourView(0));
-        setMobileMenuAberto(false);
+        setMobileMenuAberto(abrirMenuMobile);
         setContaMenuAberto(false);
         setSidebarRecolhida(false);
         setOnboardingModalAberto(false);
@@ -3176,10 +3190,14 @@ export default function App() {
 
   function iniciarTourOnboarding() {
     onboardingTourEncerradoSessaoRef.current = null;
+    if (conta && usuario) {
+      onboardingModalDispensadaSessaoRef.current = `${conta.id}:${usuario.id}`;
+    }
     limparArtefatosOnboardingTour();
+    const abrirMenuMobile = shouldAbrirMenuMobileOnboardingTour(0);
     setOnboardingModalAberto(false);
     setAppView(getOnboardingTourView(0));
-    setMobileMenuAberto(false);
+    setMobileMenuAberto(abrirMenuMobile);
     setContaMenuAberto(false);
     setSidebarRecolhida(false);
     setOnboardingTourStepIndex(0);
@@ -3192,26 +3210,24 @@ export default function App() {
     const totalSteps = buildOnboardingTourSteps().length;
     const proximoIndice = Math.max(0, Math.min(stepIndex, totalSteps - 1));
     const proximaView = getOnboardingTourView(proximoIndice);
+    const abrirMenuMobile = shouldAbrirMenuMobileOnboardingTour(proximoIndice);
 
-    flushSync(() => {
-      setAppView(proximaView);
-      setMobileMenuAberto(false);
-      setContaMenuAberto(false);
-      setSidebarRecolhida(false);
-      setOnboardingTourStepIndex(proximoIndice);
-    });
+    setAppView(proximaView);
+    setMobileMenuAberto(abrirMenuMobile);
+    setContaMenuAberto(false);
+    setSidebarRecolhida(false);
+    setOnboardingTourStepIndex(proximoIndice);
   }
 
   function encerrarOnboardingTour(data: EventData, statusFinal: "finished" | "skipped") {
     const chaveUsuarioTour = conta && usuario ? `${conta.id}:${usuario.id}` : null;
     onboardingTourEncerradoSessaoRef.current = chaveUsuarioTour;
-    flushSync(() => {
-      setOnboardingTourRodando(false);
-      setOnboardingTourStepIndex(0);
-      setOnboardingTourKey((key) => key + 1);
-      setMobileMenuAberto(false);
-      setContaMenuAberto(false);
-    });
+    onboardingModalDispensadaSessaoRef.current = chaveUsuarioTour;
+    setOnboardingTourRodando(false);
+    setOnboardingTourStepIndex(0);
+    setOnboardingTourKey((key) => key + 1);
+    setMobileMenuAberto(false);
+    setContaMenuAberto(false);
     limparArtefatosOnboardingTour();
     window.requestAnimationFrame(limparArtefatosOnboardingTour);
     window.setTimeout(limparArtefatosOnboardingTour, 80);
@@ -4663,6 +4679,7 @@ export default function App() {
                             className={`mobile-drawer-nav-item ${
                               itemAtivo ? "is-active" : ""
                             }`}
+                            data-tour={item.tourKey ? `menu-${item.tourKey}` : undefined}
                             data-testid={`mobile-drawer-nav-${item.view}`}
                             aria-current={itemAtivo ? "page" : undefined}
                             onClick={() => navegarParaView(item.view)}
@@ -4681,6 +4698,7 @@ export default function App() {
                         className={`mobile-drawer-nav-item ${
                           appView === "conta" ? "is-active" : ""
                         }`}
+                        data-tour="menu-conta"
                         onClick={() => navegarParaView("conta")}
                       >
                         <UserRound size={18} aria-hidden="true" />
@@ -14049,38 +14067,38 @@ function buildPrimeirosPassosDashboard({
 function buildOnboardingTourSteps(): Step[] {
   return [
     {
-      target: '[data-tour="menu-dashboard"]',
+      target: buildOnboardingMenuTourTarget("dashboard"),
       title: "Dashboard: visão geral",
       content:
         "Aqui você acompanha o progresso da conta, os atalhos principais e os números comerciais. É o ponto de partida para saber o que precisa de atenção.",
       skipBeacon: true,
     },
     {
-      target: '[data-tour="menu-clientes"]',
+      target: buildOnboardingMenuTourTarget("clientes"),
       title: "Clientes: cadastro organizado",
       content:
         "Use Clientes para manter contatos, telefones e e-mails prontos. Isso evita retrabalho quando você montar novas propostas.",
     },
     {
-      target: '[data-tour="menu-servicos"]',
+      target: buildOnboardingMenuTourTarget("servicos"),
       title: "Serviços e pacotes",
       content:
         "Cadastre serviços reutilizáveis com escopo, entregas e valores. A vantagem é criar orçamentos mais rápidos e consistentes.",
     },
     {
-      target: '[data-tour="menu-propostas"]',
+      target: buildOnboardingMenuTourTarget("propostas"),
       title: "Propostas: funil comercial",
       content:
         "Em Propostas você visualiza rascunhos, geradas, enviadas, aceitas e recusadas. Assim fica fácil acompanhar o cliente até o aceite.",
     },
     {
-      target: '[data-tour="menu-suporte"]',
+      target: buildOnboardingMenuTourTarget("suporte"),
       title: "Suporte",
       content:
         "Quando precisar de ajuda ou registrar alguma dúvida, o suporte fica separado do fluxo comercial para não misturar operação com atendimento.",
     },
     {
-      target: '[data-tour="menu-conta"]',
+      target: buildOnboardingMenuTourTarget("conta"),
       title: "Perfil da conta",
       content:
         "No menu da conta ficam os dados comerciais, marca, templates, cores e formatos. Essa área define como sua empresa aparece nos documentos enviados ao cliente.",
@@ -14119,10 +14137,22 @@ function buildOnboardingTourSteps(): Step[] {
     },
   ];
 }
+
+function buildOnboardingMenuTourTarget(tourKey: string) {
+  return [
+    `#mobile-navigation-drawer [data-tour="menu-${tourKey}"]`,
+    `[data-tour="menu-${tourKey}"]`,
+  ].join(", ");
+}
+
 function getOnboardingTourTarget(stepIndex: number) {
   const target = buildOnboardingTourSteps()[stepIndex]?.target;
 
   return typeof target === "string" ? target : null;
+}
+
+function shouldAbrirMenuMobileOnboardingTour(stepIndex: number) {
+  return stepIndex >= 0 && stepIndex <= 5 && isViewportMobileAtual();
 }
 
 function limparArtefatosOnboardingTour() {
