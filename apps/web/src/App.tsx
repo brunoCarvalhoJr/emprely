@@ -16283,6 +16283,14 @@ function getStatusComercialContaEfetivo(
     return "FundadorAtivo";
   }
 
+  if (
+    conta.statusComercial === "TrialAtivo" ||
+    conta.statusComercial === "TrialExpirado" ||
+    conta.statusComercial === "FundadorAtivo"
+  ) {
+    return conta.statusComercial;
+  }
+
   const trialEndsAt = new Date(conta.trialEndsAt).getTime();
 
   if (Number.isFinite(trialEndsAt) && trialEndsAt <= Date.now()) {
@@ -16334,8 +16342,16 @@ function formatTrialConta(conta: ContaAtualResponse): string {
     return "Plano ativo";
   }
 
-  if (getStatusComercialContaEfetivo(conta) === "TrialExpirado") {
+  const statusComercialEfetivo = getStatusComercialContaEfetivo(conta);
+
+  if (statusComercialEfetivo === "TrialExpirado") {
     return `Expirado em ${formatDataConta(conta.trialEndsAt)}`;
+  }
+
+  const trialEndsAt = new Date(conta.trialEndsAt).getTime();
+
+  if (Number.isFinite(trialEndsAt) && trialEndsAt <= Date.now()) {
+    return "Ativo por dias gratis";
   }
 
   const diasRestantes = Math.max(0, conta.trialDiasRestantes ?? 0);
