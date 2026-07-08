@@ -11,7 +11,7 @@ Adicionar protecoes basicas de runtime na API.
 | * | `/*` | Conforme rota | Recebe headers de seguranca |
 | POST | `/api/auth/register` | Publica | Rate limit Auth |
 | POST | `/api/auth/login` | Publica | Rate limit Auth |
-| POST | `/api/admin/accounts/{contaId}/activate-founder` | Header admin | Rate limit Admin |
+| REMOVIDO | `/api/admin/accounts/{contaId}/activate-founder` | - | Substituido por credito manual Super Admin no admin billing |
 
 ## Contratos
 

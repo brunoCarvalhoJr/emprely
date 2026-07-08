@@ -1,4 +1,8 @@
-# Spec - Ativacao Fundador Admin
+# Spec substituida - Ativacao Fundador Admin
+
+Substituida em 2026-06-28 pela spec mestre `spec/2026-06-28-billing-spec-mestre-emprely.md`.
+Nao usar mais `POST /api/account/activate-founder` nem `POST /api/admin/accounts/{contaId}/activate-founder`.
+Credito manual temporario deve ser feito somente por Super Admin em `/api/admin/billing/accounts/{contaId}/manual-credit`.
 
 ## Visao geral
 
@@ -8,8 +12,8 @@ Fechar a brecha de autoativacao do Plano Fundador antes do beta, mantendo uma op
 
 Inclui:
 
-- Bloquear `POST /api/account/activate-founder` para usuarios comuns.
-- Criar `POST /api/admin/accounts/{contaId}/activate-founder`.
+- Historico: `POST /api/account/activate-founder` foi removido.
+- Historico: `POST /api/admin/accounts/{contaId}/activate-founder` foi removido.
 - Exigir header `X-Emprely-Admin-Key`.
 - Atualizar web para nao chamar autoativacao.
 - Atualizar runbook e README.

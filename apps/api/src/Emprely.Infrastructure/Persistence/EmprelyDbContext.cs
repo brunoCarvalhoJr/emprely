@@ -3,6 +3,7 @@ using Emprely.Domain.Clientes;
 using Emprely.Domain.Comunicacoes;
 using Emprely.Domain.Contas;
 using Emprely.Domain.Onboarding;
+using Emprely.Domain.Pagamentos;
 using Emprely.Domain.Propostas;
 using Emprely.Domain.Servicos;
 using Emprely.Domain.Suporte;
@@ -52,6 +53,16 @@ public sealed class EmprelyDbContext
 
     public DbSet<OnboardingEvento> OnboardingEventos => Set<OnboardingEvento>();
 
+    public DbSet<AssinaturaConta> AssinaturasConta => Set<AssinaturaConta>();
+
+    public DbSet<PagamentoConta> PagamentosConta => Set<PagamentoConta>();
+
+    public DbSet<EventoWebhookPagamento> EventosWebhookPagamento => Set<EventoWebhookPagamento>();
+
+    public DbSet<HistoricoAssinaturaConta> HistoricosAssinaturaConta => Set<HistoricoAssinaturaConta>();
+
+    public DbSet<BillingContaLock> BillingContaLocks => Set<BillingContaLock>();
+
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     protected override void OnModelCreating(ModelBuilder builder)
@@ -74,6 +85,11 @@ public sealed class EmprelyDbContext
         ConfigureSuporteSolicitacao(builder);
         ConfigureOnboardingUsuario(builder);
         ConfigureOnboardingEvento(builder);
+        ConfigureAssinaturaConta(builder);
+        ConfigurePagamentoConta(builder);
+        ConfigureEventoWebhookPagamento(builder);
+        ConfigureHistoricoAssinaturaConta(builder);
+        ConfigureBillingContaLock(builder);
         ConfigureDataProtectionKeys(builder);
     }
 
@@ -239,6 +255,111 @@ public sealed class EmprelyDbContext
                 .WithMany(conta => conta.Clientes)
                 .HasForeignKey(cliente => cliente.ContaId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+    }
+
+    private static void ConfigureAssinaturaConta(ModelBuilder builder)
+    {
+        builder.Entity<AssinaturaConta>(entity =>
+        {
+            entity.ToTable("assinaturas_conta");
+            entity.HasKey(assinatura => assinatura.Id);
+            entity.Property(assinatura => assinatura.PlanoCodigo).HasMaxLength(40).IsRequired();
+            entity.Property(assinatura => assinatura.Provedor).HasConversion<string>().HasMaxLength(40).IsRequired();
+            entity.Property(assinatura => assinatura.ProviderCustomerId).HasMaxLength(120);
+            entity.Property(assinatura => assinatura.ProviderSubscriptionId).HasMaxLength(120);
+            entity.Property(assinatura => assinatura.Status).HasConversion<string>().HasMaxLength(40).IsRequired();
+            entity.Property(assinatura => assinatura.MetodoPagamento).HasConversion<string>().HasMaxLength(40).IsRequired();
+            entity.Property(assinatura => assinatura.Ciclo).HasConversion<string>().HasMaxLength(20).HasDefaultValue(CicloPlano.Mensal).IsRequired();
+            entity.Property(assinatura => assinatura.Valor).HasPrecision(10, 2).IsRequired();
+            entity.Property(assinatura => assinatura.Moeda).HasMaxLength(3).IsRequired();
+            entity.Property(assinatura => assinatura.MotivoCancelamento).HasMaxLength(1000);
+            entity.HasIndex(assinatura => assinatura.ContaId);
+            entity.HasIndex(assinatura => assinatura.ProviderSubscriptionId).IsUnique();
+            entity.HasOne(assinatura => assinatura.Conta)
+                .WithMany()
+                .HasForeignKey(assinatura => assinatura.ContaId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+    }
+
+    private static void ConfigurePagamentoConta(ModelBuilder builder)
+    {
+        builder.Entity<PagamentoConta>(entity =>
+        {
+            entity.ToTable("pagamentos_conta");
+            entity.HasKey(pagamento => pagamento.Id);
+            entity.Property(pagamento => pagamento.PlanoCodigo).HasMaxLength(40).IsRequired();
+            entity.Property(pagamento => pagamento.Provedor).HasConversion<string>().HasMaxLength(40).IsRequired();
+            entity.Property(pagamento => pagamento.ProviderPaymentId).HasMaxLength(120);
+            entity.Property(pagamento => pagamento.ProviderCheckoutId).HasMaxLength(120);
+            entity.Property(pagamento => pagamento.ProviderSubscriptionId).HasMaxLength(120);
+            entity.Property(pagamento => pagamento.ExternalReference).HasMaxLength(160);
+            entity.Property(pagamento => pagamento.Status).HasConversion<string>().HasMaxLength(40).IsRequired();
+            entity.Property(pagamento => pagamento.MetodoPagamento).HasConversion<string>().HasMaxLength(40).IsRequired();
+            entity.Property(pagamento => pagamento.Ciclo).HasConversion<string>().HasMaxLength(20).HasDefaultValue(CicloPlano.Mensal).IsRequired();
+            entity.Property(pagamento => pagamento.Valor).HasPrecision(10, 2).IsRequired();
+            entity.Property(pagamento => pagamento.RefundedAmount).HasPrecision(10, 2);
+            entity.Property(pagamento => pagamento.Moeda).HasMaxLength(3).IsRequired();
+            entity.Property(pagamento => pagamento.InvoiceUrl).HasMaxLength(1000);
+            entity.Property(pagamento => pagamento.PixQrCodePayload).HasMaxLength(2000);
+            entity.HasIndex(pagamento => pagamento.ContaId);
+            entity.HasIndex(pagamento => pagamento.AssinaturaContaId);
+            entity.HasIndex(pagamento => pagamento.ProviderPaymentId).IsUnique();
+            entity.HasOne(pagamento => pagamento.Conta)
+                .WithMany()
+                .HasForeignKey(pagamento => pagamento.ContaId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(pagamento => pagamento.AssinaturaConta)
+                .WithMany()
+                .HasForeignKey(pagamento => pagamento.AssinaturaContaId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+    }
+
+    private static void ConfigureEventoWebhookPagamento(ModelBuilder builder)
+    {
+        builder.Entity<EventoWebhookPagamento>(entity =>
+        {
+            entity.ToTable("eventos_webhook_pagamento");
+            entity.HasKey(evento => evento.Id);
+            entity.Property(evento => evento.Provedor).HasConversion<string>().HasMaxLength(40).IsRequired();
+            entity.Property(evento => evento.ProviderEventId).HasMaxLength(160).IsRequired();
+            entity.Property(evento => evento.TipoEvento).HasMaxLength(120).IsRequired();
+            entity.Property(evento => evento.ProviderResourceId).HasMaxLength(160);
+            entity.Property(evento => evento.StatusProcessamento).HasConversion<string>().HasMaxLength(40).IsRequired();
+            entity.Property(evento => evento.PayloadJson).IsRequired();
+            entity.Property(evento => evento.ErroProcessamento).HasMaxLength(1000);
+            entity.Property(evento => evento.TentativasProcessamento).HasDefaultValue(0);
+            entity.Property(evento => evento.ProximaTentativaAt);
+            entity.HasIndex(evento => new { evento.Provedor, evento.ProviderEventId }).IsUnique();
+            entity.HasIndex(evento => evento.ProviderResourceId);
+        });
+    }
+
+    private static void ConfigureHistoricoAssinaturaConta(ModelBuilder builder)
+    {
+        builder.Entity<HistoricoAssinaturaConta>(entity =>
+        {
+            entity.ToTable("historicos_assinatura_conta");
+            entity.HasKey(historico => historico.Id);
+            entity.Property(historico => historico.Evento).HasMaxLength(80).IsRequired();
+            entity.Property(historico => historico.Detalhes).HasMaxLength(2000);
+            entity.HasIndex(historico => historico.ContaId);
+            entity.HasIndex(historico => historico.AssinaturaContaId);
+            entity.HasIndex(historico => historico.PagamentoContaId);
+            entity.HasIndex(historico => historico.CreatedAt);
+        });
+    }
+
+    private static void ConfigureBillingContaLock(ModelBuilder builder)
+    {
+        builder.Entity<BillingContaLock>(entity =>
+        {
+            entity.ToTable("billing_conta_locks");
+            entity.HasKey(lockConta => lockConta.Id);
+            entity.Property(lockConta => lockConta.TouchedAt).IsRequired();
+            entity.HasIndex(lockConta => lockConta.ContaId).IsUnique();
         });
     }
 

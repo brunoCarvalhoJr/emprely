@@ -94,8 +94,11 @@ import type {
 } from "@/types/account";
 import {
   createCliente,
+  createBillingCheckout,
+  createPublicBillingCheckout,
   createContatoPublico,
   changeEmailUsuario,
+  cancelBilling,
   confirmChangeEmailUsuario,
   confirmEmailUsuario,
   createServico,
@@ -104,12 +107,16 @@ import {
   deleteServico,
   forgotSenhaUsuario,
   getClientesConta,
+  getBillingPlans,
+  getPublicBillingPaymentLink,
+  getBillingStatus,
   getOnboarding,
   getPerfilContaAtual,
   getServicosConta,
   getUsuarioAtual,
   loginUsuario,
   registerUsuario,
+  requestPublicBillingPaymentLink,
   resendConfirmacaoEmail,
   resetSenhaUsuario,
   resolveApiAssetUrl,
@@ -166,6 +173,13 @@ import type {
   UpdatePropostaInput,
 } from "@/types/proposal";
 import type { OnboardingResponse } from "@/types/onboarding";
+import type {
+  BillingPagadorInput,
+  BillingPlanoResponse,
+  BillingStatusResponse,
+  CreateBillingCheckoutInput,
+  PublicBillingPaymentLinkResponse,
+} from "@/types/billing";
 
 const propostaTemplateVisualValores = [
   "ComercialMinimalista",
@@ -193,10 +207,6 @@ function buildWhatsappEmprelyUrl(mensagem: string): string {
 
 const whatsappEmprelySuporteUrl = buildWhatsappEmprelyUrl(
   "Olá, quero falar com a Emprely sobre suporte, planos ou ativação da minha conta.",
-);
-
-const whatsappEmprelyAtivarPlanoUrl = buildWhatsappEmprelyUrl(
-  "Olá, quero ativar o plano do Emprely e remover a marca d'água das minhas propostas.",
 );
 
 type PropostaTemplateVisualAtivo = (typeof propostaTemplateVisualValores)[number];
@@ -405,6 +415,33 @@ const contatoPublicoSchema = z.object({
   mensagem: z.string().trim().min(10, "Escreva uma mensagem com mais detalhes.").max(2000),
 });
 
+const billingPagadorSchema = z.object({
+  tipoPessoa: z.enum(["Fisica", "Juridica"]),
+  nome: z.string().trim().min(2, "Informe o nome ou razao social.").max(160),
+  cpfCnpj: z
+    .string()
+    .min(1, "Informe o CPF ou CNPJ.")
+    .max(cpfCnpjMascaraMaxLength)
+    .refine((valor) => isCpfCnpjCampoValido(valor), cpfCnpjMensagemFormato),
+}).superRefine((input, context) => {
+  const digitos = extrairDigitosCpfCnpj(input.cpfCnpj);
+  if (input.tipoPessoa === "Fisica" && digitos.length !== cpfDigitos) {
+    context.addIssue({
+      code: "custom",
+      path: ["cpfCnpj"],
+      message: "Informe um CPF valido.",
+    });
+  }
+
+  if (input.tipoPessoa === "Juridica" && digitos.length !== cnpjDigitos) {
+    context.addIssue({
+      code: "custom",
+      path: ["cpfCnpj"],
+      message: "Informe um CNPJ valido.",
+    });
+  }
+});
+
 const perfilContaSchema = z.object({
   nomeComercial: z.string().min(2, "Informe o nome comercial.").max(160),
   emailContato: z
@@ -554,6 +591,7 @@ type AppView =
   | "clientes"
   | "servicos"
   | "propostas"
+  | "billing"
   | "conta"
   | "personalizacao"
   | "suporte";
@@ -576,6 +614,7 @@ type ResetSenhaUsuarioFormInput = z.infer<typeof resetSenhaSchema>;
 type ChangeEmailUsuarioFormInput = z.infer<typeof changeEmailSchema>;
 type SuporteFormInput = z.infer<typeof suporteSchema>;
 type ContatoPublicoFormInput = z.infer<typeof contatoPublicoSchema>;
+type BillingPagadorFormInput = z.infer<typeof billingPagadorSchema>;
 type PropostaPreviewInput = Partial<Omit<PropostaFormInput, "itens">> & {
   itens?: Array<Partial<PropostaFormInput["itens"][number]>>;
   publicApprovalUrl?: string;
@@ -693,6 +732,7 @@ const navegacaoPrincipal: NavegacaoPrincipalItem[] = [
     quickAction: "novaProposta",
     quickLabel: "Nova proposta",
   },
+  { label: "Plano", view: "billing", icon: CreditCard, tourKey: "billing" },
   { label: "Suporte", view: "suporte", icon: HeartHandshake, tourKey: "suporte" },
 ];
 
@@ -745,6 +785,12 @@ const clienteDefaultValues: ClienteFormInput = {
 
 const clienteRapidoDefaultValues: ClienteRapidoFormInput = {
   ...clienteDefaultValues,
+};
+
+const billingPagadorDefaultValues: BillingPagadorFormInput = {
+  tipoPessoa: "Fisica",
+  nome: "",
+  cpfCnpj: "",
 };
 
 const servicoDefaultValues: ServicoFormInput = {
@@ -809,6 +855,7 @@ type ToastSistemaOrigem =
   | "perfil"
   | "seguranca"
   | "suporte"
+  | "billing"
   | "cliente"
   | "servico"
   | "proposta"
@@ -832,6 +879,7 @@ const appViewValores: AppView[] = [
   "clientes",
   "servicos",
   "propostas",
+  "billing",
   "conta",
   "personalizacao",
   "suporte",
@@ -1341,6 +1389,27 @@ export default function App() {
     retry: false,
   });
 
+  const billingPlansQuery = useQuery({
+    queryKey: ["billing-plans", accessToken],
+    queryFn: () => getBillingPlans(accessToken!),
+    enabled: Boolean(accessToken),
+    retry: false,
+  });
+
+  const billingStatusQuery = useQuery({
+    queryKey: ["billing-status", accessToken],
+    queryFn: () => getBillingStatus(accessToken!),
+    enabled: Boolean(accessToken),
+    retry: false,
+  });
+  const publicBillingPaymentToken = getPublicBillingPaymentTokenFromPath();
+  const publicBillingPaymentLinkQuery = useQuery({
+    queryKey: ["public-billing-payment-link", publicBillingPaymentToken],
+    queryFn: () => getPublicBillingPaymentLink(publicBillingPaymentToken!),
+    enabled: Boolean(publicBillingPaymentToken),
+    retry: false,
+  });
+
   const registerForm = useForm<RegisterUsuarioInput>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
@@ -1361,6 +1430,13 @@ export default function App() {
   });
 
   const recuperarSenhaForm = useForm<EmailUsuarioFormInput>({
+    resolver: zodResolver(emailUsuarioSchema),
+    defaultValues: {
+      email: "",
+    },
+  });
+
+  const publicBillingLinkForm = useForm<EmailUsuarioFormInput>({
     resolver: zodResolver(emailUsuarioSchema),
     defaultValues: {
       email: "",
@@ -1506,6 +1582,8 @@ export default function App() {
       }
       queryClient.removeQueries({ queryKey: ["usuario-atual"] });
       queryClient.removeQueries({ queryKey: ["perfil-conta"] });
+      queryClient.removeQueries({ queryKey: ["billing-plans"] });
+      queryClient.removeQueries({ queryKey: ["billing-status"] });
       queryClient.removeQueries({ queryKey: ["clientes"] });
       queryClient.removeQueries({ queryKey: ["servicos"] });
       queryClient.removeQueries({ queryKey: ["propostas"] });
@@ -1628,9 +1706,37 @@ export default function App() {
   const usuario = usuarioAtualQuery.data?.usuario ?? authUsuario?.usuario;
   const conta = usuarioAtualQuery.data?.conta ?? authUsuario?.conta;
   const contaStatusComercial: ContaAtualResponse["statusComercial"] = conta
-    ? getStatusComercialContaEfetivo(conta)
+    ? getStatusComercialContaEfetivo(conta, billingStatusQuery.data)
     : "TrialExpirado";
   const perfilConta = perfilContaQuery.data;
+
+  useEffect(() => {
+    if (!accessToken || typeof window === "undefined") {
+      return;
+    }
+
+    const billingRetorno = getBillingRetornoFromPath(window.location.pathname);
+
+    if (!billingRetorno) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setAppView("billing");
+      exibirToastSistema(
+        getMensagemRetornoBilling(billingRetorno),
+        billingRetorno === "sucesso" ? "success" : "info",
+      );
+    }, 0);
+
+    void queryClient.invalidateQueries({ queryKey: ["billing-status", accessToken] });
+    void queryClient.invalidateQueries({ queryKey: ["usuario-atual", accessToken] });
+    window.history.replaceState({}, "", "/");
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [accessToken, exibirToastSistema, queryClient]);
 
   useEffect(() => {
     if (!usuario || !conta) {
@@ -1979,7 +2085,7 @@ export default function App() {
   );
   const propostaTemAlteracoes = propostaForm.formState.isDirty;
   const contaPodeExportarProposta = conta
-    ? canExportPropostaConta(conta)
+    ? canExportPropostaConta(conta, billingStatusQuery.data)
     : false;
   const propostaSelecionadaRascunho =
     propostaSelecionada?.status === "Rascunho";
@@ -1987,7 +2093,7 @@ export default function App() {
   const propostaSelecionadaEnviada = propostaSelecionada?.status === "Enviada";
   const propostaEditorAtivo =
     propostaModo === "novo" || propostaModo === "editar";
-  const mensagemBloqueioPlano = getMensagemBloqueioPlano(conta);
+  const mensagemBloqueioPlano = getMensagemBloqueioPlano(conta, billingStatusQuery.data);
   const propostaProntaParaGerar = Boolean(
     propostaEditorAtivo && contaPodeExportarProposta,
   );
@@ -2330,6 +2436,38 @@ export default function App() {
     onSuccess: (response) => {
       setSuporteMensagem(`Solicitação enviada: ${response.assunto}.`);
       suporteForm.reset({ assunto: "", mensagem: "" });
+    },
+  });
+
+  const criarBillingCheckoutMutation = useMutation({
+    mutationFn: (input: CreateBillingCheckoutInput) =>
+      createBillingCheckout(input, accessToken!),
+    onSuccess: (response) => {
+      window.location.assign(response.checkoutUrl);
+    },
+  });
+
+  const solicitarPublicBillingLinkMutation = useMutation({
+    mutationFn: (input: EmailUsuarioInput) => requestPublicBillingPaymentLink(input),
+    onSuccess: () => {
+      publicBillingLinkForm.reset({ email: "" });
+    },
+  });
+
+  const criarPublicBillingCheckoutMutation = useMutation({
+    mutationFn: (input: CreateBillingCheckoutInput) =>
+      createPublicBillingCheckout(publicBillingPaymentToken!, input),
+    onSuccess: (response) => {
+      window.location.assign(response.checkoutUrl);
+    },
+  });
+
+  const cancelarBillingMutation = useMutation({
+    mutationFn: (motivo: string | null) => cancelBilling(motivo, accessToken!),
+    onSuccess: () => {
+      exibirToastSistema("Cancelamento agendado para o fim do periodo atual.", "success");
+      void billingStatusQuery.refetch();
+      void usuarioAtualQuery.refetch();
     },
   });
 
@@ -3911,7 +4049,7 @@ export default function App() {
       publicApprovalUrl: proposta.publicApprovalUrl?.trim() || null,
       watermark: getWatermarkDocumentoProposta(
         conta?.plano ?? "Trial",
-        conta ? getStatusComercialContaEfetivo(conta) : "TrialAtivo",
+        conta ? getStatusComercialContaEfetivo(conta, billingStatusQuery.data) : "TrialAtivo",
       ),
       itens: itens
         .map((item) => ({
@@ -4462,6 +4600,7 @@ export default function App() {
     aceitarPropostaMutation.isPending ||
     recusarPropostaMutation.isPending;
   const exibindoSuportePublico = isSuportePublicoPath();
+  const exibindoBillingPublico = isBillingRegularizarPath() || Boolean(publicBillingPaymentToken);
   const tituloTelaMobile = getAppViewLabel(appView);
 
   return (
@@ -4536,7 +4675,7 @@ export default function App() {
             <button
               type="button"
               onClick={() => {
-                if (exibindoSuportePublico) {
+                if (exibindoSuportePublico || exibindoBillingPublico) {
                   window.history.pushState(null, "", "/");
                 }
 
@@ -5821,7 +5960,10 @@ export default function App() {
                       </div>
                     </div>
                     {contaStatusComercial === "TrialExpirado" ? (
-                      <TrialUpsellBanner conta={conta} />
+                      <TrialUpsellBanner
+                        conta={conta}
+                        onAtivarPlano={() => navegarParaView("billing")}
+                      />
                     ) : null}
                     {propostaModo === "assistente" ? (
                       <div className="proposal-wizard-panel rounded-md border border-border bg-surface p-5">
@@ -8443,6 +8585,25 @@ export default function App() {
                     </form>
                   </section>
                 ) : null}
+                {appView === "billing" ? (
+                  <BillingContent
+                    conta={conta}
+                    status={billingStatusQuery.data}
+                    planos={billingPlansQuery.data ?? []}
+                    isLoading={billingStatusQuery.isLoading || billingPlansQuery.isLoading}
+                    isError={billingStatusQuery.isError || billingPlansQuery.isError}
+                    erroCheckout={criarBillingCheckoutMutation.error}
+                    erroCancelamento={cancelarBillingMutation.error}
+                    checkoutPendente={criarBillingCheckoutMutation.isPending}
+                    cancelamentoPendente={cancelarBillingMutation.isPending}
+                    onRetry={() => {
+                      void billingStatusQuery.refetch();
+                      void billingPlansQuery.refetch();
+                    }}
+                    onCriarCheckout={(input) => criarBillingCheckoutMutation.mutate(input)}
+                    onCancelar={() => cancelarBillingMutation.mutate("Solicitado pelo usuario no app.")}
+                  />
+                ) : null}
                 {appView === "dashboard" ? (
                   <DashboardContent
                     conta={conta}
@@ -8485,9 +8646,18 @@ export default function App() {
                     onCadastrarCliente={abrirNovoCliente}
                     onSalvarServico={abrirNovoServico}
                     onAbrirOnboarding={() => abrirOnboarding("conta")}
+                    onAbrirBilling={() => navegarParaView("billing")}
                   />
                 ) : null}
               </>
+            ) : exibindoBillingPublico ? (
+              <PublicBillingContent
+                token={publicBillingPaymentToken}
+                linkForm={publicBillingLinkForm}
+                linkMutation={solicitarPublicBillingLinkMutation}
+                linkQuery={publicBillingPaymentLinkQuery}
+                checkoutMutation={criarPublicBillingCheckoutMutation}
+              />
             ) : exibindoSuportePublico ? (
               <ContatoPublicoContent
                 contatoPublicoForm={contatoPublicoForm}
@@ -13551,6 +13721,7 @@ function DashboardContent({
   onCadastrarCliente,
   onSalvarServico,
   onAbrirOnboarding,
+  onAbrirBilling,
 }: {
   conta: ContaAtualResponse;
   propostas: PropostaResponse[];
@@ -13570,6 +13741,7 @@ function DashboardContent({
   onCadastrarCliente: () => void;
   onSalvarServico: () => void;
   onAbrirOnboarding: () => void;
+  onAbrirBilling: () => void;
 }) {
   const metricas = buildMetricasDashboard({
     propostas,
@@ -13660,7 +13832,9 @@ function DashboardContent({
         </div>
       </div>
 
-      {conta.plano === "Trial" ? <TrialUpsellBanner conta={conta} /> : null}
+      {conta.plano === "Trial" ? (
+        <TrialUpsellBanner conta={conta} onAtivarPlano={onAbrirBilling} />
+      ) : null}
 
       {!primeiraPropostaGerada ? (
         <button
@@ -13821,6 +13995,803 @@ function DashboardContent({
   );
 }
 
+function PublicBillingContent({
+  token,
+  linkForm,
+  linkMutation,
+  linkQuery,
+  checkoutMutation,
+}: {
+  token: string | null;
+  linkForm: UseFormReturn<EmailUsuarioFormInput>;
+  linkMutation: {
+    mutate: (input: EmailUsuarioInput) => void;
+    isPending: boolean;
+    isSuccess: boolean;
+    error: Error | null;
+  };
+  linkQuery: {
+    data: PublicBillingPaymentLinkResponse | undefined;
+    isLoading: boolean;
+    isError: boolean;
+    error: Error | null;
+    refetch: () => unknown;
+  };
+  checkoutMutation: {
+    mutate: (input: CreateBillingCheckoutInput) => void;
+    isPending: boolean;
+    error: Error | null;
+  };
+}) {
+  if (!token) {
+    return (
+      <section className="mx-auto grid w-full max-w-2xl gap-5">
+        <div className="page-heading">
+          <div>
+            <p className="text-sm font-medium text-accent">Regularizar plano</p>
+            <h1 className="font-heading text-3xl font-semibold">Receba um link seguro de pagamento</h1>
+            <span>
+              Informe o e-mail de acesso da conta. Se houver uma conta vinculada, enviaremos um link para regularizar o Plano Fundador.
+            </span>
+          </div>
+        </div>
+
+        <form
+          className="grid gap-4 rounded-md border border-border bg-surface p-5"
+          onSubmit={linkForm.handleSubmit((input) => linkMutation.mutate(input))}
+        >
+          <CampoTexto
+            label="E-mail da conta"
+            type="email"
+            autoComplete="email"
+            error={linkForm.formState.errors.email?.message}
+            {...linkForm.register("email")}
+          />
+          {linkMutation.isSuccess ? (
+            <div className="rounded-md border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-900">
+              Se este e-mail estiver vinculado a uma conta Emprely, o link de pagamento foi enviado. Verifique a caixa de entrada e o spam.
+            </div>
+          ) : null}
+          <MensagemErro error={linkMutation.error} />
+          <button
+            type="submit"
+            disabled={linkMutation.isPending}
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <Mail size={17} aria-hidden="true" />
+            {linkMutation.isPending ? "Enviando..." : "Enviar link seguro"}
+          </button>
+        </form>
+      </section>
+    );
+  }
+
+  if (linkQuery.isLoading) {
+    return <ListaCarregando label="Carregando link de pagamento" />;
+  }
+
+  if (linkQuery.isError || !linkQuery.data) {
+    return (
+      <section className="mx-auto grid w-full max-w-2xl gap-5">
+        <EstadoErroConsulta
+          titulo="Link de pagamento invalido ou expirado."
+          detalhe="Solicite um novo link para regularizar o Plano Fundador com seguranca."
+          onRetry={() => {
+            window.history.pushState(null, "", "/billing/regularizar");
+            window.location.reload();
+          }}
+        />
+        <MensagemErro error={linkQuery.error} />
+      </section>
+    );
+  }
+
+  return (
+    <PublicBillingPaymentPanel
+      contexto={linkQuery.data}
+      checkoutPendente={checkoutMutation.isPending}
+      erroCheckout={checkoutMutation.error}
+      onCriarCheckout={(input) => checkoutMutation.mutate(input)}
+    />
+  );
+}
+
+function PublicBillingPaymentPanel({
+  contexto,
+  checkoutPendente,
+  erroCheckout,
+  onCriarCheckout,
+}: {
+  contexto: PublicBillingPaymentLinkResponse;
+  checkoutPendente: boolean;
+  erroCheckout: Error | null;
+  onCriarCheckout: (input: CreateBillingCheckoutInput) => void;
+}) {
+  const [cicloSelecionado, setCicloSelecionado] = useState("Mensal");
+  const [metodoPagamentoSelecionado, setMetodoPagamentoSelecionado] = useState("Pix");
+  const form = useForm<BillingPagadorFormInput>({
+    resolver: zodResolver(billingPagadorSchema),
+    defaultValues: billingPagadorDefaultValues,
+  });
+  const tipoPessoaPagador = useWatch({
+    control: form.control,
+    name: "tipoPessoa",
+  });
+  const planoSelecionado =
+    contexto.planos.find((plano) => plano.codigo === "fundador" && plano.ciclo === cicloSelecionado) ??
+    contexto.planos[0];
+  const pagamentoAtual = contexto.status.pagamentoAtual;
+  const pagamentoAberto = pagamentoAtual
+    ? ["AguardandoPagamento", "EmAnalise", "Vencido"].includes(pagamentoAtual.status)
+    : false;
+  const planoAtivoMesmoCiclo = Boolean(
+    contexto.status.entitlements.canRemoveWatermark &&
+      planoSelecionado &&
+      contexto.status.ciclo === planoSelecionado.ciclo &&
+      contexto.status.periodoAtualFim,
+  );
+  const metodoSelecionado = planoSelecionado?.metodosPagamento.find(
+    (metodo) => metodo.codigo === metodoPagamentoSelecionado,
+  ) ?? planoSelecionado?.metodosPagamento[0];
+
+  const handleSubmit = form.handleSubmit((pagadorInput) => {
+    if (!planoSelecionado || !metodoSelecionado || pagamentoAberto || planoAtivoMesmoCiclo) {
+      return;
+    }
+
+    onCriarCheckout({
+      planoCodigo: planoSelecionado.codigo,
+      metodoPagamento: metodoSelecionado.codigo,
+      ciclo: planoSelecionado.ciclo,
+      pagador: buildBillingPagadorPayload(pagadorInput),
+    });
+  });
+
+  return (
+    <section className="mx-auto grid w-full max-w-6xl gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]">
+      <div className="rounded-md border border-border bg-surface p-5">
+        <p className="text-sm font-medium text-accent">Pagamento seguro</p>
+        <h1 className="mt-1 font-heading text-3xl font-semibold">Regularizar Plano Fundador</h1>
+        <p className="mt-2 text-sm leading-6 text-muted">
+          Conta: <strong className="text-slate-950">{contexto.contaNome}</strong>
+        </p>
+
+        <dl className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <BillingInfo label="Plano atual" value={contexto.status.plano} />
+          <BillingInfo
+            label="Validade"
+            value={contexto.status.periodoAtualFim ? formatDataCurta(contexto.status.periodoAtualFim) : "-"}
+          />
+          <BillingInfo
+            label="Pagamento"
+            value={formatBillingStatusLabel(pagamentoAtual?.status ?? "-")}
+          />
+          <BillingInfo label="Link expira em" value={formatDataCurta(contexto.expiresAt)} />
+        </dl>
+
+        {pagamentoAberto && pagamentoAtual?.invoiceUrl ? (
+          <div className="mt-5 rounded-md border border-border bg-white p-4">
+            <p className="text-sm font-semibold text-slate-950">Pagamento em andamento</p>
+            <p className="mt-2 text-sm leading-6 text-muted">
+              Ja existe uma cobranca aberta para esta conta. Use o comprovante abaixo para concluir ou conferir o pagamento.
+            </p>
+            <a
+              className="mt-4 inline-flex h-10 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white"
+              href={pagamentoAtual.invoiceUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Abrir Comprovante
+              <ArrowRight size={16} aria-hidden="true" />
+            </a>
+          </div>
+        ) : null}
+
+        {planoAtivoMesmoCiclo ? (
+          <div className="mt-5 rounded-md border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-900">
+            Este plano ja esta ativo para o ciclo selecionado ate {formatDataCurta(contexto.status.periodoAtualFim)}.
+          </div>
+        ) : null}
+      </div>
+
+      <form className="rounded-md border border-border bg-surface p-5" onSubmit={handleSubmit}>
+        <h2 className="font-heading text-xl font-semibold">Realizar pagamento</h2>
+        <div className="mt-4 inline-flex rounded-md border border-border bg-white p-1">
+          {contexto.planos.map((plano) => (
+            <button
+              key={plano.ciclo}
+              type="button"
+              onClick={() => setCicloSelecionado(plano.ciclo)}
+              className={`h-9 rounded px-3 text-sm font-semibold transition ${
+                plano.ciclo === planoSelecionado?.ciclo
+                  ? "bg-primary text-white"
+                  : "text-slate-700 hover:bg-slate-100"
+              }`}
+            >
+              {formatBillingStatusLabel(plano.ciclo)}
+            </button>
+          ))}
+        </div>
+        {planoSelecionado ? (
+          <p className="mt-4 text-3xl font-semibold text-slate-950">
+            {formatMoney(planoSelecionado.preco)}
+            <span className="ml-1 text-base font-medium text-muted">/{planoSelecionado.periodicidade}</span>
+          </p>
+        ) : null}
+
+        <div className="mt-5 grid gap-3">
+          {planoSelecionado?.metodosPagamento.map((metodo) => {
+            const Icon = metodo.codigo === "Pix" ? DollarSign : CreditCard;
+            const selecionado = metodo.codigo === metodoSelecionado?.codigo;
+            return (
+              <button
+                key={metodo.codigo}
+                type="button"
+                disabled={pagamentoAberto || planoAtivoMesmoCiclo || checkoutPendente}
+                onClick={() => setMetodoPagamentoSelecionado(metodo.codigo)}
+                className={`flex min-h-16 items-center justify-between gap-3 rounded-md border bg-white p-3 text-left transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                  selecionado ? "border-primary ring-2 ring-blue-100" : "border-border hover:border-primary"
+                }`}
+              >
+                <span className="flex items-center gap-3">
+                  <span className="inline-flex size-9 items-center justify-center rounded-md bg-blue-50 text-primary">
+                    <Icon size={17} aria-hidden="true" />
+                  </span>
+                  <strong className="text-sm text-slate-950">{metodo.nome}</strong>
+                </span>
+                {selecionado ? <CheckCircle2 size={18} className="text-primary" aria-hidden="true" /> : null}
+              </button>
+            );
+          })}
+        </div>
+
+        {!pagamentoAberto && !planoAtivoMesmoCiclo ? (
+          <div className="mt-5 grid gap-4">
+            <div className="flex flex-wrap gap-2">
+              {[
+                { value: "Fisica", label: "Pessoa fisica" },
+                { value: "Juridica", label: "Pessoa juridica" },
+              ].map((opcao) => (
+                <button
+                  key={opcao.value}
+                  type="button"
+                  onClick={() =>
+                    form.setValue("tipoPessoa", opcao.value as BillingPagadorFormInput["tipoPessoa"], {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    })
+                  }
+                  className={`h-9 rounded-md border px-3 text-sm font-semibold transition ${
+                    tipoPessoaPagador === opcao.value
+                      ? "border-primary bg-primary text-white"
+                      : "border-border bg-white text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  {opcao.label}
+                </button>
+              ))}
+            </div>
+            <CampoTexto
+              label={tipoPessoaPagador === "Juridica" ? "Razao social" : "Nome completo"}
+              autoComplete="name"
+              error={form.formState.errors.nome?.message}
+              {...form.register("nome")}
+            />
+            <CampoTexto
+              label={tipoPessoaPagador === "Juridica" ? "CNPJ" : "CPF"}
+              error={form.formState.errors.cpfCnpj?.message}
+              {...buildCpfCnpjInputProps(form.register("cpfCnpj", cpfCnpjInputRegisterOptions))}
+            />
+          </div>
+        ) : null}
+
+        <MensagemErro error={erroCheckout} />
+        {!pagamentoAberto && !planoAtivoMesmoCiclo ? (
+          <button
+            type="submit"
+            disabled={checkoutPendente}
+            className="mt-5 inline-flex h-11 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {checkoutPendente ? "Abrindo pagamento..." : "Realizar Pagamento"}
+            <ArrowRight size={17} aria-hidden="true" />
+          </button>
+        ) : null}
+      </form>
+    </section>
+  );
+}
+
+function BillingContent({
+  conta,
+  status,
+  planos,
+  isLoading,
+  isError,
+  erroCheckout,
+  erroCancelamento,
+  checkoutPendente,
+  cancelamentoPendente,
+  onRetry,
+  onCriarCheckout,
+  onCancelar,
+}: {
+  conta: ContaAtualResponse;
+  status: BillingStatusResponse | undefined;
+  planos: BillingPlanoResponse[];
+  isLoading: boolean;
+  isError: boolean;
+  erroCheckout: Error | null;
+  erroCancelamento: Error | null;
+  checkoutPendente: boolean;
+  cancelamentoPendente: boolean;
+  onRetry: () => void;
+  onCriarCheckout: (input: CreateBillingCheckoutInput) => void;
+  onCancelar: () => void;
+}) {
+  const ciclosDisponiveis = planos.filter((plano) => plano.codigo === "fundador");
+  const [cicloSelecionado, setCicloSelecionado] = useState("Mensal");
+  const [metodoPagamentoSelecionado, setMetodoPagamentoSelecionado] = useState("Pix");
+  const billingPagadorForm = useForm<BillingPagadorFormInput>({
+    resolver: zodResolver(billingPagadorSchema),
+    defaultValues: {
+      ...billingPagadorDefaultValues,
+      nome: conta.nome,
+    },
+  });
+  const tipoPessoaPagador = useWatch({
+    control: billingPagadorForm.control,
+    name: "tipoPessoa",
+  });
+  const planoFundador =
+    ciclosDisponiveis.find((plano) => plano.ciclo === cicloSelecionado) ??
+    ciclosDisponiveis[0] ??
+    planos[0];
+  const assinaturaAtiva = status
+    ? status.entitlements.canRemoveWatermark
+    : conta.plano === "Fundador";
+  const podeCancelar = assinaturaAtiva && Boolean(status?.statusAssinatura) && !status?.cancelAtPeriodEnd;
+  const actionPendente = checkoutPendente || cancelamentoPendente;
+  const pagamentoAtual = status?.pagamentoAtual ?? null;
+  const pagamentoAberto = pagamentoAtual
+    ? ["AguardandoPagamento", "EmAnalise", "Vencido"].includes(pagamentoAtual.status)
+    : false;
+  const historicoPagamentos = status?.historicoPagamentos ?? [];
+  const metodoSelecionado = planoFundador?.metodosPagamento.find(
+    (metodo) => metodo.codigo === metodoPagamentoSelecionado,
+  ) ?? planoFundador?.metodosPagamento.find((metodo) => metodo.ativo !== false);
+  const metodoSelecionadoAtivo = Boolean(metodoSelecionado && metodoSelecionado.ativo !== false);
+  const cicloSelecionadoJaAtivo = Boolean(
+    assinaturaAtiva &&
+      planoFundador &&
+      (!status?.ciclo || status.ciclo === planoFundador.ciclo) &&
+      status?.periodoAtualFim,
+  );
+  const bloqueiaNovoPagamento = pagamentoAberto || cicloSelecionadoJaAtivo;
+  const validadePlanoAtual = status?.periodoAtualFim ?? status?.trialEndsAt ?? null;
+  const mensagemBloqueioPagamento = pagamentoAberto
+    ? "Ja existe uma cobranca em andamento para este plano. Se voce acabou de pagar, aguarde a confirmacao automatica do Asaas."
+    : cicloSelecionadoJaAtivo
+      ? `Seu ${status?.plano ?? conta.plano} ${formatBillingStatusLabel(status?.ciclo ?? planoFundador.ciclo).toLowerCase()} esta ativo ate ${formatDataCurta(validadePlanoAtual)}.`
+      : null;
+  const mensagemStatusPlano = pagamentoAberto
+    ? "Pagamento em confirmacao. Reabra o comprovante se precisar conferir a cobranca; o plano libera automaticamente quando o Asaas confirmar."
+    : status?.mensagem;
+
+  const handleSubmitCheckout = billingPagadorForm.handleSubmit((pagadorInput) => {
+    if (!planoFundador || !metodoSelecionado || !metodoSelecionadoAtivo || bloqueiaNovoPagamento) {
+      return;
+    }
+
+    onCriarCheckout({
+      planoCodigo: planoFundador.codigo,
+      metodoPagamento: metodoSelecionado.codigo,
+      ciclo: planoFundador.ciclo,
+      pagador: buildBillingPagadorPayload(pagadorInput),
+    });
+  });
+
+  return (
+    <div className="space-y-5">
+      <div className="page-heading">
+        <div>
+          <p className="text-sm font-medium text-accent">Plano e pagamento</p>
+          <h1 className="font-heading text-3xl font-semibold">Plano Fundador</h1>
+          <span>
+            Ative ou acompanhe a cobranca recorrente hospedada no ambiente seguro do Asaas.
+          </span>
+        </div>
+      </div>
+
+      {isLoading ? <ListaCarregando label="Carregando plano" /> : null}
+
+      {isError ? (
+        <EstadoErroConsulta
+          titulo="Nao foi possivel carregar os dados do plano."
+          detalhe="Atualize antes de iniciar uma cobranca ou alterar a assinatura."
+          onRetry={onRetry}
+        />
+      ) : null}
+
+      {!isLoading && !isError && planoFundador ? (
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
+          <section className="rounded-md border border-border bg-surface p-5">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+              <div className="min-w-0">
+                <div className="inline-flex items-center gap-2 rounded-md bg-blue-50 px-3 py-1.5 text-sm font-semibold text-primary">
+                  <ShieldCheck size={16} aria-hidden="true" />
+                  {assinaturaAtiva ? "Plano ativo" : "Teste gratis"}
+                </div>
+                <h2 className="mt-4 font-heading text-2xl font-semibold">
+                  {planoFundador.nome}
+                </h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
+                  {planoFundador.descricao}
+                </p>
+                {ciclosDisponiveis.length > 1 ? (
+                  <div className="mt-4 inline-flex rounded-md border border-border bg-white p-1">
+                    {ciclosDisponiveis.map((plano) => (
+                      <button
+                        key={plano.ciclo}
+                        type="button"
+                        onClick={() => setCicloSelecionado(plano.ciclo)}
+                        className={`h-9 rounded px-3 text-sm font-semibold transition ${
+                          plano.ciclo === planoFundador.ciclo
+                            ? "bg-primary text-white"
+                            : "text-slate-700 hover:bg-slate-100"
+                        }`}
+                      >
+                        {plano.ciclo === "Anual" ? "Anual" : "Mensal"}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+                <p className="mt-4 text-4xl font-semibold text-slate-950">
+                  {formatMoney(planoFundador.preco)}
+                  <span className="ml-1 text-base font-medium text-muted">/{planoFundador.periodicidade}</span>
+                </p>
+                {planoFundador.ciclo === "Anual" ? (
+                  <p className="mt-1 text-sm font-medium text-emerald-700">
+                    Equivale a {formatMoney(planoFundador.preco / 12)} por mes.
+                  </p>
+                ) : null}
+              </div>
+              <div className="w-full rounded-md border border-border bg-white p-4 lg:max-w-sm">
+                <p className="text-sm font-semibold text-slate-950">Status atual</p>
+                <dl className="mt-3 grid gap-3 text-sm">
+                  <BillingInfo label="Plano atual" value={status?.plano ?? conta.plano} />
+                  <BillingInfo
+                    label="Validade"
+                    value={validadePlanoAtual ? formatDataCurta(validadePlanoAtual) : "-"}
+                  />
+                  <BillingInfo
+                    label="Assinatura"
+                    value={formatBillingStatusLabel(status?.statusAssinatura ?? "Sem assinatura")}
+                  />
+                  <BillingInfo label="Ciclo" value={formatBillingStatusLabel(status?.ciclo ?? "-")} />
+                  <BillingInfo
+                    label="Proxima cobranca"
+                    value={status?.proximaCobranca ? formatDataCurta(status.proximaCobranca) : "-"}
+                  />
+                  <BillingInfo
+                    label="Pagamento"
+                    value={formatBillingStatusLabel(pagamentoAtual?.status ?? "-")}
+                  />
+                </dl>
+              </div>
+            </div>
+
+            {mensagemStatusPlano ? (
+              <div className="mt-5 rounded-md border border-border bg-white p-4 text-sm leading-6 text-slate-700">
+                {mensagemStatusPlano}
+              </div>
+            ) : null}
+
+            {pagamentoAtual ? (
+              <div className="mt-5 rounded-md border border-border bg-white p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-950">Cobranca atual</p>
+                    <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+                      <BillingInfo label="Status" value={formatBillingStatusLabel(pagamentoAtual.status)} />
+                      <BillingInfo label="Metodo" value={formatBillingStatusLabel(pagamentoAtual.metodoPagamento)} />
+                      <BillingInfo label="Valor" value={formatMoney(pagamentoAtual.valor)} />
+                      <BillingInfo label="Vencimento" value={pagamentoAtual.dueDate ? formatDataCurta(pagamentoAtual.dueDate) : "-"} />
+                      <BillingInfo label="Pago em" value={pagamentoAtual.paidAt ? formatDataCurta(pagamentoAtual.paidAt) : "-"} />
+                      <BillingInfo label="Reembolsado" value={formatMoney(pagamentoAtual.valorReembolsado)} />
+                    </dl>
+                  </div>
+                  {pagamentoAberto && pagamentoAtual.invoiceUrl ? (
+                    <a
+                      className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white"
+                      href={pagamentoAtual.invoiceUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Abrir Comprovante
+                      <ArrowRight size={16} aria-hidden="true" />
+                    </a>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+
+            <div className="mt-6 grid gap-3 md:grid-cols-2">
+              <BillingBeneficio icon={FileText} texto="Gerar e exportar propostas comerciais" ativo={Boolean(status?.entitlements.canExportProposta)} />
+              <BillingBeneficio icon={ShieldCheck} texto="Remover marca d'agua do Trial" ativo={Boolean(status?.entitlements.canRemoveWatermark)} />
+              <BillingBeneficio icon={Send} texto="Compartilhar propostas pelo WhatsApp" ativo={Boolean(status?.entitlements.canSharePropostaWhatsapp)} />
+              <BillingBeneficio icon={ReceiptText} texto="Historico de cobrancas vinculado a conta" ativo={assinaturaAtiva} />
+            </div>
+
+            <div className="mt-6 rounded-md border border-border bg-white">
+              <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+                <p className="text-sm font-semibold text-slate-950">Historico de cobrancas</p>
+                <span className="text-xs font-medium text-muted">12 meses</span>
+              </div>
+              {historicoPagamentos.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-left text-sm">
+                    <thead className="bg-slate-50 text-xs uppercase text-muted">
+                      <tr>
+                        <th className="px-4 py-3 font-semibold">Criada</th>
+                        <th className="px-4 py-3 font-semibold">Status</th>
+                        <th className="px-4 py-3 font-semibold">Ciclo</th>
+                        <th className="px-4 py-3 font-semibold">Valor</th>
+                        <th className="px-4 py-3 font-semibold">Reembolso</th>
+                        <th className="px-4 py-3 font-semibold">Pagamento</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {historicoPagamentos.map((pagamento) => (
+                        <tr key={pagamento.id}>
+                          <td className="px-4 py-3 text-slate-700">{formatDataCurta(pagamento.createdAt)}</td>
+                          <td className="px-4 py-3 font-medium text-slate-950">{formatBillingStatusLabel(pagamento.status)}</td>
+                          <td className="px-4 py-3 text-slate-700">{formatBillingStatusLabel(pagamento.ciclo)}</td>
+                          <td className="px-4 py-3 text-slate-700">{formatMoney(pagamento.valor)}</td>
+                          <td className="px-4 py-3 text-slate-700">{formatMoney(pagamento.valorReembolsado)}</td>
+                          <td className="px-4 py-3 text-slate-700">
+                            {pagamento.invoiceUrl ? (
+                              <a className="font-semibold text-primary" href={pagamento.invoiceUrl} target="_blank" rel="noreferrer">
+                                Abrir Comprovante
+                              </a>
+                            ) : (
+                              "-"
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="px-4 py-5 text-sm text-muted">Nenhuma cobranca registrada nos ultimos 12 meses.</p>
+              )}
+            </div>
+          </section>
+
+          <section className="rounded-md border border-border bg-surface p-5">
+            <h2 className="font-heading text-xl font-semibold">Pagamento</h2>
+            <p className="mt-2 text-sm leading-6 text-muted">
+              Informe os dados do pagador, escolha o metodo e conclua no checkout hospedado do Asaas. O plano libera automaticamente quando o webhook confirmar o pagamento.
+            </p>
+
+            {mensagemBloqueioPagamento ? (
+              <div className="mt-5 rounded-md border border-border bg-white p-4">
+                <p className="text-sm font-semibold text-slate-950">
+                  {pagamentoAberto ? "Pagamento em andamento" : "Plano ja ativo"}
+                </p>
+                <p className="mt-2 text-sm leading-6 text-muted">{mensagemBloqueioPagamento}</p>
+                {pagamentoAtual?.invoiceUrl ? (
+                  <a
+                    className="mt-4 inline-flex h-10 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white"
+                    href={pagamentoAtual.invoiceUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Abrir Comprovante
+                    <ArrowRight size={16} aria-hidden="true" />
+                  </a>
+                ) : null}
+              </div>
+            ) : null}
+
+            {!mensagemBloqueioPagamento ? (
+            <form className="mt-5 space-y-5" onSubmit={handleSubmitCheckout}>
+              <div className="rounded-md border border-border bg-white p-4">
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { value: "Fisica", label: "Pessoa fisica" },
+                    { value: "Juridica", label: "Pessoa juridica" },
+                  ].map((opcao) => (
+                    <button
+                      key={opcao.value}
+                      type="button"
+                      onClick={() =>
+                        billingPagadorForm.setValue(
+                          "tipoPessoa",
+                          opcao.value as BillingPagadorFormInput["tipoPessoa"],
+                          { shouldDirty: true, shouldValidate: true },
+                        )
+                      }
+                      className={`h-9 rounded-md border px-3 text-sm font-semibold transition ${
+                        tipoPessoaPagador === opcao.value
+                          ? "border-primary bg-primary text-white"
+                          : "border-border bg-white text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      {opcao.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <CampoTexto
+                    label={tipoPessoaPagador === "Juridica" ? "Razao social" : "Nome completo"}
+                    autoComplete="name"
+                    error={billingPagadorForm.formState.errors.nome?.message}
+                    {...billingPagadorForm.register("nome")}
+                  />
+                  <CampoTexto
+                    label={tipoPessoaPagador === "Juridica" ? "CNPJ" : "CPF"}
+                    error={billingPagadorForm.formState.errors.cpfCnpj?.message}
+                    {...buildCpfCnpjInputProps(
+                      billingPagadorForm.register("cpfCnpj", cpfCnpjInputRegisterOptions),
+                    )}
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-3">
+              {planoFundador.metodosPagamento.map((metodo) => {
+                const Icon = metodo.codigo === "Pix" ? DollarSign : CreditCard;
+                const metodoAtivo = metodo.ativo !== false;
+                const selecionado = metodo.codigo === metodoSelecionado?.codigo;
+
+                return (
+                  <button
+                    key={metodo.codigo}
+                    type="button"
+                    disabled={actionPendente || !metodoAtivo}
+                    onClick={() => setMetodoPagamentoSelecionado(metodo.codigo)}
+                    className={`flex min-h-20 items-center justify-between gap-4 rounded-md border bg-white p-4 text-left transition hover:border-primary disabled:cursor-not-allowed disabled:opacity-60 ${
+                      selecionado ? "border-primary ring-2 ring-blue-100" : "border-border"
+                    }`}
+                  >
+                    <span className="flex items-start gap-3">
+                      <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-md bg-blue-50 text-primary">
+                        <Icon size={18} aria-hidden="true" />
+                      </span>
+                      <span>
+                        <strong className="block text-sm text-slate-950">{metodo.nome}</strong>
+                        <span className="mt-1 block text-sm leading-5 text-muted">
+                          {metodo.descricao}
+                        </span>
+                        {!metodoAtivo ? (
+                          <span className="mt-2 inline-flex rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600">
+                            Em breve
+                          </span>
+                        ) : null}
+                        {metodo.codigo === "CartaoCredito" && metodoAtivo ? (
+                          <span className="mt-2 block text-xs font-medium text-slate-600">
+                            Os dados do cartao serao preenchidos somente no Asaas.
+                          </span>
+                        ) : null}
+                      </span>
+                    </span>
+                    {selecionado ? (
+                      <CheckCircle2 className="shrink-0 text-primary" size={18} aria-hidden="true" />
+                    ) : (
+                      <ArrowRight className="shrink-0 text-muted" size={18} aria-hidden="true" />
+                    )}
+                  </button>
+                );
+              })}
+              </div>
+
+              <button
+                type="submit"
+                disabled={actionPendente || !metodoSelecionadoAtivo || bloqueiaNovoPagamento}
+                className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {checkoutPendente ? "Abrindo pagamento..." : "Realizar Pagamento"}
+                <ArrowRight size={17} aria-hidden="true" />
+              </button>
+            </form>
+            ) : null}
+
+            <MensagemErro error={erroCheckout} />
+
+            {podeCancelar || status?.cancelAtPeriodEnd ? (
+              <div className="mt-5 border-t border-border pt-5">
+                {podeCancelar ? (
+                  <button
+                    type="button"
+                    disabled={actionPendente}
+                    onClick={onCancelar}
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-border px-4 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <CircleMinus size={17} aria-hidden="true" />
+                    Cancelar renovacao
+                  </button>
+                ) : null}
+                {status?.cancelAtPeriodEnd ? (
+                  <p className="mt-3 text-sm leading-6 text-muted">
+                    A renovacao foi cancelada. Para voltar depois do periodo atual, inicie um novo checkout.
+                  </p>
+                ) : null}
+                <MensagemErro error={erroCancelamento} />
+              </div>
+            ) : null}
+          </section>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function BillingBeneficio({
+  icon: Icon,
+  texto,
+  ativo,
+}: {
+  icon: typeof FileText;
+  texto: string;
+  ativo: boolean;
+}) {
+  return (
+    <div className="flex items-start gap-3 rounded-md border border-border bg-white p-4">
+      <span
+        className={`inline-flex size-9 shrink-0 items-center justify-center rounded-md ${
+          ativo ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-muted"
+        }`}
+      >
+        <Icon size={17} aria-hidden="true" />
+      </span>
+      <span className="text-sm font-medium leading-6 text-slate-800">{texto}</span>
+    </div>
+  );
+}
+
+function formatBillingStatusLabel(valor: string | null | undefined): string {
+  if (!valor || valor === "-") {
+    return "-";
+  }
+
+  const labels: Record<string, string> = {
+    AguardandoPagamento: "Aguardando Pagamento",
+    EmAnalise: "Em Analise",
+    Recebido: "Recebido",
+    Confirmado: "Confirmado",
+    Vencido: "Vencido",
+    Falhou: "Falhou",
+    Reembolsado: "Reembolsado",
+    ReembolsoParcial: "Reembolso Parcial",
+    Cancelado: "Cancelado",
+    Ativa: "Ativa",
+    Suspensa: "Suspensa",
+    CancelamentoAgendado: "Cancelamento Agendado",
+    Inadimplente: "Inadimplente",
+    SemAssinatura: "Sem Assinatura",
+    "Sem assinatura": "Sem Assinatura",
+    Pix: "Pix",
+    CartaoCredito: "Cartao de Credito",
+    Mensal: "Mensal",
+    Anual: "Anual",
+    Fundador: "Fundador",
+    Trial: "Trial",
+  };
+
+  return labels[valor] ?? valor.replace(/([a-z])([A-Z])/g, "$1 $2");
+}
+
+function BillingInfo({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-muted">{label}</dt>
+      <dd className="mt-0.5 break-words font-semibold text-slate-950">{value}</dd>
+    </div>
+  );
+}
+
 function DashboardCarregando() {
   return (
     <>
@@ -13838,7 +14809,13 @@ function DashboardCarregando() {
   );
 }
 
-function TrialUpsellBanner({ conta }: { conta: ContaAtualResponse }) {
+function TrialUpsellBanner({
+  conta,
+  onAtivarPlano,
+}: {
+  conta: ContaAtualResponse;
+  onAtivarPlano?: () => void;
+}) {
   return (
     <section className="trial-upsell rounded-md border border-amber-200 bg-amber-50 p-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -13859,14 +14836,14 @@ function TrialUpsellBanner({ conta }: { conta: ContaAtualResponse }) {
             </p>
           </div>
         </div>
-        <a
-          href={whatsappEmprelyAtivarPlanoUrl}
-          target="_blank"
-          rel="noreferrer"
+        <button
+          type="button"
+          onClick={onAtivarPlano}
           className="inline-flex h-11 items-center justify-center rounded-md bg-primary px-4 text-sm font-semibold text-white"
         >
+          <CreditCard size={17} aria-hidden="true" />
           Ativar plano
-        </a>
+        </button>
       </div>
     </section>
   );
@@ -14762,6 +15739,23 @@ function isSuportePublicoPath(): boolean {
   return pathname === "/suporte";
 }
 
+function isBillingRegularizarPath(): boolean {
+  const pathname = window.location.pathname.toLowerCase().replace(/\/+$/, "");
+  return pathname === "/billing/regularizar";
+}
+
+function getPublicBillingPaymentTokenFromPath(): string | null {
+  const pathname = window.location.pathname.replace(/\/+$/, "");
+  const prefixo = "/billing/pagar/";
+
+  if (!pathname.toLowerCase().startsWith(prefixo)) {
+    return null;
+  }
+
+  const token = pathname.slice(prefixo.length).trim();
+  return token ? decodeURIComponent(token) : null;
+}
+
 function getAuthModeInicial(): AuthMode {
   const auth = new URLSearchParams(window.location.search).get("auth");
 
@@ -15050,6 +16044,14 @@ function buildClientePayload(
     facebook: normalizarOpcional(input.facebook),
     tiktok: normalizarOpcional(input.tiktok),
     observacoes: normalizarOpcional(input.observacoes),
+  };
+}
+
+function buildBillingPagadorPayload(input: BillingPagadorFormInput): BillingPagadorInput {
+  return {
+    tipoPessoa: input.tipoPessoa,
+    nome: input.nome.trim(),
+    cpfCnpj: formatCpfCnpjCampo(input.cpfCnpj),
   };
 }
 
@@ -16266,11 +17268,17 @@ function normalizarHexPreview(valor: string): string {
   return /^#[0-9A-Fa-f]{6}$/.test(valor) ? valor.toUpperCase() : "#000000";
 }
 
-function canExportPropostaConta(conta: ContaAtualResponse): boolean {
+function canExportPropostaConta(
+  conta: ContaAtualResponse,
+  billingStatus?: BillingStatusResponse,
+): boolean {
+  if (billingStatus) {
+    return billingStatus.entitlements.canExportProposta;
+  }
+
   const statusComercial = getStatusComercialContaEfetivo(conta);
 
   return (
-    conta.plano === "Fundador" ||
     statusComercial === "TrialAtivo" ||
     statusComercial === "FundadorAtivo"
   );
@@ -16278,7 +17286,18 @@ function canExportPropostaConta(conta: ContaAtualResponse): boolean {
 
 function getStatusComercialContaEfetivo(
   conta: ContaAtualResponse,
+  billingStatus?: BillingStatusResponse,
 ): ContaAtualResponse["statusComercial"] {
+  if (billingStatus) {
+    if (billingStatus.entitlements.canRemoveWatermark) {
+      return "FundadorAtivo";
+    }
+
+    return billingStatus.entitlements.canGenerateProposta
+      ? "TrialAtivo"
+      : "TrialExpirado";
+  }
+
   if (conta.plano === "Fundador") {
     return "FundadorAtivo";
   }
@@ -16301,10 +17320,10 @@ function getStatusComercialContaEfetivo(
 }
 
 function getWatermarkDocumentoProposta(
-  planoConta: ContaAtualResponse["plano"],
+  _planoConta: ContaAtualResponse["plano"],
   statusComercialConta: ContaAtualResponse["statusComercial"],
 ): "nenhuma" | "trial-ativo" | "trial-expirado" {
-  if (planoConta === "Fundador") {
+  if (statusComercialConta === "FundadorAtivo") {
     return "nenhuma";
   }
 
@@ -16315,12 +17334,13 @@ function getWatermarkDocumentoProposta(
 
 function getMensagemBloqueioPlano(
   conta: ContaAtualResponse | undefined,
+  billingStatus?: BillingStatusResponse,
 ): string {
-  if (!conta || canExportPropostaConta(conta)) {
+  if (!conta || canExportPropostaConta(conta, billingStatus)) {
     return "";
   }
 
-  return `Trial expirado. Fale com a Emprely pelo WhatsApp ${contatoEmprely.whatsappDisplay} para ativar o plano e gerar, imprimir ou compartilhar propostas.`;
+  return "Trial expirado. Ative o Plano Fundador em Plano para gerar, imprimir ou compartilhar propostas.";
 }
 
 function getAppViewLabel(view: AppView): string {
@@ -16329,6 +17349,7 @@ function getAppViewLabel(view: AppView): string {
     clientes: "Clientes",
     servicos: "Serviços",
     propostas: "Propostas",
+    billing: "Plano",
     conta: "Perfil da conta",
     personalizacao: "Perfil da conta",
     suporte: "Suporte",
@@ -16337,12 +17358,42 @@ function getAppViewLabel(view: AppView): string {
   return labels[view];
 }
 
-function formatTrialConta(conta: ContaAtualResponse): string {
-  if (conta.plano === "Fundador") {
-    return "Plano ativo";
+type BillingRetorno = "sucesso" | "cancelado" | "expirado";
+
+function getBillingRetornoFromPath(pathname: string): BillingRetorno | null {
+  if (pathname.endsWith("/billing/sucesso")) {
+    return "sucesso";
   }
 
+  if (pathname.endsWith("/billing/cancelado")) {
+    return "cancelado";
+  }
+
+  if (pathname.endsWith("/billing/expirado")) {
+    return "expirado";
+  }
+
+  return null;
+}
+
+function getMensagemRetornoBilling(retorno: BillingRetorno): string {
+  if (retorno === "sucesso") {
+    return "Pagamento recebido. Estamos atualizando o status do plano.";
+  }
+
+  if (retorno === "expirado") {
+    return "Checkout expirado. Inicie uma nova cobranca quando quiser ativar o plano.";
+  }
+
+  return "Checkout cancelado. Nenhuma cobranca foi concluida.";
+}
+
+function formatTrialConta(conta: ContaAtualResponse): string {
   const statusComercialEfetivo = getStatusComercialContaEfetivo(conta);
+
+  if (statusComercialEfetivo === "FundadorAtivo") {
+    return "Plano ativo";
+  }
 
   if (statusComercialEfetivo === "TrialExpirado") {
     return `Expirado em ${formatDataConta(conta.trialEndsAt)}`;

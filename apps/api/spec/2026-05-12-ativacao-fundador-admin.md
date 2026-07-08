@@ -1,4 +1,6 @@
-# Spec API - Ativacao Fundador Admin
+# Spec API substituida - Ativacao Fundador Admin
+
+Substituida em 2026-06-28 pela spec mestre de billing. As rotas de ativacao Fundador foram removidas.
 
 ## Visao geral
 
@@ -8,8 +10,8 @@ Proteger a ativacao manual do Plano Fundador como operacao administrativa.
 
 | Metodo | Rota | Autenticacao | Descricao |
 | --- | --- | --- | --- |
-| POST | `/api/account/activate-founder` | Bearer | Bloqueado para autoativacao |
-| POST | `/api/admin/accounts/{contaId}/activate-founder` | Header admin | Ativa Plano Fundador de uma conta |
+| REMOVIDO | `/api/account/activate-founder` | - | Substituido por billing Asaas |
+| REMOVIDO | `/api/admin/accounts/{contaId}/activate-founder` | - | Substituido por `/api/admin/billing/accounts/{contaId}/manual-credit` com Super Admin |
 
 ## Contratos
 

@@ -51,7 +51,13 @@ $requiredKeys = @(
   "EmailTransacional__FromName",
   "EmailTransacional__SesRegion",
   "EmailTransacional__SuporteDestinoEmail",
-  "LogoPerfilStorage__Provider"
+  "LogoPerfilStorage__Provider",
+  "Asaas__BaseUrl",
+  "Asaas__ApiKey",
+  "Asaas__WebhookToken",
+  "Asaas__CheckoutSuccessUrl",
+  "Asaas__CheckoutCancelUrl",
+  "Asaas__CheckoutExpiredUrl"
 )
 
 foreach ($key in $requiredKeys) {
@@ -65,6 +71,10 @@ if (-not $AllowPlaceholders) {
 
   foreach ($entry in $valores.GetEnumerator()) {
     foreach ($pattern in $placeholderPatterns) {
+      if ($entry.Key -eq "ALLOWED_HOSTS" -and $pattern -eq "localhost") {
+        continue
+      }
+
       if ($entry.Value.Contains($pattern)) {
         throw "Variavel $($entry.Key) contem placeholder: $pattern"
       }
@@ -82,7 +92,14 @@ if (-not $AllowPlaceholders) {
   }
 }
 
-foreach ($urlKey in @("Cors__OrigensPermitidas__0", "App__PublicWebUrl")) {
+foreach ($urlKey in @(
+  "Cors__OrigensPermitidas__0",
+  "App__PublicWebUrl",
+  "Asaas__BaseUrl",
+  "Asaas__CheckoutSuccessUrl",
+  "Asaas__CheckoutCancelUrl",
+  "Asaas__CheckoutExpiredUrl"
+)) {
   $uri = $null
   if (-not [System.Uri]::TryCreate($valores[$urlKey], [System.UriKind]::Absolute, [ref]$uri)) {
     throw "$urlKey deve ser uma URL absoluta."
@@ -90,6 +107,14 @@ foreach ($urlKey in @("Cors__OrigensPermitidas__0", "App__PublicWebUrl")) {
 
   if ($uri.Scheme -ne "https") {
     throw "$urlKey deve usar https em beta/producao."
+  }
+}
+
+if (-not $AllowPlaceholders) {
+  foreach ($key in @("Asaas__ApiKey", "Asaas__WebhookToken")) {
+    if ($valores[$key].Length -lt 20) {
+      throw "$key parece curto demais para um segredo Asaas real."
+    }
   }
 }
 

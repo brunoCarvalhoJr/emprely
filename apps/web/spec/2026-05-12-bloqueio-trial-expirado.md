@@ -31,7 +31,7 @@ Aplicar bloqueio visual e funcional para geracao/exportacao/compartilhamento de 
 ## Integracao com API
 
 - `POST /api/proposals/{id}/generate` pode retornar `403` com `message`.
-- `POST /api/account/activate-founder` continua sendo a forma manual de remover o bloqueio no MVP.
+- `POST /api/account/activate-founder` foi removido; desbloqueio pago depende de billing Asaas ou credito manual Super Admin.
 
 ## Criterios de aceite
 

@@ -32,7 +32,7 @@ Criar uma primeira versão funcional capaz de gerar propostas profissionais, pri
 - Trial expirado com marca d'água grande na visualização interna.
 - Plano Fundador sem marca d'água.
 - Trial tecnico inicial de 7 dias para contas novas.
-- Ativacao manual administrativa do Plano Fundador no MVP, antes de billing real.
+- Ativacao manual administrativa do Plano Fundador foi substituida por billing Asaas e credito manual temporario via Super Admin.
 - Mensagem pronta para WhatsApp.
 - Regras de ciclo de vida de proposta aplicadas no frontend e na API.
 - Bloqueio de edicao direta para propostas enviadas, aceitas ou recusadas.

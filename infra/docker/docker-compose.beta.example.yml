@@ -37,6 +37,12 @@ services:
       RateLimit__AuthPermitLimit: ${RATE_LIMIT_AUTH_PERMIT_LIMIT:-30}
       RateLimit__AdminPermitLimit: ${RATE_LIMIT_ADMIN_PERMIT_LIMIT:-10}
       RateLimit__WindowSeconds: ${RATE_LIMIT_WINDOW_SECONDS:-60}
+      Asaas__BaseUrl: ${ASAAS_BASE_URL:-https://sandbox.asaas.com/api/v3}
+      Asaas__ApiKey: ${ASAAS_API_KEY:?defina ASAAS_API_KEY}
+      Asaas__WebhookToken: ${ASAAS_WEBHOOK_TOKEN:?defina ASAAS_WEBHOOK_TOKEN}
+      Asaas__CheckoutSuccessUrl: ${ASAAS_CHECKOUT_SUCCESS_URL:-https://app.emprely.com.br/billing/sucesso}
+      Asaas__CheckoutCancelUrl: ${ASAAS_CHECKOUT_CANCEL_URL:-https://app.emprely.com.br/billing/cancelado}
+      Asaas__CheckoutExpiredUrl: ${ASAAS_CHECKOUT_EXPIRED_URL:-https://app.emprely.com.br/billing/expirado}
     ports:
       - "${API_PORT:-8080}:8080"
     depends_on:

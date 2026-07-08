@@ -19,7 +19,7 @@ Adicionar uma area de plano na tela de conta para mostrar trial, status comercia
 
 - Card `Plano e acesso` na lateral da view `conta`.
 - Resumo da sessao com linha `Plano`.
-- Lista de endpoints em `AuthContent` deve incluir `POST /api/account/activate-founder`.
+- `POST /api/account/activate-founder` foi removido; a UI deve encaminhar para billing.
 
 ## Formularios
 

@@ -145,6 +145,12 @@ Configure variaveis de ambiente em vez de reutilizar secrets dev:
 - `LogoPerfilStorage__S3PublicBaseUrl`
 - `LogoPerfilStorage__S3Region`
 - `RateLimit__PublicSupportPermitLimit`
+- `Asaas__BaseUrl`
+- `Asaas__ApiKey`
+- `Asaas__WebhookToken`
+- `Asaas__CheckoutSuccessUrl`
+- `Asaas__CheckoutCancelUrl`
+- `Asaas__CheckoutExpiredUrl`
 - `VITE_API_BASE_URL`
 
 Para a API em Lightsail, use `LogoPerfilStorage__Provider=S3` com bucket/CDN configurados. `Local` e apenas para desenvolvimento/testes, e `Disabled` serve apenas como fallback temporario sem upload.
@@ -159,6 +165,8 @@ As Data Protection keys da API sao persistidas no Postgres pela tabela `data_pro
 
 Deploy da API no Lightsail:
 
+- importar segredos Asaas para o env privado da API:
+  `pnpm lightsail:asaas:prod` para vender de verdade ou `pnpm lightsail:asaas:sandbox` para smoke sandbox;
 - build local da imagem: `pnpm lightsail:api:build`;
 - validar env example: `pnpm validate:lightsail`;
 - runbook: [infra/lightsail/README.md](infra/lightsail/README.md).

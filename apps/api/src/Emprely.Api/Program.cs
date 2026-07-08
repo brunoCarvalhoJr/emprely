@@ -38,6 +38,9 @@ if (executandoEmLambda)
 
 builder.Services.AddScoped<ICurrentContaContext, CurrentContaContext>();
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
+builder.Services.AddScoped<BillingEntitlementsService>();
+builder.Services.AddScoped<BillingService>();
+builder.Services.AddHostedService<BillingWebhookHostedService>();
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 builder.Services.Configure<CorsAplicacaoOptions>(builder.Configuration.GetSection(CorsAplicacaoOptions.SectionName));
 builder.Services.Configure<AdminOperacoesOptions>(builder.Configuration.GetSection(AdminOperacoesOptions.SectionName));
@@ -73,6 +76,7 @@ var authPermitLimit = Math.Max(1, rateLimitOptions.AuthPermitLimit);
 var adminPermitLimit = Math.Max(1, rateLimitOptions.AdminPermitLimit);
 var publicSupportPermitLimit = Math.Max(1, rateLimitOptions.PublicSupportPermitLimit);
 var publicProposalPermitLimit = Math.Max(1, rateLimitOptions.PublicProposalPermitLimit);
+var publicBillingPermitLimit = Math.Max(1, rateLimitOptions.PublicBillingPermitLimit);
 
 builder.Services
     .AddIdentity<UsuarioAplicacao, IdentityRole<Guid>>(options =>
@@ -225,6 +229,19 @@ builder.Services.AddRateLimiter(options =>
                 });
         }
 
+        if (context.Request.Path.StartsWithSegments("/api/billing/public"))
+        {
+            return RateLimitPartition.GetFixedWindowLimiter(
+                GetRateLimitPartitionKey(context, RateLimitAplicacaoOptions.PublicBillingPolicyName),
+                _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = publicBillingPermitLimit,
+                    Window = rateLimitWindow,
+                    QueueLimit = 0,
+                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                });
+        }
+
         return RateLimitPartition.GetNoLimiter("sem-limite");
     });
     options.AddPolicy(RateLimitAplicacaoOptions.AuthPolicyName, context =>
@@ -263,6 +280,16 @@ builder.Services.AddRateLimiter(options =>
             _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = publicProposalPermitLimit,
+                Window = rateLimitWindow,
+                QueueLimit = 0,
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+            }));
+    options.AddPolicy(RateLimitAplicacaoOptions.PublicBillingPolicyName, context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            GetRateLimitPartitionKey(context, RateLimitAplicacaoOptions.PublicBillingPolicyName),
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = publicBillingPermitLimit,
                 Window = rateLimitWindow,
                 QueueLimit = 0,
                 QueueProcessingOrder = QueueProcessingOrder.OldestFirst,

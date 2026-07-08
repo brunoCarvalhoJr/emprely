@@ -190,20 +190,20 @@ https://app.emprely.com.br/admin
 
 O owner principal e definido por `AdminPainel__OwnerEmail`. Se ainda nao existir admin para esse email, usar o bootstrap do owner pela tela admin; depois disso, usar login administrativo normal.
 
-O endpoint legado por chave administrativa continua disponivel para manutencao tecnica:
+O endpoint legado por chave administrativa continua disponivel apenas para manutencao tecnica. Ele nao ativa mais o Plano Fundador permanente; agora cria credito manual auditado de 30 dias.
 
 ```powershell
 Invoke-RestMethod `
   -Method Post `
-  -Uri "https://api.emprely.com.br/api/admin/accounts/<contaId>/activate-founder" `
+  -Uri "https://api.emprely.com.br/api/admin/billing/accounts/<contaId>/manual-credit" `
   -Headers @{ "X-Emprely-Admin-Key" = "<chave-admin>" }
 ```
 
 Resultado esperado:
 
-- `plano = Fundador`
-- `statusComercial = FundadorAtivo`
-- `planoFundadorAtivadoAt` preenchido
+- `plano` permanece conforme estado comercial da conta.
+- acesso pago e liberado temporariamente por credito manual auditado.
+- o historico de billing registra `ManualBillingCreditGranted`.
 
 ## Aceite manual beta
 

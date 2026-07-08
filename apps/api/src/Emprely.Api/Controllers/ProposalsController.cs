@@ -2,6 +2,7 @@ using Emprely.Application.Auth;
 using Emprely.Contracts.Proposals;
 using Emprely.Api.Auth;
 using Emprely.Api.Configuracoes;
+using Emprely.Api.Servicos;
 using Emprely.Domain.Clientes;
 using Emprely.Domain.Contas;
 using Emprely.Domain.Onboarding;
@@ -32,17 +33,20 @@ public sealed class ProposalsController : ControllerBase
     private readonly EmprelyDbContext dbContext;
     private readonly AppPublicOptions appPublicOptions;
     private readonly JwtOptions jwtOptions;
+    private readonly BillingEntitlementsService billingEntitlementsService;
 
     public ProposalsController(
         ICurrentContaContext currentContaContext,
         EmprelyDbContext dbContext,
         IOptions<AppPublicOptions> appPublicOptions,
-        IOptions<JwtOptions> jwtOptions)
+        IOptions<JwtOptions> jwtOptions,
+        BillingEntitlementsService billingEntitlementsService)
     {
         this.currentContaContext = currentContaContext;
         this.dbContext = dbContext;
         this.appPublicOptions = appPublicOptions.Value;
         this.jwtOptions = jwtOptions.Value;
+        this.billingEntitlementsService = billingEntitlementsService;
     }
 
     [HttpGet]
@@ -369,12 +373,9 @@ public sealed class ProposalsController : ControllerBase
             return NotFound();
         }
 
-        var agora = DateTimeOffset.UtcNow;
-        var diasGratisAtivo = await dbContext.DiasGratisConta.AnyAsync(
-            dias => dias.ContaId == conta.Id && dias.InicioAt <= agora && dias.FimAt > agora,
-            cancellationToken);
+        var entitlements = await billingEntitlementsService.GetEntitlementsAsync(conta, cancellationToken);
 
-        if (conta.CanGenerateProposta(agora) || (conta.Status == StatusConta.Ativa && diasGratisAtivo))
+        if (entitlements.CanGenerateProposta)
         {
             return null;
         }

@@ -328,6 +328,6 @@ public sealed class AdminContasController : AdminControllerBase
             conta.GetStatusComercialConta(agora).ToString(),
             conta.TrialEndsAt,
             conta.PlanoFundadorAtivadoAt,
-            19.90m);
+            19.99m);
     }
 }

@@ -10,7 +10,7 @@ Implementar o estado comercial basico da conta para o MVP: conta nova em trial d
 | --- | --- | --- | --- |
 | GET | `/api/me` | Bearer JWT | Retorna usuario atual e conta com estado comercial. |
 | GET | `/api/account` | Bearer JWT | Retorna conta atual com estado comercial. |
-| POST | `/api/account/activate-founder` | Bearer JWT | Ativa manualmente o Plano Fundador da conta atual. |
+| REMOVIDO | `/api/account/activate-founder` | - | Substituido por billing Asaas; usuario comum nao ativa plano manualmente. |
 
 ## Contratos
 

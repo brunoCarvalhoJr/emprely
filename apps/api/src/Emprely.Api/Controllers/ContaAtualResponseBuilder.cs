@@ -5,7 +5,7 @@ namespace Emprely.Api.Controllers;
 
 internal static class ContaAtualResponseBuilder
 {
-    private const decimal PlanoFundadorPrecoMensal = 19.90m;
+    private const decimal PlanoFundadorPrecoMensal = 19.99m;
 
     public static ContaAtualResponse BuildContaAtualResponse(Conta conta, string papel, bool diasGratisAtivo = false)
     {

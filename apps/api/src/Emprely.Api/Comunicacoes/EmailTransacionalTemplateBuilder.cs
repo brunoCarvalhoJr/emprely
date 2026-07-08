@@ -132,6 +132,86 @@ public static class EmailTransacionalTemplateBuilder
                 null,
                 MostrarBeneficios: false),
 
+            TipoEmailTransacional.PlanoFundadorAtivado => new EmailTransacionalConteudo(
+                "Seu Plano Fundador foi ativado no Emprely.",
+                "Plano Fundador ativado",
+                "Pagamento confirmado com sucesso.",
+                "Sua conta ja pode gerar, exportar e compartilhar propostas sem marca d'agua. As proximas cobrancas seguem a recorrencia configurada no Asaas.",
+                "Abrir Emprely",
+                loginUrl,
+                "Se voce tiver qualquer duvida sobre cobranca, responda este e-mail ou fale com contato@emprely.com.br.",
+                "O Emprely nunca solicita dados de cartao por e-mail."),
+
+            TipoEmailTransacional.BillingPagamentoPendente => new EmailTransacionalConteudo(
+                "Existe uma cobranca pendente no seu Plano Fundador.",
+                "Pagamento pendente",
+                "Sua cobranca ainda precisa ser concluida.",
+                texto,
+                "Abrir pagamento",
+                urlAcao ?? loginUrl,
+                "Enquanto o pagamento nao for confirmado pelo Asaas, o acesso pago pode ficar pendente ou entrar em inadimplencia.",
+                "O Emprely nunca libera acesso pago apenas pelo retorno do checkout."),
+
+            TipoEmailTransacional.BillingBloqueioInadimplencia => new EmailTransacionalConteudo(
+                "Seu acesso pago foi bloqueado por inadimplencia.",
+                "Acesso pago bloqueado",
+                "A tolerancia de pagamento terminou.",
+                texto,
+                "Regularizar plano",
+                urlAcao ?? loginUrl,
+                "Assim que o Asaas confirmar o pagamento valido, o acesso pode ser liberado novamente.",
+                "Se ja pagou, fale com suporte para reconciliarmos sua conta."),
+
+            TipoEmailTransacional.BillingCancelamentoAgendado => new EmailTransacionalConteudo(
+                "A renovacao do seu Plano Fundador foi cancelada.",
+                "Renovacao cancelada",
+                "Seu acesso continua ate o fim do periodo pago.",
+                texto,
+                "Abrir Emprely",
+                loginUrl,
+                "Depois do fim do periodo atual, voce pode criar um novo checkout para voltar ao plano.",
+                null),
+
+            TipoEmailTransacional.BillingCancelamentoEfetivado => new EmailTransacionalConteudo(
+                "Seu Plano Fundador foi encerrado.",
+                "Plano encerrado",
+                "O periodo pago terminou ou a recorrencia foi encerrada.",
+                texto,
+                "Ver planos",
+                loginUrl,
+                "Voce pode voltar quando quiser criando um novo checkout no app.",
+                null),
+
+            TipoEmailTransacional.BillingReembolsoParcial => new EmailTransacionalConteudo(
+                "Um reembolso parcial foi registrado no seu pagamento.",
+                "Reembolso parcial registrado",
+                "Parte do valor pago foi reembolsada.",
+                texto,
+                "Abrir Emprely",
+                loginUrl,
+                "Seu acesso pago continua ativo enquanto houver periodo vigente e recorrencia valida.",
+                null),
+
+            TipoEmailTransacional.BillingReembolsoIntegral => new EmailTransacionalConteudo(
+                "Um reembolso integral foi registrado no seu pagamento.",
+                "Reembolso integral registrado",
+                "O valor pago foi reembolsado integralmente.",
+                texto,
+                "Ver planos",
+                loginUrl,
+                "Por regra financeira, o acesso pago foi suspenso apos o reembolso integral.",
+                null),
+
+            TipoEmailTransacional.BillingLinkPagamentoPublico => new EmailTransacionalConteudo(
+                "Use este link seguro para regularizar seu Plano Fundador.",
+                "Regularize seu Plano Fundador",
+                "Recebemos uma solicitacao de link de pagamento.",
+                texto,
+                "Regularizar plano",
+                urlAcao ?? loginUrl,
+                "O link expira por seguranca. Pix e cartao sao preenchidos somente no checkout hospedado do Asaas.",
+                "Se voce nao solicitou este link, ignore este e-mail."),
+
             _ => new EmailTransacionalConteudo(
                 assunto,
                 assunto,

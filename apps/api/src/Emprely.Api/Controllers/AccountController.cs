@@ -53,14 +53,6 @@ public sealed class AccountController : ControllerBase
             membroConta.Papel.ToString()));
     }
 
-    [HttpPost("activate-founder")]
-    public ActionResult<ContaAtualResponse> ActivatePlanoFundador()
-    {
-        return StatusCode(
-            StatusCodes.Status403Forbidden,
-            new { message = "Plano Fundador e ativado por operacao administrativa no MVP." });
-    }
-
     [HttpGet("profile")]
     public async Task<ActionResult<PerfilContaResponse>> GetPerfilContaAtual(
         CancellationToken cancellationToken)

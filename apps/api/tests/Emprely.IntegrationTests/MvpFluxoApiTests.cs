@@ -801,7 +801,7 @@ public sealed class MvpFluxoApiTests : IClassFixture<EmprelyApiFactory>
     }
 
     [Fact]
-    public async Task PlanoFundador_DeveBloquearAutoativacaoEPermitirOperacaoAdmin()
+    public async Task PlanoFundador_DeveRemoverRotasLegadasDeAtivacao()
     {
         var auth = await RegisterUsuarioAsync("mvp-admin-fundador@emprely.dev");
         httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.AccessToken);
@@ -810,27 +810,9 @@ public sealed class MvpFluxoApiTests : IClassFixture<EmprelyApiFactory>
             "/api/account/activate-founder",
             new { });
 
-        Assert.Equal(HttpStatusCode.Forbidden, autoAtivacaoResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, autoAtivacaoResponse.StatusCode);
 
         httpClient.DefaultRequestHeaders.Authorization = null;
-
-        var semChaveResponse = await httpClient.PostAsJsonAsync(
-            $"/api/admin/accounts/{auth.Conta.Id}/activate-founder",
-            new { });
-
-        Assert.Equal(HttpStatusCode.Unauthorized, semChaveResponse.StatusCode);
-
-        using var chaveInvalidaRequest = new HttpRequestMessage(
-            HttpMethod.Post,
-            $"/api/admin/accounts/{auth.Conta.Id}/activate-founder")
-        {
-            Content = JsonContent.Create(new { }),
-        };
-        chaveInvalidaRequest.Headers.Add("X-Emprely-Admin-Key", "chave-admin-invalida-com-mais-de-32-caracteres");
-
-        var chaveInvalidaResponse = await httpClient.SendAsync(chaveInvalidaRequest);
-
-        Assert.Equal(HttpStatusCode.Forbidden, chaveInvalidaResponse.StatusCode);
 
         using var request = new HttpRequestMessage(
             HttpMethod.Post,
@@ -841,17 +823,8 @@ public sealed class MvpFluxoApiTests : IClassFixture<EmprelyApiFactory>
         request.Headers.Add("X-Emprely-Admin-Key", AdminOperacoesKeyDev);
 
         var adminResponse = await httpClient.SendAsync(request);
-        var responseBody = await adminResponse.Content.ReadAsStringAsync();
 
-        Assert.Equal(HttpStatusCode.OK, adminResponse.StatusCode);
-
-        var conta = JsonSerializer.Deserialize<AdminContaResponse>(responseBody, JsonOptions)
-            ?? throw new InvalidOperationException("Resposta admin vazia inesperada.");
-
-        Assert.Equal(auth.Conta.Id, conta.Id);
-        Assert.Equal("Fundador", conta.Plano);
-        Assert.Equal("FundadorAtivo", conta.StatusComercial);
-        Assert.NotNull(conta.PlanoFundadorAtivadoAt);
+        Assert.Equal(HttpStatusCode.NotFound, adminResponse.StatusCode);
     }
 
     [Fact]

@@ -4,6 +4,63 @@ Documento para manutencao, deploy, configuracao, acesso a dados e diagnostico do
 
 Use este arquivo como ponto de partida quando for pedir manutencao ou deploy futuro. Ele nao guarda secrets reais. Connection strings, chaves AWS, JWT, admin key e tokens devem continuar fora do repositorio e fora do chat.
 
+## Atualizacao operacional 2026-06-28 - Asaas billing V2
+
+Status: implementado localmente e validado; pendente publicar API/web/landing e configurar secrets reais do Asaas no ambiente privado.
+
+Atualizacao 2026-07-08:
+
+- Webhook Asaas foi configurado no painel e os segredos foram separados fora do repo em `D:\Emprely\Segredos`.
+- Arquivos privados: `ASAAS-SANDBOX-API-KEYY.env`, `ASAAS-PROD-API-KEYY.env` e `ASAAS-TOKEN-WEBHOOK.env`.
+- O comando `pnpm lightsail:asaas:prod` importa a chave de producao e o token de webhook para `D:\Emprely\Segredos\lightsail.env`, cria backup e nao mostra secrets.
+- O comando `pnpm lightsail:asaas:sandbox` faz a mesma operacao apontando para sandbox.
+- O env privado foi atualizado com producao em 2026-07-08 e validado com `scripts/validate-lightsail-env.ps1 -EnvPath ..\..\Segredos\lightsail.env`.
+
+Entregue:
+
+- API com dominio de billing, migration `AsaasBillingCompleto`, provider `AsaasProvedorPagamentos`, assinatura recorrente Asaas, webhook idempotente e endpoints administrativos.
+- Hardening adicional inclui migration `BillingCicloPlanoReembolsoParcial`, ciclos mensal/anual, reativacao local bloqueada e sync admin isolado por conta.
+- Webhook cria/atualiza pagamentos locais de cobrancas recorrentes quando o Asaas gerar novos ciclos.
+- Cancelamento remoto de assinatura e reembolso remoto integral/parcial de pagamento foram conectados ao provider Asaas.
+- Emprely envia e-mail transacional de Plano Fundador ativado quando o pagamento for confirmado/recebido.
+- App web com menu `Plano`, seletor mensal/anual, formulario de dados do pagador, Pix/cartao hospedados no Asaas e retorno `/billing/sucesso`, `/billing/cancelado`, `/billing/expirado`.
+- Landing externa deve comunicar Plano Fundador com pagamento hospedado no Asaas.
+- Exemplos de ambiente atualizados com `Asaas__ApiKey`, `Asaas__WebhookToken` e URLs de retorno, sem secrets reais.
+
+Decisao tecnica:
+
+- A V2 usa assinatura recorrente nativa do Asaas e liberacao por webhook de pagamento confirmado/recebido.
+- Pix atual e cobranca recorrente hospedada pelo Asaas; nao e Pix Automatico bancario.
+- Reativacao de assinatura pelo cliente deve sempre criar novo checkout.
+- Reembolso parcial nao suspende acesso; reembolso integral cancela recorrencia remota e suspende.
+- E-mails financeiros de cobranca devem ficar habilitados no Asaas; o Emprely envia e-mail proprio apenas para confirmar ativacao do plano.
+- Reconciliacao ativa por job ainda fica como melhoria posterior.
+- O Emprely nao coleta nem armazena dados de cartao.
+
+Deploy 2026-07-08:
+
+- `D:\Emprely\Segredos\lightsail.env` foi atualizado com Asaas producao e enviado no deploy da API.
+- API publicada em `https://api.emprely.com.br` com checkout exigindo dados do pagador.
+- Web publicada em `https://app.emprely.com.br` com formulario de CPF/CNPJ, endereco, Pix e cartao hospedado Asaas.
+- Comandos executados:
+  - `pnpm lightsail:asaas:prod`
+  - `pnpm lightsail:env:validate`
+  - `pnpm lightsail:api:build`
+  - `scripts/deploy-lightsail-api-image.ps1`
+  - `pnpm web:build:beta`
+  - `scripts/deploy-web-s3.ps1 -BucketName emprely-app-web -DistributionId E1NWXIL7S19BU1`
+- Validacao publica:
+  - API `/health/live` e `/health/ready`: HTTP 200.
+  - App `/`, `/billing/sucesso`, `/billing/cancelado`, `/billing/expirado`: HTTP 200.
+- Permissao `cloudfront:GetInvalidation` segue ausente no usuario de deploy, mas a invalidation foi criada com sucesso.
+
+Proximo passo:
+
+- Fazer smoke real controlado com Pix e cartao usando conta de teste.
+- Confirmar webhook/reconciliacao e liberacao do Plano Fundador apos pagamento.
+- Landing externa foi revisada em 2026-07-08; a copy ativa agora informa Pix ou cartao no Asaas para o plano pago.
+- Ver relatorio: `docs/product/teste-pos-deploy-billing-2026-07-08.md`.
+
 ## Visao geral
 
 | Projeto | Caminho | Papel | Status operacional |
@@ -178,6 +235,24 @@ Arquivo privado esperado no servidor Lightsail:
 /opt/emprely/orcamentos/lightsail.env
 ```
 
+Arquivos privados locais para Asaas:
+
+```txt
+D:\Emprely\Segredos\ASAAS-SANDBOX-API-KEYY.env
+D:\Emprely\Segredos\ASAAS-PROD-API-KEYY.env
+D:\Emprely\Segredos\ASAAS-TOKEN-WEBHOOK.env
+D:\Emprely\Segredos\lightsail.env
+```
+
+Importar Asaas para o env privado da API:
+
+```powershell
+pnpm lightsail:asaas:prod
+pnpm lightsail:env:validate
+```
+
+Use `pnpm lightsail:asaas:sandbox` somente para smoke sandbox. Nao copiar o conteudo desses arquivos para chat, Notion, Obsidian ou repositorio.
+
 ### Deploy API em Lightsail
 
 Pre-check local:
@@ -350,7 +425,7 @@ Ativar Plano Fundador manualmente:
 ```powershell
 Invoke-RestMethod `
   -Method Post `
-  -Uri "https://api.emprely.com.br/api/admin/accounts/<contaId>/activate-founder" `
+  -Uri "https://api.emprely.com.br/api/admin/billing/accounts/<contaId>/manual-credit" `
   -Headers @{ "X-Emprely-Admin-Key" = "<chave-admin>" }
 ```
 

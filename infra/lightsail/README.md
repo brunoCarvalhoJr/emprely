@@ -6,7 +6,7 @@ Este kit sobe somente a API do Emprely no Lightsail. O webapp continua em S3 + C
 
 - `docker-compose.api.yml`: API ASP.NET Core + Caddy.
 - `Caddyfile`: HTTPS automatico para `api.emprely.com.br`.
-- `lightsail.env.example`: variaveis esperadas sem secrets reais, incluindo SES e S3.
+- `lightsail.env.example`: variaveis esperadas sem secrets reais, incluindo SES, S3 e Asaas.
 
 ## Fluxo recomendado
 
@@ -15,13 +15,22 @@ Este kit sobe somente a API do Emprely no Lightsail. O webapp continua em S3 + C
 3. Apontar `api.emprely.com.br` no Route 53 para esse IP.
 4. Instalar Docker e Docker Compose plugin no servidor.
 5. Criar `/opt/emprely/orcamentos/lightsail.env` no servidor a partir de `lightsail.env.example`.
-6. Buildar a imagem da API localmente:
+6. No ambiente local, importar os segredos Asaas para o env privado que sera enviado ao servidor:
+
+```powershell
+pnpm lightsail:asaas:prod
+pnpm lightsail:env:validate
+```
+
+Para smoke sandbox, use `pnpm lightsail:asaas:sandbox` no lugar do comando de producao.
+
+7. Buildar a imagem da API localmente:
 
 ```powershell
 pnpm lightsail:api:build
 ```
 
-7. Enviar imagem e arquivos de compose para o servidor:
+8. Enviar imagem e arquivos de compose para o servidor:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/deploy-lightsail-api-image.ps1 `
@@ -47,6 +56,9 @@ Invoke-RestMethod https://api.emprely.com.br/health/ready
 
 ## Observacoes
 
+- Os arquivos privados esperados em `D:\Emprely\Segredos` sao `ASAAS-SANDBOX-API-KEYY.env`, `ASAAS-PROD-API-KEYY.env` e `ASAAS-TOKEN-WEBHOOK.env`.
+- O script `scripts/import-asaas-secrets-to-lightsail-env.ps1` atualiza `D:\Emprely\Segredos\lightsail.env`, cria backup e nao imprime secrets.
+- Para vender de verdade, o env enviado ao Lightsail deve estar com a chave de producao do Asaas e com o mesmo `Asaas__WebhookToken` salvo no painel Asaas.
 - Para beta com usuarios reais, use `EmailTransacional__Provider=SES`.
 - O SES esta configurado em `us-east-1` com remetente `contato@emprely.com.br`; Zoho fica como caixa manual para leitura e respostas humanas.
 - `EmailTransacional__Provider=Fake` nao envia email real. Use apenas para smoke tecnico local.

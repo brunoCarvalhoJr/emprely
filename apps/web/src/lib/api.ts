@@ -63,6 +63,13 @@ import type {
   OnboardingResponse,
   UpdateOnboardingInput,
 } from "@/types/onboarding";
+import type {
+  BillingCheckoutResponse,
+  BillingPlanoResponse,
+  BillingStatusResponse,
+  CreateBillingCheckoutInput,
+  PublicBillingPaymentLinkResponse,
+} from "@/types/billing";
 
 export const sessaoInvalidaEventName = "emprely:sessao-invalida";
 
@@ -166,6 +173,91 @@ export async function getUsuarioAtual(token: string): Promise<MeUsuarioResponse>
     "/api/me",
     {
       method: "GET",
+    },
+    { token },
+  );
+}
+
+export async function getBillingPlans(
+  token: string,
+): Promise<BillingPlanoResponse[]> {
+  return apiFetch<BillingPlanoResponse[]>(
+    "/api/billing/plans",
+    {
+      method: "GET",
+    },
+    { token },
+  );
+}
+
+export async function getBillingStatus(
+  token: string,
+): Promise<BillingStatusResponse> {
+  return apiFetch<BillingStatusResponse>(
+    "/api/billing/status",
+    {
+      method: "GET",
+    },
+    { token },
+  );
+}
+
+export async function createBillingCheckout(
+  input: CreateBillingCheckoutInput,
+  token: string,
+): Promise<BillingCheckoutResponse> {
+  return apiFetch<BillingCheckoutResponse>(
+    "/api/billing/checkouts",
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+    { token },
+  );
+}
+
+export async function requestPublicBillingPaymentLink(
+  input: { email: string },
+): Promise<void> {
+  return apiFetch<void>("/api/billing/public/payment-links", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function getPublicBillingPaymentLink(
+  token: string,
+): Promise<PublicBillingPaymentLinkResponse> {
+  return apiFetch<PublicBillingPaymentLinkResponse>(
+    `/api/billing/public/payment-links/${encodeURIComponent(token)}`,
+    {
+      method: "GET",
+    },
+  );
+}
+
+export async function createPublicBillingCheckout(
+  token: string,
+  input: CreateBillingCheckoutInput,
+): Promise<BillingCheckoutResponse> {
+  return apiFetch<BillingCheckoutResponse>(
+    `/api/billing/public/payment-links/${encodeURIComponent(token)}/checkouts`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+export async function cancelBilling(
+  motivo: string | null,
+  token: string,
+): Promise<void> {
+  return apiFetch<void>(
+    "/api/billing/cancel",
+    {
+      method: "POST",
+      body: JSON.stringify({ motivo }),
     },
     { token },
   );

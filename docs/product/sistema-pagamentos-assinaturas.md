@@ -1,12 +1,97 @@
 # Sistema de pagamentos e assinaturas do Emprely
 
-Status: documento de arquitetura e produto para consulta.
+Status: arquitetura original e spec mestre implementada para Asaas billing.
 
 Data: 2026-05-14.
 
-Escopo: adesao ao Emprely por plano pago, com pagamento por Pix ou cartao de credito, validacao automatica de plano, troca de plano, cancelamento, inadimplencia e reembolso.
+Atualizacao de implementacao: 2026-06-28.
 
-Este documento nao implementa a feature. Ele define como a feature deve ser pensada antes da spec e da implementacao.
+Atualizacao de deploy: 2026-07-08.
+
+Escopo: adesao ao Emprely por plano pago, com pagamento por Pix ou cartao de credito hospedados no Asaas, validacao automatica de plano, troca de ciclo, cancelamento, inadimplencia, credito manual auditado e reembolso. O Emprely coleta dados do pagador para cadastro/cobranca, mas nao coleta nem armazena numero, validade ou CVV de cartao.
+
+Este documento nasceu como arquitetura antes da implementacao. A V2 foi ajustada pela spec mestre `spec/2026-06-28-billing-spec-mestre-emprely.md` com Asaas, assinatura recorrente, cobrancas hospedadas, webhook persistido/processado por worker, tela de plano no app e atualizacao da landing.
+
+## 0.1 Spec mestre implementada - 2026-06-28
+
+Decisoes vigentes:
+
+- Plano Fundador mensal: R$ 19,99.
+- Plano Fundador anual: R$ 180,00.
+- Trial: 7 dias gratis, sem cartao.
+- Metodos ativos: Pix hospedado Asaas e cartao de credito hospedado Asaas.
+- Dados do pagador: tipo de pessoa, CPF/CNPJ, e-mail, telefone e endereco sao obrigatorios para novo checkout.
+- Webhook Asaas: endpoint persiste evento e worker processa pendentes com reserva `EmProcessamento` e retry com backoff.
+- Redirect de checkout nao libera acesso.
+- Eventos `PAYMENT_CONFIRMED` e `PAYMENT_RECEIVED` liberam Pix.
+- `PAYMENT_PARTIALLY_REFUNDED` registra reembolso parcial e mantem acesso.
+- Reembolso integral suspende acesso e cancela recorrencia.
+- Inadimplencia tem tolerancia de 3 dias.
+- Endpoint legado de ativacao Fundador nao ativa mais plano permanente; concede credito manual auditado de 30 dias.
+- Reconciliacao/sync admin e job diario consideram pagamento e assinatura remotos.
+
+## 0. Implementacao Asaas V2 - 2026-06-28
+
+Implementado:
+
+- dominio de billing em `Emprely.Domain/Pagamentos`;
+- tabelas de assinatura, pagamento, webhook e historico via migration `AsaasBillingCompleto`;
+- abstracao `IProvedorPagamentos` e provider `AsaasProvedorPagamentos`;
+- criacao de assinatura recorrente mensal ou anual no Asaas para o Plano Fundador;
+- criacao/atualizacao de pagamentos locais a partir de webhooks de cobrancas recorrentes;
+- cancelamento remoto da assinatura no Asaas quando houver `ProviderSubscriptionId`;
+- reembolso remoto integral ou parcial via API Asaas quando houver `ProviderPaymentId`;
+- e-mails transacionais do Emprely para plano ativado, pendencia/vencimento, bloqueio, cancelamento agendado/efetivado e reembolso parcial/integral;
+- endpoints autenticados `/api/billing/plans`, `/api/billing/status`, `/api/billing/checkouts` e `/api/billing/cancel`;
+- webhook `/api/webhooks/asaas` com validacao por `asaas-access-token`;
+- endpoints administrativos em `/api/admin/billing/accounts/{contaId}`;
+- tela `Plano` no app com seletor mensal/anual, formulario de dados do pagador, Pix/cartao hospedados e retorno `/billing/sucesso`, `/billing/cancelado`, `/billing/expirado`;
+- landing externa atualizada para comunicar trial, Pix hospedado Asaas, mensal R$ 19,99 e anual R$ 180,00.
+
+Decisao tecnica da V2:
+
+- a assinatura recorrente nativa do Asaas e a fonte de cobrancas futuras;
+- a liberacao do plano continua dependendo de webhook de pagamento confirmado/recebido;
+- Pix e comunicado como cobranca recorrente hospedada do Asaas, nao como Pix Automatico bancario;
+- reativacao de assinatura pelo cliente exige novo checkout; nao ha reativacao local;
+- reembolso parcial nao suspende acesso, reembolso integral cancela recorrencia e suspende;
+- notificacoes financeiras de cobranca ficam no Asaas; o Emprely envia e-mail proprio de plano ativado;
+- eventos de webhook sao persistidos no request e processados por worker interno;
+- sync admin processa eventos pendentes da conta e consulta pagamentos/assinatura remotos; o worker tambem executa reconciliacao diaria;
+- o Emprely nao coleta nem armazena dados de cartao.
+
+Variaveis obrigatorias:
+
+- `Asaas__BaseUrl`
+- `Asaas__ApiKey`
+- `Asaas__WebhookToken`
+- `Asaas__CheckoutSuccessUrl`
+- `Asaas__CheckoutCancelUrl`
+- `Asaas__CheckoutExpiredUrl`
+
+Configuracao operacional de 2026-07-08:
+
+- Segredos Asaas ficam fora do repo em `D:\Emprely\Segredos`.
+- `ASAAS-SANDBOX-API-KEYY.env` contem `Asaas__BaseUrl` e `Asaas__ApiKey` sandbox.
+- `ASAAS-PROD-API-KEYY.env` contem `Asaas__BaseUrl` e `Asaas__ApiKey` producao.
+- `ASAAS-TOKEN-WEBHOOK.env` contem `Asaas__WebhookToken`, o mesmo salvo no painel Asaas.
+- `pnpm lightsail:asaas:prod` atualiza `D:\Emprely\Segredos\lightsail.env` para vender de verdade.
+- `pnpm lightsail:asaas:sandbox` atualiza o mesmo env para smoke sandbox.
+
+Deploy de 2026-07-08:
+
+- API publicada no Lightsail com checkout exigindo dados do pagador para nova cobranca.
+- Webapp publicado em S3 + CloudFront com formulario de CPF/CNPJ, dados do pagador, Pix e cartao hospedado Asaas.
+- Segredos Asaas de producao foram reimportados para o env privado do Lightsail sem exposicao de valores.
+- Invalidation CloudFront criada para `/*` na distribuicao `E1NWXIL7S19BU1`.
+- Validacao pos-deploy:
+  - `https://api.emprely.com.br/health/live`: HTTP 200.
+  - `https://api.emprely.com.br/health/ready`: HTTP 200.
+  - `https://app.emprely.com.br`: HTTP 200.
+  - `/billing/sucesso`, `/billing/cancelado` e `/billing/expirado`: HTTP 200.
+- Observacao operacional: o usuario AWS de deploy cria invalidation, mas nao possui `cloudfront:GetInvalidation`; por isso o status final da invalidation nao e consultado pelo CLI atual.
+- Rodada de testes pos-deploy registrada em `docs/product/teste-pos-deploy-billing-2026-07-08.md`.
+- A landing externa foi corrigida e publicada para nao comunicar mais cartao como futuro/inativo.
 
 ## 1. Contexto atual
 
@@ -17,8 +102,8 @@ O Emprely hoje ja possui uma base comercial simples:
 - O `Plano Fundador` existe no dominio.
 - Trial expirado bloqueia gerar, imprimir/PDF, exportar imagem, compartilhar via WhatsApp e marcar proposta como enviada.
 - Trial expirado permite login, leitura historica, visualizacao interna com marca d'água grande, criacao de clientes/servicos/rascunhos e duplicacao de propostas.
-- A ativacao do `Plano Fundador` e administrativa.
-- Nao existe billing real, checkout, assinatura, Pix, cartao, webhook, fatura ou reembolso implementado.
+- A ativacao paga do `Plano Fundador` depende de billing Asaas ou credito manual auditado.
+- Existe billing real com checkout, assinatura, Pix hospedado Asaas, webhook, cancelamento e reembolso.
 
 Atualizacao de 2026-05-23: as regras V1 de ciclo de proposta, trial expirado e marca d'água foram implementadas na API e no webapp em `spec/2026-05-23-regras-proposta-trial-watermark.md`. Este documento de billing deve considerar essas regras como base atual do produto.
 
@@ -38,7 +123,7 @@ Decisao ja tomada anteriormente: checkout/billing real ficou fora do MVP inicial
 
 ## 2. Objetivo
 
-Permitir que uma pessoa assine o Emprely depois do trial usando Pix ou cartao de credito, com liberacao automatica do plano correto depois da confirmacao de pagamento.
+Permitir que uma pessoa assine o Emprely depois do trial usando Pix ou cartao de credito hospedados no Asaas, com liberacao automatica do plano correto depois da confirmacao de pagamento. Dados sensiveis de cartao nao passam pelo Emprely.
 
 O sistema deve responder com clareza:
 
@@ -111,7 +196,7 @@ Entra:
 
 - listar planos disponiveis;
 - contratar plano por Pix;
-- contratar plano por cartao de credito;
+- contratar plano por Pix hospedado Asaas;
 - criar checkout hospedado no provedor;
 - receber webhook de pagamento;
 - ativar plano depois da confirmacao correta;
@@ -150,10 +235,10 @@ Plano `Trial`:
 
 Plano `Fundador`:
 
-- preco atual usado no MVP: R$ 19,90 mensal;
+- preco atual usado no MVP: R$ 19,99 mensal e R$ 180,00 anual;
 - marca d'agua: nao;
 - acesso: recursos comerciais principais;
-- forma de pagamento: Pix ou cartao;
+- formas de pagamento ativas: Pix hospedado Asaas e cartao de credito hospedado Asaas;
 - renovacao: mensal.
 
 Planos futuros:
@@ -370,7 +455,7 @@ flowchart TD
     D --> E["API cria cliente/checkout no provedor"]
     E --> F["API salva checkout pendente"]
     F --> G["Web redireciona para checkout hospedado"]
-    G --> H["Usuario paga via Pix ou cartao"]
+    G --> H["Usuario paga via Pix hospedado Asaas"]
     H --> I["Provedor envia webhook"]
     I --> J["API valida token e idempotencia"]
     J --> K["API atualiza pagamento e assinatura"]
@@ -1090,7 +1175,7 @@ Alertas:
 - Criar client Asaas na Infrastructure.
 - Criar checkout.
 - Receber webhook.
-- Processar Pix/cartao.
+- Processar Pix hospedado Asaas.
 - Criar reconciliacao.
 
 ### Fase 5: Web
@@ -1167,7 +1252,7 @@ Antes da spec, responder:
 
 1. O provedor do MVP sera Asaas?
 2. O Plano Fundador continuara sendo o primeiro plano pago?
-3. O preco inicial continua R$ 19,90 mensal?
+3. O preco inicial continua R$ 19,99 mensal e R$ 180,00 anual?
 4. Havera plano anual no primeiro release de billing?
 5. O trial continuara sem pedir cartao?
 6. Pix sera assinatura recorrente, cobranca mensal manual, ou checkout recorrente do provedor?

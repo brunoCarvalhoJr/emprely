@@ -36,8 +36,13 @@ dotnet run --project src/Emprely.Api/Emprely.Api.csproj
 - `PUT /api/me/password`
 - `PUT /api/me/email`
 - `GET /api/account`
-- `POST /api/account/activate-founder` bloqueado para autoativacao
-- `POST /api/admin/accounts/{contaId}/activate-founder`
+- `GET /api/billing/plans`
+- `GET /api/billing/status`
+- `POST /api/billing/checkouts`
+- `POST /api/billing/cancel`
+- `POST /api/webhooks/asaas`
+- `GET /api/admin/billing/accounts/{contaId}`
+- `POST /api/admin/billing/accounts/{contaId}/manual-credit`
 - `GET /api/account/profile`
 - `PUT /api/account/profile`
 - `GET /api/customers`
@@ -65,14 +70,19 @@ dotnet run --project src/Emprely.Api/Emprely.Api.csproj
 ## Regra comercial atual
 
 - Contas novas nascem em trial de 7 dias.
-- O Plano Fundador pode ser ativado manualmente por operacao admin em `POST /api/admin/accounts/{contaId}/activate-founder`.
+- O Plano Fundador pago e liberado pelo billing Asaas ou por credito manual auditado temporario.
+- Nao existe mais endpoint legado de ativacao Fundador; credito manual temporario deve usar `POST /api/admin/billing/accounts/{contaId}/manual-credit` com Super Admin.
+- Plano Fundador: R$ 19,99 mensal ou R$ 180,00 anual.
+- Pix e cartao de credito usam checkout/cobranca hospedada no Asaas; o Emprely nao recebe dados sensiveis de cartao.
+- Novo checkout exige dados do pagador (`pagador`) com tipo de pessoa, CPF/CNPJ, e-mail, telefone, CEP e endereco.
 - Trial expirado bloqueia gerar e enviar proposta.
 - Trial expirado permite criar clientes, servicos, propostas rascunho e duplicar propostas.
 - Proposta `Gerada` pode ser editada e volta para `Rascunho` ao salvar.
 - Propostas `Enviada`, `Aceita` e `Recusada` nao podem ser editadas diretamente; devem ser duplicadas para nova versao.
 - Acoes bloqueadas por regra de status retornam `409 Conflict` com `message`.
 - Usuario autenticado pode trocar a propria senha por `PUT /api/me/password`.
-- Billing real fica para uma etapa futura.
+- Billing real usa Asaas, webhook persistido/processado por worker, reconciliacao admin/diaria com consulta remota e reembolso parcial/integral.
+- `GET /api/billing/status` retorna assinatura, pagamento atual e historico de cobrancas dos ultimos 12 meses para a tela de plano.
 
 ## Banco local
 
@@ -112,9 +122,23 @@ LogoPerfilStorage__S3BucketName=<bucket-assets-emprely>
 LogoPerfilStorage__S3KeyPrefix=uploads/account-logos
 LogoPerfilStorage__S3PublicBaseUrl=https://dz3i7ivpc873w.cloudfront.net
 LogoPerfilStorage__S3Region=us-east-1
+Asaas__BaseUrl=https://api.asaas.com/v3
+Asaas__ApiKey=<asaas-api-key>
+Asaas__WebhookToken=<asaas-webhook-token>
+Asaas__CheckoutSuccessUrl=https://app.emprely.com.br/billing/sucesso
+Asaas__CheckoutCancelUrl=https://app.emprely.com.br/billing/cancelado
+Asaas__CheckoutExpiredUrl=https://app.emprely.com.br/billing/expirado
 ```
 
 Use `appsettings.Staging.example.json` apenas como referencia; nao grave secrets reais no repositorio.
+
+Para o deploy Lightsail, os segredos Asaas ficam fora do repo em `D:\Emprely\Segredos`:
+
+- `ASAAS-SANDBOX-API-KEYY.env`: `Asaas__BaseUrl` e `Asaas__ApiKey` sandbox.
+- `ASAAS-PROD-API-KEYY.env`: `Asaas__BaseUrl` e `Asaas__ApiKey` producao.
+- `ASAAS-TOKEN-WEBHOOK.env`: `Asaas__WebhookToken` configurado no painel Asaas.
+
+Use `pnpm lightsail:asaas:prod` para atualizar `D:\Emprely\Segredos\lightsail.env` antes de publicar a API em producao. Use `pnpm lightsail:asaas:sandbox` apenas para smoke sandbox. Os comandos criam backup do env privado e nao exibem valores secretos.
 
 O email oficial inicial da API e `contato@emprely.com.br`. Use esse endereco como remetente transacional e destino de suporte/contato ate haver decisao de criar alias ou caixa separada.
 
@@ -178,6 +202,6 @@ Para ativar Plano Fundador manualmente no beta:
 ```powershell
 Invoke-RestMethod `
   -Method Post `
-  -Uri "https://api.emprely.com.br/api/admin/accounts/<contaId>/activate-founder" `
+  -Uri "https://api.emprely.com.br/api/admin/billing/accounts/<contaId>/manual-credit" `
   -Headers @{ "X-Emprely-Admin-Key" = "<chave-admin>" }
 ```

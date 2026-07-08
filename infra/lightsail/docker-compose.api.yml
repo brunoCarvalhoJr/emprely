@@ -33,6 +33,12 @@ services:
       LogoPerfilStorage__S3KeyPrefix: ${LogoPerfilStorage__S3KeyPrefix:-uploads/account-logos}
       LogoPerfilStorage__S3PublicBaseUrl: ${LogoPerfilStorage__S3PublicBaseUrl:?defina LogoPerfilStorage__S3PublicBaseUrl}
       LogoPerfilStorage__S3Region: ${LogoPerfilStorage__S3Region:-us-east-1}
+      Asaas__BaseUrl: ${Asaas__BaseUrl:-https://sandbox.asaas.com/api/v3}
+      Asaas__ApiKey: ${Asaas__ApiKey:?defina Asaas__ApiKey}
+      Asaas__WebhookToken: ${Asaas__WebhookToken:?defina Asaas__WebhookToken}
+      Asaas__CheckoutSuccessUrl: ${Asaas__CheckoutSuccessUrl:-https://app.emprely.com.br/billing/sucesso}
+      Asaas__CheckoutCancelUrl: ${Asaas__CheckoutCancelUrl:-https://app.emprely.com.br/billing/cancelado}
+      Asaas__CheckoutExpiredUrl: ${Asaas__CheckoutExpiredUrl:-https://app.emprely.com.br/billing/expirado}
       AWS_REGION: ${AWS_REGION:-us-east-1}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}

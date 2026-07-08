@@ -1,5 +1,7 @@
 using Emprely.Application.Comunicacoes;
+using Emprely.Application.Pagamentos;
 using Emprely.Infrastructure.Comunicacoes;
+using Emprely.Infrastructure.Pagamentos;
 using Emprely.Infrastructure.Persistence;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
@@ -30,7 +32,14 @@ public static class DependencyInjection
 
         services.Configure<AppPublicOptions>(configuration.GetSection(AppPublicOptions.SectionName));
         services.Configure<EmailTransacionalOptions>(configuration.GetSection(EmailTransacionalOptions.SectionName));
+        services.Configure<AsaasOptions>(configuration.GetSection(AsaasOptions.SectionName));
         services.AddScoped<IEmailTransacionalService, EmailTransacionalService>();
+        services.AddHttpClient<IProvedorPagamentos, AsaasProvedorPagamentos>((serviceProvider, httpClient) =>
+        {
+            var options = serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<AsaasOptions>>().Value;
+            httpClient.BaseAddress = new Uri(options.BaseUrl.TrimEnd('/') + "/");
+            httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Emprely/1.0 (+https://emprely.com.br)");
+        });
 
         return services;
     }
