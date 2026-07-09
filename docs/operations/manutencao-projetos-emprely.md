@@ -4,6 +4,31 @@ Documento para manutencao, deploy, configuracao, acesso a dados e diagnostico do
 
 Use este arquivo como ponto de partida quando for pedir manutencao ou deploy futuro. Ele nao guarda secrets reais. Connection strings, chaves AWS, JWT, admin key e tokens devem continuar fora do repositorio e fora do chat.
 
+## Atualizacao operacional 2026-07-09 - Webhook Asaas
+
+Status: corrigido em producao via API do Asaas.
+
+Contexto:
+
+- O Asaas estava registrando `401 Unauthorized` no webhook `https://api.emprely.com.br/api/webhooks/asaas`.
+- A resposta da API era `Token de webhook invalido.`.
+- O token privado permanece fora do repositorio em `D:\Emprely\Segredos\ASAAS-TOKEN-WEBHOOK.env`, usando a chave `Asaas__WebhookToken`.
+
+Correcao aplicada:
+
+- Confirmado que o arquivo privado local, o `lightsail.env` privado e o container da API em producao estavam com o mesmo `Asaas__WebhookToken`.
+- Confirmado que a API aceita o header `asaas-access-token` e retorna `200` quando recebe o token correto.
+- Atualizado o webhook `Emprely - Pagamentos` diretamente no Asaas com o `authToken` correto.
+- Reativada a fila do webhook no Asaas com `interrupted=false`.
+- Nenhum secret foi copiado para Git, Notion, Obsidian ou chat.
+
+Validacoes:
+
+- `POST https://api.emprely.com.br/api/webhooks/asaas` com `asaas-access-token` correto: HTTP 200.
+- API `/health/live` e `/health/ready`: HTTP 200.
+- Webhook Asaas `Emprely - Pagamentos`: `enabled=true`, `interrupted=false`, `sendType=SEQUENTIALLY`.
+- Nao foi necessario gerar nova imagem da API, porque a correcao foi na configuracao do webhook no Asaas e o ambiente da API ja estava com o token correto.
+
 ## Atualizacao operacional 2026-07-09 - Tela Plano
 
 Status: melhoria de usabilidade implementada, validada e publicada no webapp.
