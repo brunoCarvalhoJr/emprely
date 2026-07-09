@@ -4,6 +4,25 @@ Documento para manutencao, deploy, configuracao, acesso a dados e diagnostico do
 
 Use este arquivo como ponto de partida quando for pedir manutencao ou deploy futuro. Ele nao guarda secrets reais. Connection strings, chaves AWS, JWT, admin key e tokens devem continuar fora do repositorio e fora do chat.
 
+## Atualizacao operacional 2026-07-09 - Tela Plano
+
+Status: melhoria de usabilidade implementada, validada e publicada no webapp.
+
+Entregue:
+
+- Tela `Plano` reorganizada em resumo do plano, cobranca atual, pagamento, beneficios e historico.
+- Pagamento em andamento mostra somente um CTA destacado `Abrir Comprovante`; o historico mantem link discreto.
+- Mensagem de renovacao cancelada orienta iniciar um novo plano e informa a validade restante quando disponivel.
+- `Cancelar renovacao` continua sendo apenas cancelamento da proxima renovacao; o acesso permanece ate o fim do periodo atual.
+- Nenhuma regra de billing, webhook, Asaas, banco de dados ou secret foi alterada.
+
+Validacoes:
+
+- `pnpm lint:web`: passou.
+- `pnpm web:build:beta`: passou.
+- QA visual local desktop/mobile com mocks de billing.
+- Publicacao web em S3/CloudFront e smoke de producao devem ser conferidos na release correspondente em `docs/product/release-2026-07-09-billing-plano-cancelamento-ui.md`.
+
 ## Atualizacao operacional 2026-06-28 - Asaas billing V2
 
 Status: implementado localmente e validado; pendente publicar API/web/landing e configurar secrets reais do Asaas no ambiente privado.

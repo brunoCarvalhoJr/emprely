@@ -14376,6 +14376,11 @@ function BillingContent({
   const mensagemStatusPlano = pagamentoAberto
     ? "Pagamento em confirmacao. Reabra o comprovante se precisar conferir a cobranca; o plano libera automaticamente quando o Asaas confirmar."
     : status?.mensagem;
+  const avisoCancelamento = status?.cancelAtPeriodEnd
+    ? validadePlanoAtual
+      ? `A renovacao foi cancelada. Seu acesso segue ate ${formatDataCurta(validadePlanoAtual)}. Para voltar depois do periodo atual, inicie um novo plano.`
+      : "A renovacao foi cancelada. Para voltar depois do periodo atual, inicie um novo plano."
+    : null;
 
   const handleSubmitCheckout = billingPagadorForm.handleSubmit((pagadorInput) => {
     if (!planoFundador || !metodoSelecionado || !metodoSelecionadoAtivo || bloqueiaNovoPagamento) {
@@ -14413,51 +14418,51 @@ function BillingContent({
       ) : null}
 
       {!isLoading && !isError && planoFundador ? (
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
-          <section className="rounded-md border border-border bg-surface p-5">
-            <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-              <div className="min-w-0">
-                <div className="inline-flex items-center gap-2 rounded-md bg-blue-50 px-3 py-1.5 text-sm font-semibold text-primary">
-                  <ShieldCheck size={16} aria-hidden="true" />
-                  {assinaturaAtiva ? "Plano ativo" : "Teste gratis"}
-                </div>
-                <h2 className="mt-4 font-heading text-2xl font-semibold">
-                  {planoFundador.nome}
-                </h2>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
-                  {planoFundador.descricao}
-                </p>
-                {ciclosDisponiveis.length > 1 ? (
-                  <div className="mt-4 inline-flex rounded-md border border-border bg-white p-1">
-                    {ciclosDisponiveis.map((plano) => (
-                      <button
-                        key={plano.ciclo}
-                        type="button"
-                        onClick={() => setCicloSelecionado(plano.ciclo)}
-                        className={`h-9 rounded px-3 text-sm font-semibold transition ${
-                          plano.ciclo === planoFundador.ciclo
-                            ? "bg-primary text-white"
-                            : "text-slate-700 hover:bg-slate-100"
-                        }`}
-                      >
-                        {plano.ciclo === "Anual" ? "Anual" : "Mensal"}
-                      </button>
-                    ))}
+        <>
+        <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(340px,0.85fr)]">
+          <div className="space-y-5">
+            <section className="rounded-md border border-border bg-surface p-5">
+              <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                <div className="min-w-0">
+                  <div className="inline-flex items-center gap-2 rounded-md bg-blue-50 px-3 py-1.5 text-sm font-semibold text-primary">
+                    <ShieldCheck size={16} aria-hidden="true" />
+                    {assinaturaAtiva ? "Plano ativo" : "Teste gratis"}
                   </div>
-                ) : null}
-                <p className="mt-4 text-4xl font-semibold text-slate-950">
-                  {formatMoney(planoFundador.preco)}
-                  <span className="ml-1 text-base font-medium text-muted">/{planoFundador.periodicidade}</span>
-                </p>
-                {planoFundador.ciclo === "Anual" ? (
-                  <p className="mt-1 text-sm font-medium text-emerald-700">
-                    Equivale a {formatMoney(planoFundador.preco / 12)} por mes.
+                  <h2 className="mt-4 font-heading text-2xl font-semibold">
+                    Resumo do plano
+                  </h2>
+                  <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
+                    {planoFundador.nome}: {planoFundador.descricao}
                   </p>
-                ) : null}
-              </div>
-              <div className="w-full rounded-md border border-border bg-white p-4 lg:max-w-sm">
-                <p className="text-sm font-semibold text-slate-950">Status atual</p>
-                <dl className="mt-3 grid gap-3 text-sm">
+                  {ciclosDisponiveis.length > 1 ? (
+                    <div className="mt-4 inline-flex rounded-md border border-border bg-white p-1">
+                      {ciclosDisponiveis.map((plano) => (
+                        <button
+                          key={plano.ciclo}
+                          type="button"
+                          onClick={() => setCicloSelecionado(plano.ciclo)}
+                          className={`h-9 rounded px-3 text-sm font-semibold transition ${
+                            plano.ciclo === planoFundador.ciclo
+                              ? "bg-primary text-white"
+                              : "text-slate-700 hover:bg-slate-100"
+                          }`}
+                        >
+                          {plano.ciclo === "Anual" ? "Anual" : "Mensal"}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                  <p className="mt-4 text-4xl font-semibold text-slate-950">
+                    {formatMoney(planoFundador.preco)}
+                    <span className="ml-1 text-base font-medium text-muted">/{planoFundador.periodicidade}</span>
+                  </p>
+                  {planoFundador.ciclo === "Anual" ? (
+                    <p className="mt-1 text-sm font-medium text-emerald-700">
+                      Equivale a {formatMoney(planoFundador.preco / 12)} por mes.
+                    </p>
+                  ) : null}
+                </div>
+                <dl className="grid w-full gap-3 rounded-md border border-border bg-white p-4 text-sm sm:grid-cols-2 lg:max-w-md">
                   <BillingInfo label="Plano atual" value={status?.plano ?? conta.plano} />
                   <BillingInfo
                     label="Validade"
@@ -14478,95 +14483,38 @@ function BillingContent({
                   />
                 </dl>
               </div>
-            </div>
 
-            {mensagemStatusPlano ? (
-              <div className="mt-5 rounded-md border border-border bg-white p-4 text-sm leading-6 text-slate-700">
-                {mensagemStatusPlano}
-              </div>
-            ) : null}
+              {mensagemStatusPlano ? (
+                <div className="mt-5 rounded-md border border-border bg-white p-4 text-sm leading-6 text-slate-700">
+                  {mensagemStatusPlano}
+                </div>
+              ) : null}
+            </section>
 
             {pagamentoAtual ? (
-              <div className="mt-5 rounded-md border border-border bg-white p-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <section className="rounded-md border border-border bg-surface p-5">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
                   <div>
-                    <p className="text-sm font-semibold text-slate-950">Cobranca atual</p>
-                    <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
-                      <BillingInfo label="Status" value={formatBillingStatusLabel(pagamentoAtual.status)} />
-                      <BillingInfo label="Metodo" value={formatBillingStatusLabel(pagamentoAtual.metodoPagamento)} />
-                      <BillingInfo label="Valor" value={formatMoney(pagamentoAtual.valor)} />
-                      <BillingInfo label="Vencimento" value={pagamentoAtual.dueDate ? formatDataCurta(pagamentoAtual.dueDate) : "-"} />
-                      <BillingInfo label="Pago em" value={pagamentoAtual.paidAt ? formatDataCurta(pagamentoAtual.paidAt) : "-"} />
-                      <BillingInfo label="Reembolsado" value={formatMoney(pagamentoAtual.valorReembolsado)} />
-                    </dl>
+                    <h2 className="font-heading text-xl font-semibold">Cobranca atual</h2>
+                    <p className="mt-1 text-sm leading-6 text-muted">
+                      Acompanhe a cobranca vinculada ao ciclo atual do plano.
+                    </p>
                   </div>
-                  {pagamentoAberto && pagamentoAtual.invoiceUrl ? (
-                    <a
-                      className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white"
-                      href={pagamentoAtual.invoiceUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Abrir Comprovante
-                      <ArrowRight size={16} aria-hidden="true" />
-                    </a>
-                  ) : null}
+                  <span className="inline-flex w-fit rounded-md bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700">
+                    {formatBillingStatusLabel(pagamentoAtual.status)}
+                  </span>
                 </div>
-              </div>
+                <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
+                  <BillingInfo label="Metodo" value={formatBillingStatusLabel(pagamentoAtual.metodoPagamento)} />
+                  <BillingInfo label="Valor" value={formatMoney(pagamentoAtual.valor)} />
+                  <BillingInfo label="Vencimento" value={pagamentoAtual.dueDate ? formatDataCurta(pagamentoAtual.dueDate) : "-"} />
+                  <BillingInfo label="Pago em" value={pagamentoAtual.paidAt ? formatDataCurta(pagamentoAtual.paidAt) : "-"} />
+                  <BillingInfo label="Reembolsado" value={formatMoney(pagamentoAtual.valorReembolsado)} />
+                </dl>
+              </section>
             ) : null}
 
-            <div className="mt-6 grid gap-3 md:grid-cols-2">
-              <BillingBeneficio icon={FileText} texto="Gerar e exportar propostas comerciais" ativo={Boolean(status?.entitlements.canExportProposta)} />
-              <BillingBeneficio icon={ShieldCheck} texto="Remover marca d'agua do Trial" ativo={Boolean(status?.entitlements.canRemoveWatermark)} />
-              <BillingBeneficio icon={Send} texto="Compartilhar propostas pelo WhatsApp" ativo={Boolean(status?.entitlements.canSharePropostaWhatsapp)} />
-              <BillingBeneficio icon={ReceiptText} texto="Historico de cobrancas vinculado a conta" ativo={assinaturaAtiva} />
-            </div>
-
-            <div className="mt-6 rounded-md border border-border bg-white">
-              <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
-                <p className="text-sm font-semibold text-slate-950">Historico de cobrancas</p>
-                <span className="text-xs font-medium text-muted">12 meses</span>
-              </div>
-              {historicoPagamentos.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full text-left text-sm">
-                    <thead className="bg-slate-50 text-xs uppercase text-muted">
-                      <tr>
-                        <th className="px-4 py-3 font-semibold">Criada</th>
-                        <th className="px-4 py-3 font-semibold">Status</th>
-                        <th className="px-4 py-3 font-semibold">Ciclo</th>
-                        <th className="px-4 py-3 font-semibold">Valor</th>
-                        <th className="px-4 py-3 font-semibold">Reembolso</th>
-                        <th className="px-4 py-3 font-semibold">Pagamento</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border">
-                      {historicoPagamentos.map((pagamento) => (
-                        <tr key={pagamento.id}>
-                          <td className="px-4 py-3 text-slate-700">{formatDataCurta(pagamento.createdAt)}</td>
-                          <td className="px-4 py-3 font-medium text-slate-950">{formatBillingStatusLabel(pagamento.status)}</td>
-                          <td className="px-4 py-3 text-slate-700">{formatBillingStatusLabel(pagamento.ciclo)}</td>
-                          <td className="px-4 py-3 text-slate-700">{formatMoney(pagamento.valor)}</td>
-                          <td className="px-4 py-3 text-slate-700">{formatMoney(pagamento.valorReembolsado)}</td>
-                          <td className="px-4 py-3 text-slate-700">
-                            {pagamento.invoiceUrl ? (
-                              <a className="font-semibold text-primary" href={pagamento.invoiceUrl} target="_blank" rel="noreferrer">
-                                Abrir Comprovante
-                              </a>
-                            ) : (
-                              "-"
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <p className="px-4 py-5 text-sm text-muted">Nenhuma cobranca registrada nos ultimos 12 meses.</p>
-              )}
-            </div>
-          </section>
+          </div>
 
           <section className="rounded-md border border-border bg-surface p-5">
             <h2 className="font-heading text-xl font-semibold">Pagamento</h2>
@@ -14715,7 +14663,7 @@ function BillingContent({
                 ) : null}
                 {status?.cancelAtPeriodEnd ? (
                   <p className="mt-3 text-sm leading-6 text-muted">
-                    A renovacao foi cancelada. Para voltar depois do periodo atual, inicie um novo checkout.
+                    {avisoCancelamento}
                   </p>
                 ) : null}
                 <MensagemErro error={erroCancelamento} />
@@ -14723,6 +14671,58 @@ function BillingContent({
             ) : null}
           </section>
         </div>
+        <div className="grid gap-3 md:grid-cols-2">
+          <BillingBeneficio icon={FileText} texto="Gerar e exportar propostas comerciais" ativo={Boolean(status?.entitlements.canExportProposta)} />
+          <BillingBeneficio icon={ShieldCheck} texto="Remover marca d'agua do Trial" ativo={Boolean(status?.entitlements.canRemoveWatermark)} />
+          <BillingBeneficio icon={Send} texto="Compartilhar propostas pelo WhatsApp" ativo={Boolean(status?.entitlements.canSharePropostaWhatsapp)} />
+          <BillingBeneficio icon={ReceiptText} texto="Historico de cobrancas vinculado a conta" ativo={assinaturaAtiva} />
+        </div>
+
+        <section className="rounded-md border border-border bg-surface">
+          <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+            <p className="text-sm font-semibold text-slate-950">Historico de cobrancas</p>
+            <span className="text-xs font-medium text-muted">12 meses</span>
+          </div>
+          {historicoPagamentos.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-left text-sm">
+                <thead className="bg-slate-50 text-xs uppercase text-muted">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold">Criada</th>
+                    <th className="px-4 py-3 font-semibold">Status</th>
+                    <th className="px-4 py-3 font-semibold">Ciclo</th>
+                    <th className="px-4 py-3 font-semibold">Valor</th>
+                    <th className="px-4 py-3 font-semibold">Reembolso</th>
+                    <th className="px-4 py-3 font-semibold">Pagamento</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {historicoPagamentos.map((pagamento) => (
+                    <tr key={pagamento.id}>
+                      <td className="px-4 py-3 text-slate-700">{formatDataCurta(pagamento.createdAt)}</td>
+                      <td className="px-4 py-3 font-medium text-slate-950">{formatBillingStatusLabel(pagamento.status)}</td>
+                      <td className="px-4 py-3 text-slate-700">{formatBillingStatusLabel(pagamento.ciclo)}</td>
+                      <td className="px-4 py-3 text-slate-700">{formatMoney(pagamento.valor)}</td>
+                      <td className="px-4 py-3 text-slate-700">{formatMoney(pagamento.valorReembolsado)}</td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {pagamento.invoiceUrl ? (
+                          <a className="font-semibold text-primary" href={pagamento.invoiceUrl} target="_blank" rel="noreferrer">
+                            Abrir Comprovante
+                          </a>
+                        ) : (
+                          "-"
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="px-4 py-5 text-sm text-muted">Nenhuma cobranca registrada nos ultimos 12 meses.</p>
+          )}
+        </section>
+        </>
       ) : null}
     </div>
   );
