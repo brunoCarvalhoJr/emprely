@@ -102,6 +102,7 @@ Estado registrado em 2026-06-17:
 - Manutencao de administradores no painel deve ser feita por admin com perfil `SuperAdmin`.
 - Feature admin de usuarios, planos, dias gratis, emails e auditoria publicada em beta em 2026-06-17; ajuste de layout publicado no webapp em 2026-06-17.
 - Em 2026-07-09, o painel `/admin` passou a ter a area "Seguranca da conta" para o admin logado alterar a propria senha usando senha atual, nova senha e confirmacao. A troca chama `POST /api/admin/auth/password`, exige token admin, valida a senha atual e registra auditoria `AdminAlterarSenhaPropria` sem armazenar senha em logs, documentos ou auditoria.
+- Em 2026-07-09, o layout do `/admin` foi refatorado para navegacao por secoes: Usuarios, Seguranca, Administradores e Emails. A secao Usuarios concentra operacao e detalhe; as demais secoes deixam de ficar empilhadas abaixo da tabela.
 - Landing publica continua em `https://www.emprely.com.br` e `https://emprely.com.br`.
 - Landing publicada em 2026-06-17 com botao `Entrar` para `https://app.emprely.com.br`.
 - API publicada novamente no Lightsail em 2026-06-17 com os ajustes finais do admin.

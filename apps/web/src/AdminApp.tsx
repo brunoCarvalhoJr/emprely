@@ -75,6 +75,8 @@ type ActionState = {
   usuario?: AdminUsuarioResumoResponse;
 };
 
+type AdminSection = "usuarios" | "seguranca" | "admins" | "emails";
+
 type LoginForm = {
   email: string;
   senha: string;
@@ -213,6 +215,14 @@ function isSuperAdmin(admin: AdminAtualResponse | null) {
   return admin?.perfil === "SuperAdmin";
 }
 
+function getAdminSectionPermitida(section: AdminSection, admin: AdminAtualResponse | null): AdminSection {
+  if ((section === "admins" || section === "emails") && !isSuperAdmin(admin)) {
+    return "usuarios";
+  }
+
+  return section;
+}
+
 export default function AdminApp() {
   const queryClient = useQueryClient();
   const [token, setToken] = useState(() => localStorage.getItem(adminTokenStorageKey) ?? "");
@@ -234,6 +244,7 @@ export default function AdminApp() {
   });
   const [selectedUsuarioId, setSelectedUsuarioId] = useState<string | null>(null);
   const [action, setAction] = useState<ActionState | null>(null);
+  const [activeSection, setActiveSection] = useState<AdminSection>("usuarios");
   const [adminResendConfirmacaoForm, setAdminResendConfirmacaoForm] =
     useState<AdminResendConfirmacaoForm>(initialAdminResendConfirmacaoForm);
 
@@ -377,11 +388,13 @@ export default function AdminApp() {
 
   const usuarios = painelQuery.data?.usuarios ?? [];
   const selectedUsuario = detalheQuery.data?.usuario ?? usuarios.find((usuario) => usuario.id === selectedUsuarioId);
+  const sectionAtual = getAdminSectionPermitida(activeSection, adminAtual);
 
   return (
     <AdminShell>
       <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-5 py-5 md:flex-row md:items-center md:justify-between">
+        <div className="mx-auto flex max-w-[1600px] flex-col gap-4 px-5 py-5">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div>
             <p className="text-sm font-semibold text-slate-500">Emprely Admin</p>
             <h1 className="text-2xl font-semibold text-slate-950">Usuários, planos e acesso</h1>
@@ -398,10 +411,18 @@ export default function AdminApp() {
               Sair
             </button>
           </div>
+          </div>
+          <AdminSectionNav
+            activeSection={sectionAtual}
+            adminAtual={adminAtual}
+            onChange={setActiveSection}
+          />
         </div>
       </header>
 
-      <main className="mx-auto grid max-w-7xl gap-5 px-5 py-5 2xl:grid-cols-[minmax(0,1fr)_380px]">
+      <main className="mx-auto max-w-[1600px] px-5 py-5">
+        {sectionAtual === "usuarios" ? (
+          <div className="grid gap-5 2xl:grid-cols-[minmax(0,1fr)_420px]">
         <section className="min-w-0 space-y-5">
           <MetricasGrid metricas={painelQuery.data?.metricas} />
           <div className="rounded-md border border-slate-200 bg-white p-4">
@@ -450,6 +471,18 @@ export default function AdminApp() {
             error={painelQuery.error}
             onSelect={setSelectedUsuarioId}
           />
+        </section>
+
+        <UsuarioDetalhePanel
+          usuario={selectedUsuario}
+          detalhe={detalheQuery.data}
+          adminAtual={adminAtual}
+          onAction={(mode, usuario) => setAction({ mode, usuario })}
+        />
+          </div>
+        ) : null}
+
+        {sectionAtual === "seguranca" ? (
           <AdminSegurancaPanel
             adminAtual={adminAtual}
             form={alterarSenhaForm}
@@ -478,7 +511,9 @@ export default function AdminApp() {
               alterarSenhaMutation.mutate();
             }}
           />
-          {isSuperAdmin(adminAtual) ? (
+        ) : null}
+
+          {sectionAtual === "admins" && isSuperAdmin(adminAtual) ? (
             <>
               <AdminsPanel
                 admins={adminsQuery.data ?? []}
@@ -490,6 +525,11 @@ export default function AdminApp() {
                   void queryClient.invalidateQueries({ queryKey: ["admin-admins"] });
                 }}
               />
+            </>
+          ) : null}
+
+          {sectionAtual === "emails" && isSuperAdmin(adminAtual) ? (
+            <>
               <AdminEmailsPanel
                 form={adminResendConfirmacaoForm}
                 emails={adminEmailsQuery.data ?? []}
@@ -508,14 +548,6 @@ export default function AdminApp() {
               />
             </>
           ) : null}
-        </section>
-
-        <UsuarioDetalhePanel
-          usuario={selectedUsuario}
-          detalhe={detalheQuery.data}
-          adminAtual={adminAtual}
-          onAction={(mode, usuario) => setAction({ mode, usuario })}
-        />
       </main>
       {action ? (
         <ActionModal
@@ -536,6 +568,53 @@ export default function AdminApp() {
 
 function AdminShell({ children }: { children: ReactNode }) {
   return <div className="min-h-screen bg-slate-50 text-slate-950">{children}</div>;
+}
+
+function AdminSectionNav({
+  activeSection,
+  adminAtual,
+  onChange,
+}: {
+  activeSection: AdminSection;
+  adminAtual: AdminAtualResponse;
+  onChange: (section: AdminSection) => void;
+}) {
+  const items: Array<{
+    id: AdminSection;
+    label: string;
+    icon: ReactNode;
+    superAdminOnly?: boolean;
+  }> = ([
+    { id: "usuarios", label: "Usuarios", icon: <UsersRound size={16} aria-hidden="true" /> },
+    { id: "seguranca", label: "Seguranca", icon: <KeyRound size={16} aria-hidden="true" /> },
+    { id: "admins", label: "Administradores", icon: <ShieldCheck size={16} aria-hidden="true" />, superAdminOnly: true },
+    { id: "emails", label: "Emails", icon: <Mail size={16} aria-hidden="true" />, superAdminOnly: true },
+  ] satisfies Array<{
+    id: AdminSection;
+    label: string;
+    icon: ReactNode;
+    superAdminOnly?: boolean;
+  }>).filter((item) => !item.superAdminOnly || isSuperAdmin(adminAtual));
+
+  return (
+    <nav className="flex gap-2 overflow-x-auto rounded-md border border-slate-200 bg-slate-50 p-1" aria-label="Secoes do painel admin">
+      {items.map((item) => (
+        <button
+          key={item.id}
+          type="button"
+          className={`inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-md px-3 text-sm font-semibold transition ${
+            activeSection === item.id
+              ? "bg-slate-950 text-white shadow-sm"
+              : "text-slate-600 hover:bg-white/70 hover:text-slate-950"
+          }`}
+          onClick={() => onChange(item.id)}
+        >
+          {item.icon}
+          {item.label}
+        </button>
+      ))}
+    </nav>
+  );
 }
 
 function AdminSegurancaPanel({
@@ -722,7 +801,51 @@ function UsuariosTabela({
   onSelect: (id: string) => void;
 }) {
   return (
-    <div className="overflow-x-auto rounded-md border border-slate-200 bg-white">
+    <div className="rounded-md border border-slate-200 bg-white">
+      {isLoading ? (
+        <p className="p-8 text-center text-sm text-slate-500 lg:hidden">Carregando...</p>
+      ) : null}
+      {!isLoading && error ? (
+        <p className="p-8 text-center text-sm text-red-700 lg:hidden">
+          Nao foi possivel carregar os usuarios. {error.message}
+        </p>
+      ) : null}
+      {!isLoading && !error && usuarios.length === 0 ? (
+        <p className="p-8 text-center text-sm text-slate-500 lg:hidden">
+          Nenhum usuario encontrado. Revise os filtros ou atualize o painel.
+        </p>
+      ) : null}
+      {!isLoading && !error && usuarios.length > 0 ? (
+        <div className="grid gap-3 p-3 lg:hidden">
+          {usuarios.map((usuario) => (
+            <button
+              key={usuario.id}
+              type="button"
+              onClick={() => onSelect(usuario.id)}
+              className={`rounded-md border p-3 text-left transition ${
+                selectedUsuarioId === usuario.id
+                  ? "border-slate-950 bg-slate-50"
+                  : "border-slate-200 bg-white hover:border-slate-400"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <strong className="block truncate text-sm text-slate-950">{usuario.nome}</strong>
+                  <span className="block truncate text-xs text-slate-500">{usuario.email}</span>
+                </div>
+                <StatusBadge usuario={usuario} />
+              </div>
+              <div className="mt-3 grid gap-2 text-xs text-slate-600 sm:grid-cols-2">
+                <InfoLine label="Conta" value={usuario.contaNome ?? "Sem conta"} />
+                <InfoLine label="Plano" value={usuario.plano ?? "-"} />
+                <InfoLine label="Comercial" value={usuario.statusComercial ?? "-"} />
+                <InfoLine label="Status" value={usuario.statusConta ?? "-"} />
+              </div>
+            </button>
+          ))}
+        </div>
+      ) : null}
+      <div className="hidden overflow-x-auto lg:block">
       <table className="w-full min-w-[920px] border-collapse text-left text-sm">
         <thead className="bg-slate-100 text-xs uppercase text-slate-500">
           <tr>
@@ -775,6 +898,7 @@ function UsuariosTabela({
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }
@@ -1141,14 +1265,14 @@ function UsuarioDetalhePanel({
 
   if (!usuario) {
     return (
-      <aside className="rounded-md border border-slate-200 bg-white p-5">
+      <aside className="rounded-md border border-dashed border-slate-300 bg-white p-5 2xl:sticky 2xl:top-5 2xl:self-start">
         <p className="text-sm text-slate-500">Selecione um usuário para administrar plano, acesso e emails.</p>
       </aside>
     );
   }
 
   return (
-    <aside className="space-y-4 rounded-md border border-slate-200 bg-white p-5">
+    <aside className="space-y-4 rounded-md border border-slate-200 bg-white p-5 2xl:sticky 2xl:top-5 2xl:max-h-[calc(100vh-120px)] 2xl:self-start 2xl:overflow-y-auto">
       <div>
         <p className="text-sm font-semibold text-slate-500">Detalhe do usuário</p>
         <h2 className="mt-1 text-xl font-semibold">{usuario.nome}</h2>
