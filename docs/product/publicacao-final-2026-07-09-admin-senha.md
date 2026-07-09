@@ -11,13 +11,13 @@ Data: 2026-07-09
 ## Repositorios
 
 - Emprely: branch `refat`, commit base da feature `800f45b`.
-- Landing: branch `new`, sem alteracao nova nesta rodada porque a feature e interna do painel admin.
+- Landing: branch `new`, sem alteracao nova de codigo nesta rodada; republicada por pedido de deploy de tudo.
 
 ## Deploy
 
 - API: Lightsail em `https://api.emprely.com.br`.
 - Webapp: S3 `emprely-app-web` + CloudFront `E1NWXIL7S19BU1`.
-- Landing: sem republicacao necessaria nesta rodada.
+- Landing: S3 `emprely-landing-production` + CloudFront `E1NWXIL7S19BU1`.
 
 ## Validacoes
 
@@ -27,6 +27,8 @@ Data: 2026-07-09
 - `https://api.emprely.com.br/health/live`: 200.
 - `https://api.emprely.com.br/health/ready`: 200.
 - `https://app.emprely.com.br/admin`: 200.
+- `https://www.emprely.com.br`: 200.
+- `https://emprely.com.br`: 200.
 - `POST /api/admin/auth/password` sem token: 401.
 
 ## Seguranca
