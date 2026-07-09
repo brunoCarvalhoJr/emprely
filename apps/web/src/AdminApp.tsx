@@ -18,6 +18,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useId, useMemo, useState, type ChangeEvent, type ReactNode } from "react";
 import {
+  adminAlterarSenhaPropria,
   adminAlterarPerfilAdmin,
   adminAlterarPlanoConta,
   adminBloquearAdmin,
@@ -77,6 +78,12 @@ type ActionState = {
 type LoginForm = {
   email: string;
   senha: string;
+};
+
+type AlterarSenhaAdminForm = {
+  senhaAtual: string;
+  novaSenha: string;
+  confirmarNovaSenha: string;
 };
 
 type CriarUsuarioForm = {
@@ -139,6 +146,12 @@ type FieldErrors = Record<string, string>;
 const initialLoginForm: LoginForm = {
   email: "",
   senha: "",
+};
+
+const initialAlterarSenhaAdminForm: AlterarSenhaAdminForm = {
+  senhaAtual: "",
+  novaSenha: "",
+  confirmarNovaSenha: "",
 };
 
 const initialCriarUsuarioForm: CriarUsuarioForm = {
@@ -210,6 +223,11 @@ export default function AdminApp() {
   const [loginForm, setLoginForm] = useState<LoginForm>(initialLoginForm);
   const [loginFieldErrors, setLoginFieldErrors] = useState<FieldErrors>({});
   const [loginErro, setLoginErro] = useState<string | null>(null);
+  const [alterarSenhaForm, setAlterarSenhaForm] = useState<AlterarSenhaAdminForm>(
+    initialAlterarSenhaAdminForm,
+  );
+  const [alterarSenhaErrors, setAlterarSenhaErrors] = useState<FieldErrors>({});
+  const [alterarSenhaMensagem, setAlterarSenhaMensagem] = useState<string | null>(null);
   const [filtros, setFiltros] = useState<AdminUsuariosFiltros>({
     page: 1,
     pageSize: 25,
@@ -270,6 +288,16 @@ export default function AdminApp() {
       setAdminResendConfirmacaoForm(initialAdminResendConfirmacaoForm);
       await queryClient.invalidateQueries({ queryKey: ["admin-emails-painel"] });
     },
+  });
+
+  const alterarSenhaMutation = useMutation({
+    mutationFn: () => adminAlterarSenhaPropria(alterarSenhaForm, token),
+    onSuccess: () => {
+      setAlterarSenhaForm(initialAlterarSenhaAdminForm);
+      setAlterarSenhaErrors({});
+      setAlterarSenhaMensagem("Senha administrativa alterada.");
+    },
+    onError: (error: Error) => setAlterarSenhaMensagem(error.message),
   });
 
   const refresh = async () => {
@@ -422,6 +450,34 @@ export default function AdminApp() {
             error={painelQuery.error}
             onSelect={setSelectedUsuarioId}
           />
+          <AdminSegurancaPanel
+            adminAtual={adminAtual}
+            form={alterarSenhaForm}
+            errors={alterarSenhaErrors}
+            mensagem={alterarSenhaMensagem}
+            isPending={alterarSenhaMutation.isPending}
+            onChange={(patch) => {
+              setAlterarSenhaForm((form) => ({ ...form, ...patch }));
+              setAlterarSenhaMensagem(null);
+              setAlterarSenhaErrors((errors) =>
+                Object.keys(patch).reduce(
+                  (acc, key) => clearFieldError(acc, key),
+                  errors,
+                ),
+              );
+            }}
+            onSubmit={() => {
+              const fieldErrors = validateAlterarSenhaAdminForm(alterarSenhaForm);
+              setAlterarSenhaErrors(fieldErrors);
+              if (hasFieldErrors(fieldErrors)) {
+                setAlterarSenhaMensagem("Revise os campos destacados.");
+                return;
+              }
+
+              setAlterarSenhaMensagem(null);
+              alterarSenhaMutation.mutate();
+            }}
+          />
           {isSuperAdmin(adminAtual) ? (
             <>
               <AdminsPanel
@@ -480,6 +536,91 @@ export default function AdminApp() {
 
 function AdminShell({ children }: { children: ReactNode }) {
   return <div className="min-h-screen bg-slate-50 text-slate-950">{children}</div>;
+}
+
+function AdminSegurancaPanel({
+  adminAtual,
+  form,
+  errors,
+  mensagem,
+  isPending,
+  onChange,
+  onSubmit,
+}: {
+  adminAtual: AdminAtualResponse;
+  form: AlterarSenhaAdminForm;
+  errors: FieldErrors;
+  mensagem: string | null;
+  isPending: boolean;
+  onChange: (patch: Partial<AlterarSenhaAdminForm>) => void;
+  onSubmit: () => void;
+}) {
+  const isErro = Boolean(mensagem) && mensagem !== "Senha administrativa alterada.";
+
+  return (
+    <section className="rounded-md border border-slate-200 bg-white p-4">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="max-w-xl">
+          <p className="text-sm font-semibold text-slate-500">Seguranca da conta</p>
+          <h2 className="mt-1 text-lg font-semibold text-slate-950">Alterar minha senha</h2>
+          <p className="mt-2 text-sm text-slate-600">
+            Use este formulario para substituir a senha do admin logado. A senha nao fica salva no navegador.
+          </p>
+          <div className="mt-3 grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
+            <InfoLine label="Admin" value={adminAtual.email} />
+            <InfoLine label="Perfil" value={adminAtual.perfil} />
+          </div>
+        </div>
+        <form
+          className="grid w-full gap-3 lg:max-w-lg"
+          autoComplete="off"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onSubmit();
+          }}
+        >
+          <div className="grid gap-3 sm:grid-cols-3">
+            <LabeledInput
+              label="Senha atual"
+              type="password"
+              value={form.senhaAtual}
+              onChange={(senhaAtual) => onChange({ senhaAtual })}
+              error={errors.senhaAtual}
+              autoComplete="current-password"
+              name="admin-senha-atual"
+            />
+            <LabeledInput
+              label="Nova senha"
+              type="password"
+              value={form.novaSenha}
+              onChange={(novaSenha) => onChange({ novaSenha })}
+              error={errors.novaSenha}
+              autoComplete="new-password"
+              name="admin-nova-senha"
+            />
+            <LabeledInput
+              label="Confirmar senha"
+              type="password"
+              value={form.confirmarNovaSenha}
+              onChange={(confirmarNovaSenha) => onChange({ confirmarNovaSenha })}
+              error={errors.confirmarNovaSenha}
+              autoComplete="new-password"
+              name="admin-confirmar-nova-senha"
+            />
+          </div>
+          {mensagem ? (
+            <p className={`rounded-md p-3 text-sm ${isErro ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"}`}>
+              {mensagem}
+            </p>
+          ) : null}
+          <button className="admin-button-primary w-full sm:w-fit" type="submit" disabled={isPending}>
+            <Lock size={16} aria-hidden="true" />
+            {isPending ? "Alterando..." : "Alterar senha"}
+          </button>
+        </form>
+      </div>
+    </section>
+  );
 }
 
 function MetricasGrid({ metricas }: { metricas?: { [key: string]: number } }) {
@@ -1644,6 +1785,23 @@ function validateLoginForm(form: LoginForm): FieldErrors {
   }
 
   addRequiredError(errors, "senha", form.senha, "Informe a senha.");
+
+  return errors;
+}
+
+function validateAlterarSenhaAdminForm(form: AlterarSenhaAdminForm): FieldErrors {
+  const errors: FieldErrors = {};
+  addRequiredError(errors, "senhaAtual", form.senhaAtual, "Informe a senha atual.");
+  addRequiredError(errors, "novaSenha", form.novaSenha, "Informe a nova senha.");
+
+  if (form.novaSenha && form.novaSenha.length < 8) {
+    errors.novaSenha = "A nova senha precisa ter pelo menos 8 caracteres.";
+  }
+
+  addRequiredError(errors, "confirmarNovaSenha", form.confirmarNovaSenha, "Confirme a nova senha.");
+  if (form.confirmarNovaSenha && form.novaSenha !== form.confirmarNovaSenha) {
+    errors.confirmarNovaSenha = "A confirmacao precisa ser igual a nova senha.";
+  }
 
   return errors;
 }

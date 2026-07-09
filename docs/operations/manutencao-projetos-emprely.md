@@ -101,6 +101,7 @@ Estado registrado em 2026-06-17:
 - Painel administrativo fica no mesmo webapp, em `/admin`, com login administrativo separado do login do cliente.
 - Manutencao de administradores no painel deve ser feita por admin com perfil `SuperAdmin`.
 - Feature admin de usuarios, planos, dias gratis, emails e auditoria publicada em beta em 2026-06-17; ajuste de layout publicado no webapp em 2026-06-17.
+- Em 2026-07-09, o painel `/admin` passou a ter a area "Seguranca da conta" para o admin logado alterar a propria senha usando senha atual, nova senha e confirmacao. A troca chama `POST /api/admin/auth/password`, exige token admin, valida a senha atual e registra auditoria `AdminAlterarSenhaPropria` sem armazenar senha em logs, documentos ou auditoria.
 - Landing publica continua em `https://www.emprely.com.br` e `https://emprely.com.br`.
 - Landing publicada em 2026-06-17 com botao `Entrar` para `https://app.emprely.com.br`.
 - API publicada novamente no Lightsail em 2026-06-17 com os ajustes finais do admin.
@@ -419,6 +420,7 @@ Administracao de admins:
 - `SuperAdmin` pode criar admins `SuperAdmin` ou `Suporte`.
 - `SuperAdmin` pode bloquear/desbloquear admins e alterar perfil, sempre com motivo auditado.
 - A propria conta admin autenticada nao deve ser bloqueada ou rebaixada pela tela.
+- Todo admin autenticado, inclusive `Suporte`, pode trocar a propria senha em `/admin` na area "Seguranca da conta". O fluxo exige a senha atual; para perda total de acesso, usar processo operacional seguro fora da UI e nunca registrar a nova senha no repositorio, chat, Notion ou Obsidian.
 
 Ativar Plano Fundador manualmente:
 

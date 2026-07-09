@@ -33,6 +33,12 @@ export type AdminLoginInput = {
   senha: string;
 };
 
+export type AdminAlterarSenhaPropriaInput = {
+  senhaAtual: string;
+  novaSenha: string;
+  confirmarNovaSenha: string;
+};
+
 export type AdminPainelAdminResponse = {
   id: string;
   nome: string;

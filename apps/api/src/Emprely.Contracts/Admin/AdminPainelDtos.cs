@@ -16,6 +16,11 @@ public sealed record AdminAtualResponse(
     string Perfil,
     bool IsOwner);
 
+public sealed record AdminAlterarSenhaPropriaRequest(
+    string SenhaAtual,
+    string NovaSenha,
+    string ConfirmarNovaSenha);
+
 public sealed record AdminPainelAdminResponse(
     Guid Id,
     string Nome,

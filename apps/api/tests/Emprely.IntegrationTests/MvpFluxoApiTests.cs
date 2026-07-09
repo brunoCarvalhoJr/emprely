@@ -252,6 +252,44 @@ public sealed class MvpFluxoApiTests : IClassFixture<EmprelyApiFactory>
     }
 
     [Fact]
+    public async Task AdminAuth_DeveAlterarPropriaSenhaComSenhaAtual()
+    {
+        await CriarAdminDiretoAsync("Admin Senha", "admin-senha@emprely.dev", "Senha123", PerfilAdminUsuario.SuperAdmin);
+
+        var adminAuth = await PostJsonAsync<AdminLoginResponse>(
+            "/api/admin/auth/login",
+            new AdminLoginRequest("admin-senha@emprely.dev", "Senha123"),
+            HttpStatusCode.OK);
+
+        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminAuth.AccessToken);
+
+        var senhaErradaResponse = await httpClient.PostAsJsonAsync(
+            "/api/admin/auth/password",
+            new AdminAlterarSenhaPropriaRequest("senha-errada", "NovaSenha123", "NovaSenha123"),
+            JsonOptions);
+        Assert.Equal(HttpStatusCode.BadRequest, senhaErradaResponse.StatusCode);
+
+        var senhaCorretaResponse = await httpClient.PostAsJsonAsync(
+            "/api/admin/auth/password",
+            new AdminAlterarSenhaPropriaRequest("Senha123", "NovaSenha123", "NovaSenha123"),
+            JsonOptions);
+        Assert.Equal(HttpStatusCode.NoContent, senhaCorretaResponse.StatusCode);
+
+        httpClient.DefaultRequestHeaders.Authorization = null;
+
+        var loginSenhaAntigaResponse = await httpClient.PostAsJsonAsync(
+            "/api/admin/auth/login",
+            new AdminLoginRequest("admin-senha@emprely.dev", "Senha123"),
+            JsonOptions);
+        Assert.Equal(HttpStatusCode.Unauthorized, loginSenhaAntigaResponse.StatusCode);
+
+        _ = await PostJsonAsync<AdminLoginResponse>(
+            "/api/admin/auth/login",
+            new AdminLoginRequest("admin-senha@emprely.dev", "NovaSenha123"),
+            HttpStatusCode.OK);
+    }
+
+    [Fact]
     public async Task FluxoMvp_DeveCriarGerarEnviarAceitarEDuplicarProposta()
     {
         var auth = await RegisterUsuarioAsync("mvp-fluxo@emprely.dev");

@@ -1,4 +1,5 @@
 import type {
+  AdminAlterarSenhaPropriaInput,
   AdminAlterarPlanoContaInput,
   AdminAlterarPerfilAdminInput,
   AdminContaCriadaResponse,
@@ -371,6 +372,20 @@ export async function adminLogin(
     method: "POST",
     body: JSON.stringify(input),
   });
+}
+
+export async function adminAlterarSenhaPropria(
+  input: AdminAlterarSenhaPropriaInput,
+  token: string,
+): Promise<void> {
+  return apiFetch<void>(
+    "/api/admin/auth/password",
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+    { token },
+  );
 }
 
 export async function getAdminAdmins(token: string): Promise<AdminPainelAdminResponse[]> {

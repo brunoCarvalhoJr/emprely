@@ -79,6 +79,54 @@ public sealed class AdminAuthController : AdminControllerBase
         return Ok(new AdminAtualResponse(admin.Id, User.Identity?.Name ?? string.Empty, admin.Email, admin.Perfil, admin.IsOwner));
     }
 
+    [Authorize]
+    [HttpPost("password")]
+    public async Task<IActionResult> AlterarSenhaPropria(
+        AdminAlterarSenhaPropriaRequest request,
+        CancellationToken cancellationToken)
+    {
+        var adminAtual = GetAdminAtual();
+        var admin = await dbContext.AdminUsuarios
+            .FirstOrDefaultAsync(adminUsuario => adminUsuario.Id == adminAtual.Id, cancellationToken);
+
+        if (admin is null)
+        {
+            return Unauthorized(new { message = "Sessao administrativa invalida." });
+        }
+
+        if (admin.Status != StatusAdminUsuario.Ativo)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = "Administrador bloqueado." });
+        }
+
+        var erroValidacao = ValidarAlteracaoSenha(request);
+        if (erroValidacao is not null)
+        {
+            return BadRequest(new { message = erroValidacao });
+        }
+
+        var senhaAtualResult = passwordHasher.VerifyHashedPassword(admin, admin.SenhaHash, request.SenhaAtual);
+        if (senhaAtualResult == PasswordVerificationResult.Failed)
+        {
+            return BadRequest(new { message = "Senha atual invalida." });
+        }
+
+        admin.DefinirSenhaHash(passwordHasher.HashPassword(admin, request.NovaSenha));
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        await RegistrarAuditoriaAsync(
+            dbContext,
+            adminAtual,
+            "AdminAlterarSenhaPropria",
+            "AdminUsuario",
+            admin.Id,
+            null,
+            "Senha administrativa alterada pelo proprio admin.",
+            cancellationToken);
+
+        return NoContent();
+    }
+
     private AdminLoginResponse BuildLoginResponse(AdminUsuario admin)
     {
         var isOwner = IsOwner(admin.Email);
@@ -109,5 +157,30 @@ public sealed class AdminAuthController : AdminControllerBase
         }
 
         return ownerEmail;
+    }
+
+    private static string? ValidarAlteracaoSenha(AdminAlterarSenhaPropriaRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.SenhaAtual))
+        {
+            return "Informe a senha atual.";
+        }
+
+        if (string.IsNullOrWhiteSpace(request.NovaSenha))
+        {
+            return "Informe a nova senha.";
+        }
+
+        if (request.NovaSenha.Length < 8)
+        {
+            return "A nova senha precisa ter pelo menos 8 caracteres.";
+        }
+
+        if (!string.Equals(request.NovaSenha, request.ConfirmarNovaSenha, StringComparison.Ordinal))
+        {
+            return "A confirmacao precisa ser igual a nova senha.";
+        }
+
+        return null;
     }
 }
