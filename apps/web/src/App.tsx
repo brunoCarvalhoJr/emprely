@@ -247,33 +247,33 @@ const propostaTemplateVisualOpcoes: Array<{
 }> = [
   {
     value: "ComercialMinimalista",
-    label: "Orçamento essencial",
-    detalhe: "Escopo, valores, prazos e próximos passos em leitura rápida.",
+    label: "Orcamento rapido WhatsApp",
+    detalhe: "Escopo, preco, prazo e chamada para resposta rapida.",
   },
   {
     value: "OrcamentoSimplificado",
-    label: "Resumo comercial",
-    detalhe: "Apresentação objetiva com itens, valores, condições e aceite.",
+    label: "Midia kit e rate card",
+    detalhe: "Pacotes, formatos, valores e condicoes para creators e marcas.",
   },
   {
     value: "PropostaCompleta",
     label: "Proposta comercial completa",
-    detalhe: "Documento modular com escopo, entregas, investimento, termos e aceite.",
+    detalhe: "Escopo, entregaveis, investimento, termos e aceite.",
   },
   {
     value: "LunaSocialStudio",
-    label: "Plano recorrente",
-    detalhe: "Proposta para serviços contínuos com rotina, entregas e acompanhamento.",
+    label: "Social media mensal",
+    detalhe: "Rotina de conteudo, calendario editorial, entregas e acompanhamento.",
   },
   {
     value: "DarkGrowth",
-    label: "Plano estratégico",
-    detalhe: "Escopo com etapas, indicadores, acompanhamento e resultado esperado.",
+    label: "Trafego pago e campanhas",
+    detalhe: "Setup, verba separada, KPIs, otimizacoes e relatorios.",
   },
   {
     value: "InstagramPremium",
-    label: "Pacote premium",
-    detalhe: "Entrega visual com benefícios, escopo, condições e investimento.",
+    label: "Reels, UGC e videos curtos",
+    detalhe: "Roteiro, gravacao, edicao, direitos de uso e prazos.",
   },
   {
     value: "Claymorphism",
@@ -287,20 +287,20 @@ const propostaTemplateVisualOpcoes: Array<{
   },
   {
     value: "ExecutivoEditorial",
-    label: "Executivo editorial",
-    detalhe: "Proposta consultiva e objetiva para decisões comerciais.",
+    label: "Consultoria de posicionamento",
+    detalhe: "Diagnostico, plano de acao, prioridades e proximos passos.",
     coresEstaticas: true,
   },
   {
     value: "CorporativoBoard",
-    label: "Board comercial",
-    detalhe: "Visão executiva com frentes, roadmap, indicadores e recorrência.",
+    label: "Calendario editorial e growth",
+    detalhe: "Frentes, roadmap, cadencia, indicadores e recorrencia.",
     coresEstaticas: true,
   },
   {
     value: "InstitucionalClean",
-    label: "Institucional clean",
-    detalhe: "Documento limpo para escopo, entregáveis, revisões e direitos.",
+    label: "Design e identidade visual",
+    detalhe: "Entregaveis, revisoes, arquivos finais e direitos de uso.",
     coresEstaticas: true,
   },
 ];
@@ -313,13 +313,13 @@ const propostaTemplateVisualOpcoesGaleria: Array<{
 }> = [
   {
     value: "ComercialMinimalista",
-    label: "Orçamento essencial",
-    detalhe: "Preço, escopo, prazo e aceite em uma proposta direta.",
+    label: "Orcamento rapido WhatsApp",
+    detalhe: "Preco, escopo, prazo e aceite em uma proposta direta.",
   },
   {
     value: "OrcamentoSimplificado",
-    label: "Resumo comercial",
-    detalhe: "Escopo, itens, valores, condições e aceite em uma leitura rápida.",
+    label: "Midia kit e rate card",
+    detalhe: "Formatos, pacotes, valores e condicoes para marcas.",
   },
   {
     value: "PropostaCompleta",
@@ -328,35 +328,35 @@ const propostaTemplateVisualOpcoesGaleria: Array<{
   },
   {
     value: "LunaSocialStudio",
-    label: "Plano recorrente",
-    detalhe: "Serviços contínuos, rotina de entrega, revisões e acompanhamento.",
+    label: "Social media mensal",
+    detalhe: "Conteudo recorrente, rotina de entrega, revisoes e acompanhamento.",
   },
   {
     value: "InstagramPremium",
-    label: "Pacote premium",
-    detalhe: "Proposta visual para escopo, benefícios, entregas e condições.",
+    label: "Reels, UGC e videos curtos",
+    detalhe: "Roteiros, gravacao, edicao, entregas e direitos de uso.",
   },
   {
     value: "DarkGrowth",
-    label: "Plano estratégico",
-    detalhe: "Etapas, indicadores, responsabilidades, acompanhamento e resultados.",
+    label: "Trafego pago e campanhas",
+    detalhe: "Setup, verba separada, KPIs, otimizacoes e resultados.",
   },
   {
     value: "InstitucionalClean",
-    label: "Institucional clean",
-    detalhe: "Documento limpo para entregáveis, revisões, arquivos e direitos.",
+    label: "Design e identidade visual",
+    detalhe: "Entregaveis, revisoes, arquivos finais e direitos.",
     coresEstaticas: true,
   },
   {
     value: "ExecutivoEditorial",
-    label: "Executivo editorial",
-    detalhe: "Leitura executiva com escopo, entregáveis, condições e próximos passos.",
+    label: "Consultoria de posicionamento",
+    detalhe: "Diagnostico, plano de acao, prioridades e proximos passos.",
     coresEstaticas: true,
   },
   {
     value: "CorporativoBoard",
-    label: "Board comercial",
-    detalhe: "Resumo visual com frentes, roadmap, indicadores e cadência.",
+    label: "Calendario editorial e growth",
+    detalhe: "Frentes, roadmap, indicadores, cadencia e recorrencia.",
     coresEstaticas: true,
   },
 ];
@@ -531,6 +531,70 @@ const servicoSchema = z.object({
   unidade: z.enum(["Unico", "Mensal", "Semanal", "Diario", "PorHora", "PorItem"]),
   tipo: z.enum(["Servico", "Pacote"]),
 });
+
+const presetsServicosSocialMedia: Array<{
+  nome: string;
+  categoria: string;
+  preco: number;
+  unidade: z.infer<typeof servicoSchema>["unidade"];
+  tipo: z.infer<typeof servicoSchema>["tipo"];
+  descricao: string;
+}> = [
+  {
+    nome: "Social media mensal",
+    categoria: "Social media",
+    preco: 1800,
+    unidade: "Mensal",
+    tipo: "Pacote",
+    descricao:
+      "Calendario editorial, criativos para feed, stories, legenda, programacao, acompanhamento e relatorio mensal.",
+  },
+  {
+    nome: "Pacote de Reels e videos curtos",
+    categoria: "Conteudo",
+    preco: 2400,
+    unidade: "Mensal",
+    tipo: "Pacote",
+    descricao:
+      "Roteiros, captacao orientada, edicao vertical, capas, legendas, revisoes e arquivos finais para Reels/TikTok/Shorts.",
+  },
+  {
+    nome: "Setup de trafego pago",
+    categoria: "Trafego pago",
+    preco: 1500,
+    unidade: "Unico",
+    tipo: "Servico",
+    descricao:
+      "Configuracao inicial de campanhas, pixel/eventos, publicos, criativos de teste e plano de otimizacao. Verba de midia nao inclusa.",
+  },
+  {
+    nome: "Gestao de campanhas mensais",
+    categoria: "Trafego pago",
+    preco: 2200,
+    unidade: "Mensal",
+    tipo: "Pacote",
+    descricao:
+      "Monitoramento, otimizacoes semanais, testes A/B, relatorio de KPIs e recomendacoes de verba. Verba de midia separada.",
+  },
+  {
+    nome: "UGC / creator package",
+    categoria: "UGC",
+    preco: 1200,
+    unidade: "PorItem",
+    tipo: "Pacote",
+    descricao:
+      "Video curto com roteiro, gravacao, edicao, versoes para anuncios e direitos de uso conforme combinado.",
+  },
+  {
+    nome: "Auditoria de perfil e posicionamento",
+    categoria: "Consultoria",
+    preco: 900,
+    unidade: "Unico",
+    tipo: "Servico",
+    descricao:
+      "Diagnostico de perfil, bio, destaques, conteudo, concorrentes, oportunidades e plano de acao priorizado.",
+  },
+];
 
 const propostaItemSchema = z.object({
   servicoId: z.string(),
@@ -707,22 +771,22 @@ type NavegacaoPrincipalItem = {
 };
 
 const navegacaoPrincipal: NavegacaoPrincipalItem[] = [
-  { label: "Dashboard", view: "dashboard", icon: LayoutDashboard, tourKey: "dashboard" },
+  { label: "Painel", view: "dashboard", icon: LayoutDashboard, tourKey: "dashboard" },
   {
-    label: "Clientes",
+    label: "Clientes / Briefings",
     view: "clientes",
     icon: UsersRound,
     tourKey: "clientes",
     quickAction: "novoCliente",
-    quickLabel: "Novo cliente",
+    quickLabel: "Novo briefing",
   },
   {
-    label: "Serviços / Pacotes",
+    label: "Pacotes Digitais",
     view: "servicos",
     icon: BriefcaseBusiness,
     tourKey: "servicos",
     quickAction: "novoServico",
-    quickLabel: "Novo serviço",
+    quickLabel: "Novo pacote",
   },
   {
     label: "Propostas",
@@ -1520,6 +1584,27 @@ export default function App() {
   const { reset: resetServicoForm } = servicoForm;
   const { reset: resetPropostaForm } = propostaForm;
 
+  const aplicarPresetServicoSocial = useCallback(
+    (preset: (typeof presetsServicosSocialMedia)[number]) => {
+      servicoForm.setValue("nome", preset.nome, { shouldDirty: true, shouldValidate: true });
+      servicoForm.setValue("categoria", preset.categoria, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+      servicoForm.setValue("preco", preset.preco, { shouldDirty: true, shouldValidate: true });
+      servicoForm.setValue("unidade", preset.unidade, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+      servicoForm.setValue("tipo", preset.tipo, { shouldDirty: true, shouldValidate: true });
+      servicoForm.setValue("descricao", preset.descricao, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+    },
+    [servicoForm],
+  );
+
   const limparLogoArquivoPendente = useCallback(() => {
     if (logoArquivoInputRef.current) {
       logoArquivoInputRef.current.value = "";
@@ -2128,7 +2213,7 @@ export default function App() {
   const propostaWizardEtapas: PropostaWizardStepItem[] = [
     {
       id: "cliente",
-      label: "Cliente",
+      label: "Briefing",
       concluido: propostaWizardClienteConcluido,
     },
     {
@@ -2138,7 +2223,7 @@ export default function App() {
     },
     {
       id: "itens",
-      label: "Itens",
+      label: "Entregaveis",
       concluido: propostaWizardItensConcluido,
     },
     {
@@ -2148,7 +2233,7 @@ export default function App() {
     },
     {
       id: "detalhamento",
-      label: "Detalhes",
+      label: "Escopo",
       concluido: propostaWizardDetalhamentoConcluido,
     },
     {
@@ -4802,7 +4887,7 @@ export default function App() {
                         }}
                       >
                         <PackageCheck size={17} aria-hidden="true" />
-                        Novo servico
+                        Novo pacote
                       </button>
                     </div>
 
@@ -5045,13 +5130,7 @@ export default function App() {
                       <button
                         type="button"
                         onClick={() => navegarParaView(item.view)}
-                        aria-label={
-                          item.view === "servicos"
-                            ? "Serviços"
-                            : item.view === "conta"
-                              ? "Conta"
-                              : item.label
-                        }
+                        aria-label={item.view === "conta" ? "Conta" : item.label}
                         aria-current={itemAtivo ? "page" : undefined}
                         data-tour={item.tourKey ? `menu-${item.tourKey}` : undefined}
                         data-tooltip={item.label}
@@ -5799,9 +5878,9 @@ export default function App() {
                         </div>
                         <div className="form-entity-copy">
                           <p>Serviços</p>
-                          <h2>{servicoSelecionado ? "Editar serviço" : "Novo serviço"}</h2>
+                          <h2>{servicoSelecionado ? "Editar serviço" : "Novo pacote digital"}</h2>
                           <span>
-                            Defina nome, valor e unidade para reaproveitar este item nas próximas propostas.
+                            Defina entregaveis, recorrencia, valor e escopo para reaproveitar nas proximas propostas.
                           </span>
                         </div>
                       </div>
@@ -5812,12 +5891,42 @@ export default function App() {
                           salvarServicoMutation.mutate(input),
                         )}
                       >
+                        <div className="rounded-md border border-border bg-slate-50/80 p-4">
+                          <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                              <p className="text-sm font-semibold text-foreground">
+                                Comece com um pacote comum de social media
+                              </p>
+                              <p className="text-xs text-muted">
+                                Use um preset editavel para acelerar propostas de conteudo, UGC,
+                                trafego pago e consultoria.
+                              </p>
+                            </div>
+                          </div>
+                          <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                            {presetsServicosSocialMedia.map((preset) => (
+                              <button
+                                key={preset.nome}
+                                type="button"
+                                onClick={() => aplicarPresetServicoSocial(preset)}
+                                className="rounded-md border border-border bg-white p-3 text-left text-sm transition hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                              >
+                                <span className="block font-semibold">{preset.nome}</span>
+                                <span className="mt-1 block text-xs text-muted">
+                                  {preset.categoria} · {formatUnidadeServico(preset.unidade)} ·{" "}
+                                  {formatMoney(preset.preco)}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                         <div className="form-primary-field">
                           <div className="form-primary-field-icon">
                             <PackageCheck size={18} aria-hidden="true" />
                           </div>
                           <CampoTexto
-                            label="Nome do serviço ou pacote"
+                            label="Nome do servico ou pacote"
+                            placeholder="Ex.: Social media mensal, Reels, UGC, Trafego pago"
                             error={servicoForm.formState.errors.nome?.message}
                             {...servicoForm.register("nome")}
                           />
@@ -5825,6 +5934,7 @@ export default function App() {
                         <div className="grid gap-4 md:grid-cols-2">
                           <CampoTexto
                             label="Categoria (opcional)"
+                            placeholder="Social media, Trafego pago, UGC, Branding"
                             error={servicoForm.formState.errors.categoria?.message}
                             {...servicoForm.register("categoria")}
                           />
@@ -5867,8 +5977,9 @@ export default function App() {
                           </CampoSelect>
                         </div>
                         <CampoTextarea
-                          label="Descrição (opcional)"
+                          label="Descricao e escopo (opcional)"
                           rows={4}
+                          placeholder="Inclua formatos, canais, volume mensal, revisoes, prazos, relatorios e itens fora do escopo."
                           error={servicoForm.formState.errors.descricao?.message}
                           {...servicoForm.register("descricao")}
                         />
@@ -6283,7 +6394,7 @@ export default function App() {
                               </span>
                               <div>
                                 <p className="proposal-step-label">Etapa 1</p>
-                                <h3>Cliente e validade</h3>
+                                <h3>Cliente, briefing e validade</h3>
                               </div>
                             </div>
                             <div className="grid gap-4 md:grid-cols-[1fr_150px]">
@@ -6318,7 +6429,7 @@ export default function App() {
                               />
                             </div>
                             <div className="proposal-step-actions">
-                              <span>Escolha quem receberá a proposta.</span>
+                              <span>Escolha a marca e confirme o prazo de resposta.</span>
                               <button
                                 type="button"
                               onClick={avancarEtapaProposta}
@@ -6342,7 +6453,7 @@ export default function App() {
                             </span>
                             <div>
                               <p className="proposal-step-label">Etapa 2</p>
-                              <h3>Mensagem da proposta</h3>
+                              <h3>Mensagem e contexto da proposta</h3>
                             </div>
                           </div>
                           <CampoTexto
@@ -6355,7 +6466,7 @@ export default function App() {
                               <span>
                                 Detalhes opcionais da mensagem
                                 <small>
-                                  Introducao e observacoes podem ser preenchidas depois.
+                                  Use para objetivo da campanha, canais, tom de voz ou observacoes do briefing.
                                 </small>
                               </span>
                               <ChevronDown size={17} aria-hidden="true" />
@@ -6412,19 +6523,19 @@ export default function App() {
                             </span>
                             <div>
                               <p className="proposal-step-label">Etapa 3</p>
-                              <h3>Itens e serviços</h3>
+                              <h3>Entregaveis e pacotes</h3>
                             </div>
                           </div>
                           <div className="proposal-catalog-row">
                             <div className="flex-1">
                                 <CampoSelect
-                                  label="Selecionar do catálogo"
+                                  label="Selecionar pacote do catalogo"
                                 value={servicoParaAdicionarId}
                                 onChange={(event) =>
                                   setServicoParaAdicionarId(event.target.value)
                                 }
                               >
-                                <option value="">Selecione um serviço</option>
+                                <option value="">Selecione um pacote ou servico</option>
                                 {servicos.map((servico) => (
                                   <option key={servico.id} value={servico.id}>
                                     {servico.nome} - {formatMoney(servico.preco)}
@@ -6432,8 +6543,8 @@ export default function App() {
                                 ))}
                                 </CampoSelect>
                                 <p className="mt-2 text-xs leading-5 text-muted">
-                                  Ao adicionar, nome, descrição e preço são
-                                  copiados para esta proposta.
+                                  Ao adicionar, nome, escopo e preco sao copiados
+                                  para esta proposta.
                                 </p>
                               </div>
                             <div className="proposal-catalog-actions">
@@ -6452,7 +6563,7 @@ export default function App() {
                                 className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-border px-4 text-sm font-semibold transition hover:border-primary hover:text-primary"
                               >
                                 <Plus size={16} aria-hidden="true" />
-                                Livre
+                                Entregavel livre
                               </button>
                             </div>
                           </div>
@@ -6462,8 +6573,8 @@ export default function App() {
                               <div className="proposal-empty-items">
                                 <PackageCheck size={18} aria-hidden="true" />
                                 <span>
-                                  Adicione um serviço salvo ou crie um item livre para
-                                  montar o escopo.
+                                  Adicione um pacote salvo ou crie um entregavel livre
+                                  para montar o escopo.
                                 </span>
                               </div>
                             ) : null}
@@ -6708,11 +6819,11 @@ export default function App() {
                             </span>
                             <div>
                               <p className="proposal-step-label">Etapa 5</p>
-                              <h3>Detalhamento comercial</h3>
+                              <h3>Escopo, canais e condicoes</h3>
                             </div>
                           </div>
                           <p className="proposal-template-step-copy">
-                            Esta etapa e opcional. Use apenas se quiser enriquecer a proposta.
+                            Use para deixar claro entregaveis, revisoes, verba de midia, cronograma e beneficios.
                           </p>
                           <details
                             className="proposal-optional-section mt-4"
@@ -6725,8 +6836,8 @@ export default function App() {
                           >
                             <summary>
                               <span>
-                                Desconto e pagamento
-                                <small>Defina condicoes comerciais quando precisar.</small>
+                                Investimento, desconto e pagamento
+                                <small>Separe condicoes, parcelas e regras de aprovacao.</small>
                               </span>
                               <ChevronDown size={17} aria-hidden="true" />
                             </summary>
@@ -6750,8 +6861,9 @@ export default function App() {
                               )}
                             />
                             <CampoTextarea
-                              label="Condições de pagamento"
+                              label="Condicoes de pagamento"
                               rows={3}
+                              placeholder="Ex.: 50% na aprovacao e 50% apos entrega do primeiro ciclo. Verba de midia paga separadamente."
                               error={
                                 propostaForm.formState.errors
                                   .condicoesPagamento?.message
@@ -6771,8 +6883,8 @@ export default function App() {
                           >
                             <summary>
                               <span>
-                                Escopo, cronograma e beneficios
-                                <small>Adicione detalhes para propostas mais completas.</small>
+                                Entregaveis, cronograma e beneficios
+                                <small>Inclua canais, formatos, revisoes, verba e resultados esperados.</small>
                               </span>
                               <ChevronDown size={17} aria-hidden="true" />
                             </summary>
@@ -6788,7 +6900,7 @@ export default function App() {
                                   onChange={field.onChange}
                                   onBlur={field.onBlur}
                                   variante="positive"
-                                  placeholder="Ex: 3 postagens semanais"
+                                  placeholder="Ex.: calendario editorial mensal"
                                   error={
                                     propostaForm.formState.errors.itensInclusosTexto
                                       ?.message
@@ -6807,7 +6919,7 @@ export default function App() {
                                   onChange={field.onChange}
                                   onBlur={field.onBlur}
                                   variante="negative"
-                                  placeholder="Ex: verba de anúncios"
+                                  placeholder="Ex.: verba de anuncios"
                                   error={
                                     propostaForm.formState.errors
                                       .itensNaoInclusosTexto?.message
@@ -6818,6 +6930,7 @@ export default function App() {
                             <CampoTextarea
                               label="Cronograma"
                               rows={4}
+                              placeholder="Ex.: Semana 1 pauta e roteiro; Semana 2 criativos; Semana 3 publicacao; Semana 4 relatorio."
                               error={
                                 propostaForm.formState.errors.cronogramaTexto
                                   ?.message
@@ -6825,8 +6938,9 @@ export default function App() {
                               {...propostaForm.register("cronogramaTexto")}
                             />
                             <CampoTextarea
-                              label="Benefícios"
+                              label="Beneficios esperados"
                               rows={4}
+                              placeholder="Ex.: consistencia de marca, previsibilidade de conteudo, aumento de engajamento e clareza de proximas acoes."
                               error={
                                 propostaForm.formState.errors.beneficiosTexto
                                   ?.message
@@ -10593,7 +10707,8 @@ function ClienteFormularioCampos({
     <>
       <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(15rem,20rem)] md:items-start">
         <CampoTexto
-          label="Nome"
+          label="Cliente ou marca"
+          placeholder="Ex.: Studio de beleza, creator, loja no Instagram"
           error={form.formState.errors.nome?.message}
           {...form.register("nome")}
         />
@@ -10621,7 +10736,7 @@ function ClienteFormularioCampos({
           onClick={onToggleComplementares}
           className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm font-semibold text-foreground"
         >
-          Informações complementares
+          Briefing, canais e dados da marca
           {complementaresAberto ? (
             <ChevronUp size={18} aria-hidden="true" />
           ) : (
@@ -10634,7 +10749,8 @@ function ClienteFormularioCampos({
               <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
                 <CampoTexto
                   label="Instagram (opcional)"
-                  placeholder="@usuario"
+                  placeholder="@marca ou instagram.com/marca"
+                  helperText="Usado para proposta, contato e contexto da marca."
                   error={form.formState.errors.instagram?.message}
                   {...form.register("instagram")}
                 />
@@ -10660,7 +10776,7 @@ function ClienteFormularioCampos({
               <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
                 <CampoTexto
                   label="TikTok (opcional)"
-                  placeholder="@usuario"
+                  placeholder="@marca"
                   error={form.formState.errors.tiktok?.message}
                   {...form.register("tiktok")}
                 />
@@ -10712,8 +10828,10 @@ function ClienteFormularioCampos({
       </div>
 
       <CampoTextarea
-        label="Observações (opcional)"
+        label="Briefing rapido (opcional)"
         rows={4}
+        placeholder="Objetivo da marca, publico, tom de voz, concorrentes, aprovacoes, links de Drive e observacoes para a proposta."
+        helperText="Essas notas ajudam a montar escopo, entregaveis e mensagem de WhatsApp sem perder contexto."
         error={form.formState.errors.observacoes?.message}
         {...form.register("observacoes")}
       />
@@ -12276,7 +12394,7 @@ function TemplateComercialMinimalista({ d }: TemplateDocumentoBaseProps) {
       <header className="doc-minimal-header">
         <DocumentoMarca d={d} />
         <div className="doc-minimal-title">
-          <span className="doc-kicker">Orçamento essencial</span>
+          <span className="doc-kicker">Orcamento rapido WhatsApp</span>
           <DocumentoTitulo titulo={d.titulo} className="doc-minimal-title-main" />
           <span className="doc-title-rule" />
         </div>
@@ -12311,7 +12429,7 @@ function TemplateOrcamentoSimplificado({ d }: TemplateDocumentoBaseProps) {
       <section className="doc-simple-title">
         <span />
         <div>
-          <small>Resumo comercial</small>
+          <small>Midia kit e rate card</small>
           <DocumentoTitulo titulo={d.titulo} className="doc-simple-title-main" />
           <p>Itens, condições comerciais e próximos passos em uma apresentação objetiva.</p>
         </div>
@@ -12459,7 +12577,7 @@ function TemplateSocialDetalhado({
 }: TemplateDocumentoBaseProps & { luna?: boolean }) {
   const texto = luna
     ? {
-        kicker: "Plano recorrente",
+        kicker: "Social media mensal",
         titulo: "Plano de entregas recorrentes",
         escopo: "Escopo, entregas e rotina",
         beneficios: "Benefícios esperados",
@@ -12469,7 +12587,7 @@ function TemplateSocialDetalhado({
         tipo: "social" as const,
       }
     : {
-        kicker: "Plano estratégico",
+        kicker: "Trafego pago e campanhas",
         titulo: "Plano de execução e resultado",
         escopo: "Etapas, entregas e otimização",
         beneficios: "Indicadores e ganhos esperados",
@@ -12553,7 +12671,7 @@ function TemplateInstagramPremium({ d }: TemplateDocumentoBaseProps) {
       <header className="doc-instagram-header">
         <div>
           <DocumentoMarca d={d} large />
-          <span className="doc-kicker">Pacote premium</span>
+          <span className="doc-kicker">Reels, UGC e videos curtos</span>
           <DocumentoTitulo titulo={d.titulo} className="doc-instagram-title-main" />
           {d.introducao ? <p>{d.introducao}</p> : null}
         </div>
@@ -13773,17 +13891,17 @@ function DashboardContent({
     propostasRecentesTamanhoPagina,
   );
   const dashboardHeroTexto = primeiraPropostaGerada
-    ? "Acompanhe suas propostas e próximos fechamentos"
-    : "Crie sua primeira proposta profissional em minutos";
+    ? "Acompanhe propostas, follow-ups e proximas entregas"
+    : "Crie sua primeira proposta de social media em minutos";
 
   return (
     <>
       <div className="dashboard-page-heading">
         <div>
-          <p>Visão geral</p>
-          <h1>Painel comercial</h1>
+          <p>Visao geral</p>
+          <h1>Painel de conteudo e propostas</h1>
           <span>
-            Acompanhe clientes, serviços, propostas e próximos fechamentos em um só lugar.
+            Organize clientes, pacotes digitais, propostas e proximos follow-ups em um so lugar.
           </span>
         </div>
       </div>
@@ -13808,7 +13926,7 @@ function DashboardContent({
               className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-primary px-5 text-sm font-semibold text-white shadow-sm"
             >
               <Plus size={18} aria-hidden="true" />
-              Nova proposta
+              Nova proposta de conteudo
             </button>
             <button
               type="button"
@@ -13817,7 +13935,7 @@ function DashboardContent({
               className="inline-flex h-12 items-center justify-center gap-2 rounded-md border border-border bg-white px-5 text-sm font-semibold"
             >
               <PackageCheck size={18} aria-hidden="true" />
-              Cadastrar serviço
+              Criar pacote digital
             </button>
             <button
               type="button"
@@ -13826,7 +13944,7 @@ function DashboardContent({
               className="inline-flex h-12 items-center justify-center gap-2 rounded-md border border-border bg-white px-5 text-sm font-semibold"
             >
               <UsersRound size={18} aria-hidden="true" />
-              Cadastrar cliente
+              Novo cliente/briefing
             </button>
           </div>
         </div>
@@ -14877,8 +14995,8 @@ function PrimeirosPassosDashboard({
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
             {passosConcluidos} de {passos.length} etapas concluídas. Continue
-            pelo próximo passo para montar uma proposta com marca, cliente,
-            serviço e valor percebido antes do preço.
+            pelo proximo passo para montar uma proposta com marca, briefing,
+            pacote digital e valor percebido antes do preco.
           </p>
         </div>
         <button
@@ -15009,31 +15127,31 @@ function buildPrimeirosPassosDashboard({
     {
       id: "perfil",
       titulo: "Perfil da conta",
-      detalhe: "Defina contato, marca, cores, formato e template para a proposta sair pronta.",
+      detalhe: "Defina marca, canais, cores e template para a proposta sair pronta.",
       concluido: perfilContaAtualizado,
       acaoLabel: "Completar perfil",
       onClick: onEditarPerfil,
     },
     {
       id: "cliente",
-      titulo: "Primeiro cliente",
-      detalhe: "Cadastre quem pediu preço para enviar a proposta sem retrabalho.",
+      titulo: "Primeiro briefing",
+      detalhe: "Cadastre cliente, canais sociais, objetivo e observacoes para nao perder contexto.",
       concluido: clientesTotal > 0,
-      acaoLabel: "Cadastrar cliente",
+      acaoLabel: "Criar briefing",
       onClick: onCadastrarCliente,
     },
     {
       id: "servico",
-      titulo: "Primeiro serviço",
-      detalhe: "Monte um item reutilizável com escopo, entregas e valor.",
+      titulo: "Primeiro pacote digital",
+      detalhe: "Monte um pacote reutilizavel com escopo, entregaveis, recorrencia e valor.",
       concluido: servicosTotal > 0,
-      acaoLabel: "Cadastrar serviço",
+      acaoLabel: "Criar pacote",
       onClick: onSalvarServico,
     },
     {
       id: "proposta",
-      titulo: "Primeira proposta",
-      detalhe: "Gere a proposta para WhatsApp, PDF ou imagem e mostre valor antes do preço.",
+      titulo: "Primeira proposta de conteudo",
+      detalhe: "Gere proposta para WhatsApp, PDF ou imagem com entregaveis, canais e proximos passos.",
       concluido: primeiraPropostaGerada,
       acaoLabel: "Criar proposta",
       onClick: onNovaProposta,
@@ -15045,28 +15163,28 @@ function buildOnboardingTourSteps(): Step[] {
   return [
     {
       target: buildOnboardingMenuTourTarget("dashboard"),
-      title: "Dashboard: visão geral",
+      title: "Dashboard: conteudo e propostas",
       content:
-        "Aqui você acompanha o progresso da conta, os atalhos principais e os números comerciais. É o ponto de partida para saber o que precisa de atenção.",
+        "Aqui voce acompanha propostas, pacotes, clientes e follow-ups. E o ponto de partida para decidir a proxima acao comercial.",
       skipBeacon: true,
     },
     {
       target: buildOnboardingMenuTourTarget("clientes"),
-      title: "Clientes: cadastro organizado",
+      title: "Clientes: briefing e canais",
       content:
-        "Use Clientes para manter contatos, telefones e e-mails prontos. Isso evita retrabalho quando você montar novas propostas.",
+        "Use Clientes para manter contatos, redes sociais, briefing e observacoes da marca prontos para novas propostas.",
     },
     {
       target: buildOnboardingMenuTourTarget("servicos"),
-      title: "Serviços e pacotes",
+      title: "Pacotes digitais",
       content:
-        "Cadastre serviços reutilizáveis com escopo, entregas e valores. A vantagem é criar orçamentos mais rápidos e consistentes.",
+        "Cadastre pacotes reutilizaveis de social media, Reels, trafego pago, UGC, branding e consultoria.",
     },
     {
       target: buildOnboardingMenuTourTarget("propostas"),
-      title: "Propostas: funil comercial",
+      title: "Propostas: conteudo, PDF e WhatsApp",
       content:
-        "Em Propostas você visualiza rascunhos, geradas, enviadas, aceitas e recusadas. Assim fica fácil acompanhar o cliente até o aceite.",
+        "Em Propostas voce acompanha rascunhos, geradas, enviadas, aceitas e recusadas ate o aceite do cliente.",
     },
     {
       target: buildOnboardingMenuTourTarget("suporte"),
@@ -17345,7 +17463,7 @@ function getMensagemBloqueioPlano(
 
 function getAppViewLabel(view: AppView): string {
   const labels: Record<AppView, string> = {
-    dashboard: "Painel comercial",
+    dashboard: "Painel de conteudo",
     clientes: "Clientes",
     servicos: "Serviços",
     propostas: "Propostas",

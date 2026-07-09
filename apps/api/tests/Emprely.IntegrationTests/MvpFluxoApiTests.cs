@@ -216,6 +216,13 @@ public sealed class MvpFluxoApiTests : IClassFixture<EmprelyApiFactory>
             JsonOptions);
         Assert.Equal(HttpStatusCode.NoContent, diasGratisResponse.StatusCode);
 
+        var diasGratisInvalidoResponse = await httpClient.PostAsJsonAsync(
+            $"/api/admin/contas/{contaCriada.ContaId}/dias-gratis",
+            new { motivo = "Payload sem datas nao deve gerar erro interno" },
+            JsonOptions);
+        Assert.Equal(HttpStatusCode.BadRequest, diasGratisInvalidoResponse.StatusCode);
+        Assert.Contains("inicio e fim", await diasGratisInvalidoResponse.Content.ReadAsStringAsync());
+
         var painelDiasGratis = await GetJsonAsync<AdminUsuariosPainelResponse>("/api/admin/usuarios?diasGratisAtivo=true");
         Assert.Contains(painelDiasGratis.Usuarios, usuarioAtual => usuarioAtual.Id == usuarioSemConta.Id && usuarioAtual.DiasGratisAtivo);
 

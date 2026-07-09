@@ -147,10 +147,22 @@ public sealed class AdminContasController : AdminControllerBase
         CancellationToken cancellationToken)
     {
         var admin = GetAdminAtual();
+        var superAdminResult = ExigirSuperAdmin(admin);
+        if (superAdminResult is not null)
+        {
+            return superAdminResult;
+        }
+
         var conta = await dbContext.Contas.FirstOrDefaultAsync(contaAtual => contaAtual.Id == contaId, cancellationToken);
         if (conta is null)
         {
             return NotFound(new { message = "Conta nao encontrada." });
+        }
+
+        var validacaoResult = ValidarDiasGratis(request.InicioAt, request.FimAt, request.Motivo);
+        if (validacaoResult is not null)
+        {
+            return validacaoResult;
         }
 
         var diasGratis = DiasGratisConta.Create(contaId, request.InicioAt, request.FimAt, request.Motivo, admin.Id);
@@ -176,6 +188,22 @@ public sealed class AdminContasController : AdminControllerBase
         CancellationToken cancellationToken)
     {
         var admin = GetAdminAtual();
+        var superAdminResult = ExigirSuperAdmin(admin);
+        if (superAdminResult is not null)
+        {
+            return superAdminResult;
+        }
+
+        if (request.ContaIds.Count == 0)
+        {
+            return BadRequest(new { message = "Informe ao menos uma conta." });
+        }
+
+        var validacaoResult = ValidarDiasGratis(request.InicioAt, request.FimAt, request.Motivo);
+        if (validacaoResult is not null)
+        {
+            return validacaoResult;
+        }
 
         foreach (var contaId in request.ContaIds.Distinct())
         {
@@ -314,6 +342,29 @@ public sealed class AdminContasController : AdminControllerBase
         return Enum.TryParse<PlanoConta>(plano, ignoreCase: true, out var planoConta)
             ? planoConta
             : PlanoConta.Trial;
+    }
+
+    private BadRequestObjectResult? ValidarDiasGratis(
+        DateTimeOffset inicioAt,
+        DateTimeOffset fimAt,
+        string motivo)
+    {
+        if (inicioAt == default || fimAt == default)
+        {
+            return BadRequest(new { message = "Informe inicio e fim dos dias gratis." });
+        }
+
+        if (fimAt <= inicioAt)
+        {
+            return BadRequest(new { message = "Data final dos dias gratis deve ser posterior a data inicial." });
+        }
+
+        if (string.IsNullOrWhiteSpace(motivo))
+        {
+            return BadRequest(new { message = "Motivo dos dias gratis e obrigatorio." });
+        }
+
+        return null;
     }
 
     private static AdminContaResponse BuildAdminContaResponse(Conta conta)

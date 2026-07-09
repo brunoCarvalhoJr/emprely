@@ -148,33 +148,35 @@ test("fluxo principal do MVP no web", async ({ page }) => {
   await expect(page.locator(".sidebar-account-button")).toBeVisible();
   await expect(page.getByText("Primeiros passos")).toBeVisible();
   await expect(
-    page.getByText("Crie sua primeira proposta profissional em minutos"),
+    page.getByText("Crie sua primeira proposta de social media em minutos"),
   ).toBeVisible();
 
-  await page.getByRole("button", { name: "Clientes", exact: true }).click();
+  await page.getByRole("button", { name: "Clientes / Briefings" }).click();
   await expect(
     page.getByRole("heading", { name: "Clientes", exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Novo cliente" }).first().click();
-  await page.getByLabel("Nome").fill("Cliente E2E");
+  await page.getByRole("button", { name: "Novo briefing" }).first().click();
+  await page.getByLabel("Cliente ou marca").fill("Cliente E2E");
   await page.getByRole("textbox", { name: "Telefone" }).fill("(11) 99999-9999");
   await page.getByRole("button", { name: "Salvar cliente" }).click();
   await expect(page.getByText("Cliente salvo.")).toBeVisible();
-  await page.getByRole("button", { name: "Clientes", exact: true }).click();
+  await page.getByRole("button", { name: "Clientes / Briefings" }).click();
   await expect(page.getByText("Cliente E2E")).toBeVisible();
 
-  await page.getByRole("button", { name: "Serviços", exact: true }).click();
+  await page.getByRole("button", { name: /Pacotes Digitais/ }).click();
   await expect(
     page.getByRole("heading", { name: "Meus serviços e pacotes" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Novo serviço" }).first().click();
-  await page.getByLabel("Nome").fill("Consultoria MVP");
+  await page.getByRole("button", { name: "Novo pacote" }).first().click();
+  await page.getByLabel("Nome do servico ou pacote").fill("Consultoria MVP");
   await page.getByLabel("Categoria").fill("Estrategia");
   await page.getByLabel("Preço").fill("1500");
-  await page.getByLabel("Descrição").fill("Diagnostico e plano de execucao.");
+  await page.getByLabel("Descricao e escopo").fill(
+    "Diagnostico e plano de execucao.",
+  );
   await page.getByRole("button", { name: "Salvar serviço" }).click();
   await expect(page.getByText("Serviço salvo.")).toBeVisible();
-  await page.getByRole("button", { name: "Serviços", exact: true }).click();
+  await page.getByRole("button", { name: /Pacotes Digitais/ }).click();
   await expect(page.getByText("Consultoria MVP")).toBeVisible();
 
   await page.getByRole("button", { name: "Propostas", exact: true }).click();
@@ -186,7 +188,7 @@ test("fluxo principal do MVP no web", async ({ page }) => {
   await page.getByRole("button", { name: /Cliente E2E/ }).click();
   await page.getByLabel("Título").fill("Proposta MVP E2E");
   await page.getByRole("button", { name: /^Pr.*ximo$/ }).click();
-  await page.getByLabel("Selecionar do catálogo").selectOption("servico-1");
+  await page.getByLabel("Selecionar pacote do catalogo").selectOption("servico-1");
   await page.getByRole("button", { name: "Adicionar" }).click();
   await page.getByRole("button", { name: /^Pr.*ximo$/ }).click();
   await page.getByRole("button", { name: /^Pr.*ximo$/ }).click();
