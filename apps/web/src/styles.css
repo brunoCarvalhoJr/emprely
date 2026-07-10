@@ -13114,6 +13114,34 @@ a.doc-contact-item:hover {
     justify-content: center;
   }
 
+  :root[data-theme="dark"] .data-table tr {
+    border-color: rgba(80, 103, 139, 0.72);
+    background:
+      linear-gradient(180deg, rgba(96, 165, 250, 0.045), transparent),
+      var(--surface);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.24);
+  }
+
+  :root[data-theme="dark"] .data-table td {
+    border-top-color: rgba(80, 103, 139, 0.48);
+    color: var(--foreground);
+  }
+
+  :root[data-theme="dark"] .data-table td::before,
+  :root[data-theme="dark"] .data-table td span {
+    color: var(--muted);
+  }
+
+  :root[data-theme="dark"] .data-table td strong {
+    color: var(--foreground);
+  }
+
+  :root[data-theme="dark"] .table-action-icon {
+    border-color: rgba(128, 148, 178, 0.34);
+    background: rgba(15, 27, 45, 0.92);
+    color: var(--foreground);
+  }
+
   .template-selector-dialog,
   .share-modal-dialog,
   .quick-client-dialog,
