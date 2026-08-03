@@ -1166,7 +1166,6 @@ export default function App() {
   const onboardingModalAutoAberturaRef = useRef<string | null>(null);
   const onboardingModalLembreteRef = useRef<string | null>(null);
   const onboardingModalDispensadaSessaoRef = useRef<string | null>(null);
-  const onboardingTourAutoInicioRef = useRef<string | null>(null);
   const onboardingTourEncerradoSessaoRef = useRef<string | null>(null);
   const [
     personalizacaoPreviewTemplateAberto,
@@ -2660,46 +2659,6 @@ export default function App() {
   }, [conta, onboarding, onboardingModalAberto, onboardingTourRodando, usuario]);
 
   useEffect(() => {
-    if (!usuario || !conta || !onboarding || onboardingTourRodando || onboardingModalAberto) {
-      return;
-    }
-
-    if (onboarding.deveAbrirAutomaticamente || onboarding.deveLembrarAposPular) {
-      return;
-    }
-
-    if (onboarding.tour.status === "NaoIniciado" || onboarding.tour.status === "EmAndamento") {
-      const chaveUsuarioTour = `${conta.id}:${usuario.id}`;
-      const chaveTour = `${conta.id}:${usuario.id}:${onboarding.tour.status}:${onboarding.updatedAt ?? "inicial"}`;
-
-      if (onboardingTourEncerradoSessaoRef.current === chaveUsuarioTour) {
-        return;
-      }
-
-      if (onboardingTourAutoInicioRef.current === chaveTour) {
-        return;
-      }
-
-      onboardingTourAutoInicioRef.current = chaveTour;
-      const timeoutId = window.setTimeout(() => {
-        const abrirMenuMobile = shouldAbrirMenuMobileOnboardingTour(0);
-        setOnboardingTourStepIndex(0);
-        setAppView(getOnboardingTourView(0));
-        setMobileMenuAberto(abrirMenuMobile);
-        setContaMenuAberto(false);
-        setSidebarRecolhida(false);
-        setOnboardingModalAberto(false);
-        setOnboardingTourRodando(true);
-        if (onboarding.tour.status === "NaoIniciado") {
-          onboardingEventoMutation.mutate({ tipo: "TourExibido", etapa: "dashboard" });
-        }
-      }, 250);
-
-      return () => window.clearTimeout(timeoutId);
-    }
-  }, [conta, onboarding, onboardingEventoMutation, onboardingModalAberto, onboardingTourRodando, usuario]);
-
-  useEffect(() => {
     if (!onboardingTourRodando) {
       return;
     }
@@ -2721,9 +2680,16 @@ export default function App() {
     };
 
     scrollParaAlvo();
-    const timeoutId = window.setTimeout(scrollParaAlvo, onboardingTourScrollDelayMs);
+    window.requestAnimationFrame(scrollParaAlvo);
+    const timeoutIds = [
+      onboardingTourScrollDelayMs,
+      onboardingTourScrollDelayMs * 3,
+      onboardingTourScrollDelayMs * 6,
+    ].map((delay) => window.setTimeout(scrollParaAlvo, delay));
 
-    return () => window.clearTimeout(timeoutId);
+    return () => {
+      timeoutIds.forEach((timeoutId) => window.clearTimeout(timeoutId));
+    };
   }, [appView, onboardingTourRodando, onboardingTourStepIndex]);
 
   const salvarClienteMutation = useMutation({
@@ -3385,7 +3351,29 @@ export default function App() {
     setOnboardingModalAberto(true);
   }
 
+  function getChaveUsuarioOnboardingAtual() {
+    return conta && usuario ? `${conta.id}:${usuario.id}` : null;
+  }
+
+  function marcarOnboardingDispensadoSessao(encerrarTour = false) {
+    const chaveUsuarioOnboarding = getChaveUsuarioOnboardingAtual();
+    if (!chaveUsuarioOnboarding) {
+      return;
+    }
+
+    onboardingModalDispensadaSessaoRef.current = chaveUsuarioOnboarding;
+    if (encerrarTour) {
+      onboardingTourEncerradoSessaoRef.current = chaveUsuarioOnboarding;
+    }
+  }
+
+  function fecharOnboardingModal() {
+    marcarOnboardingDispensadoSessao(true);
+    setOnboardingModalAberto(false);
+  }
+
   function pularOnboarding() {
+    marcarOnboardingDispensadoSessao(true);
     onboardingEventoMutation.mutate({
       tipo: "Pulou",
       etapa: onboardingJornadaAtiva === "conta" ? "configuracao-conta" : "primeira-proposta",
@@ -3394,6 +3382,7 @@ export default function App() {
   }
 
   function iniciarConfiguracaoContaOnboarding() {
+    marcarOnboardingDispensadoSessao(true);
     onboardingMutation.mutate({
       statusConfiguracaoConta: "EmAndamento",
       etapaConfiguracaoConta: perfilContaMinimoCompleto ? "personalizacao" : "dados-marca",
@@ -3403,6 +3392,7 @@ export default function App() {
   }
 
   function iniciarPrimeiraPropostaOnboarding() {
+    marcarOnboardingDispensadoSessao(true);
     onboardingMutation.mutate({
       statusPrimeiraProposta: "EmAndamento",
       etapaPrimeiraProposta: clientes.length > 0 ? "proposta" : "cliente",
@@ -3443,7 +3433,7 @@ export default function App() {
   }
 
   function encerrarOnboardingTour(data: EventData, statusFinal: "finished" | "skipped") {
-    const chaveUsuarioTour = conta && usuario ? `${conta.id}:${usuario.id}` : null;
+    const chaveUsuarioTour = getChaveUsuarioOnboardingAtual();
     onboardingTourEncerradoSessaoRef.current = chaveUsuarioTour;
     onboardingModalDispensadaSessaoRef.current = chaveUsuarioTour;
     setOnboardingTourRodando(false);
@@ -4859,7 +4849,7 @@ export default function App() {
                         className="mobile-drawer-primary-button"
                         onClick={() => {
                           setMobileMenuAberto(false);
-                          novaProposta();
+                          abrirNovaProposta();
                         }}
                       >
                         <Plus size={18} aria-hidden="true" />
@@ -9707,7 +9697,7 @@ export default function App() {
         primeiraPropostaGerada={primeiraPropostaGerada}
         isPending={onboardingMutation.isPending || onboardingEventoMutation.isPending}
         onAlterarJornada={setOnboardingJornadaAtiva}
-        onFechar={() => setOnboardingModalAberto(false)}
+        onFechar={fecharOnboardingModal}
         onPular={pularOnboarding}
         onConfigurarConta={iniciarConfiguracaoContaOnboarding}
         onPrimeiraProposta={iniciarPrimeiraPropostaOnboarding}
@@ -9960,7 +9950,7 @@ function OnboardingModal({
 
         <footer className="onboarding-modal-footer">
           <p className="onboarding-modal-hint">
-            Lembrar depois adia todo o guia inicial; voce pode retomar pelo dashboard.
+            Voce pode pular agora e retomar o guia inicial pelo dashboard quando quiser.
           </p>
           <button
             type="button"
@@ -9978,7 +9968,7 @@ function OnboardingModal({
               disabled={isPending}
               className="inline-flex h-11 items-center justify-center rounded-md px-4 text-sm font-semibold text-muted transition hover:text-slate-950 disabled:opacity-60"
             >
-              Lembrar depois
+              Pular guia
             </button>
             <button
               type="button"

@@ -173,6 +173,11 @@ button:disabled {
   cursor: not-allowed;
 }
 
+[data-tour] {
+  scroll-margin-top: 6.5rem;
+  scroll-margin-bottom: calc(env(safe-area-inset-bottom, 0px) + 6.5rem);
+}
+
 button:focus-visible,
 a:focus-visible,
 input:focus-visible,

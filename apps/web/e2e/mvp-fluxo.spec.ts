@@ -61,6 +61,31 @@ type PropostaMock = {
   updatedAt: string | null;
 };
 
+type OnboardingJornadaMock = {
+  status: string;
+  etapaAtual: string | null;
+  concluidoAt: string | null;
+};
+
+type OnboardingMock = {
+  configuracaoConta: OnboardingJornadaMock;
+  primeiraProposta: OnboardingJornadaMock & {
+    propostaRascunhoId: string | null;
+  };
+  tour: OnboardingJornadaMock;
+  deveAbrirAutomaticamente: boolean;
+  deveLembrarAposPular: boolean;
+  updatedAt: string | null;
+};
+
+type ConfigurarApiMockadaOptions = {
+  onboarding?: Partial<OnboardingMock> & {
+    configuracaoConta?: Partial<OnboardingJornadaMock>;
+    primeiraProposta?: Partial<OnboardingMock["primeiraProposta"]>;
+    tour?: Partial<OnboardingJornadaMock>;
+  };
+};
+
 test("remove sessao expirada salva no navegador", async ({ page }) => {
   await page.addInitScript(() => {
     window.localStorage.setItem(
@@ -329,6 +354,189 @@ test("exibe perfil da conta unificado no drawer mobile", async ({ page }) => {
   expect(possuiOverflowHorizontal).toBe(false);
 });
 
+test("onboarding mobile permite pular sem reabrir modal nem iniciar tour sozinho", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await configurarApiMockada(page, {
+    onboarding: buildOnboardingPendenteMock(),
+  });
+  await adicionarSessaoValida(page);
+
+  await page.goto("/");
+
+  await expect(page.getByRole("heading", { name: /Conhe.*Emprely/ })).toBeVisible();
+  await expect(page.getByText("Dashboard: conteudo e propostas")).toBeHidden();
+  await page.getByRole("button", { name: "Pular guia" }).click();
+
+  await expect(page.getByRole("heading", { name: /Conhe.*Emprely/ })).toBeHidden();
+  await expect(page.getByText("Dashboard: conteudo e propostas")).toBeHidden();
+  await page.waitForTimeout(600);
+  await expect(page.getByRole("heading", { name: /Conhe.*Emprely/ })).toBeHidden();
+  await expect(page.getByText("Dashboard: conteudo e propostas")).toBeHidden();
+});
+
+test("onboarding mobile abre perfil ao configurar conta sem voltar para guia", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await configurarApiMockada(page, {
+    onboarding: buildOnboardingPendenteMock(),
+  });
+  await adicionarSessaoValida(page);
+
+  await page.goto("/");
+
+  await expect(page.getByRole("heading", { name: /Conhe.*Emprely/ })).toBeVisible();
+  await page.getByRole("button", { name: "Configurar conta" }).click();
+
+  await expect(page.getByRole("heading", { name: "Perfil da conta" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Conhe.*Emprely/ })).toBeHidden();
+  await page.waitForTimeout(600);
+  await expect(page.getByRole("heading", { name: "Perfil da conta" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Conhe.*Emprely/ })).toBeHidden();
+});
+
+test("onboarding mobile inicia tour apenas por clique e mantem alvo visivel", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await configurarApiMockada(page, {
+    onboarding: buildOnboardingPendenteMock(),
+  });
+  await adicionarSessaoValida(page);
+
+  await page.goto("/");
+
+  await expect(page.getByRole("heading", { name: /Conhe.*Emprely/ })).toBeVisible();
+  await expect(page.getByText("Dashboard: conteudo e propostas")).toBeHidden();
+  await page.getByRole("button", { name: "Ver tour guiado" }).click();
+
+  await expect(page.getByText("Dashboard: conteudo e propostas")).toBeVisible();
+  await page.getByRole("button", { name: /^Pr.*ximo/ }).click();
+  await expect(page.getByText("Clientes: briefing e canais")).toBeVisible();
+
+  const alvoMenuClientesVisivel = await page.evaluate(() => {
+    const alvo = document.querySelector('[data-tour="menu-clientes"]');
+    if (!(alvo instanceof HTMLElement)) {
+      return false;
+    }
+
+    const rect = alvo.getBoundingClientRect();
+    return rect.top >= 0 && rect.bottom <= window.innerHeight;
+  });
+
+  expect(alvoMenuClientesVisivel).toBe(true);
+  await page.getByRole("button", { name: "Pular" }).click();
+  await expect(page.getByText("Clientes: briefing e canais")).toBeHidden();
+  await expect(page.getByRole("heading", { name: /Conhe.*Emprely/ })).toBeHidden();
+});
+
+test("navegacao e botoes principais do app autenticado funcionam no mobile", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await configurarApiMockada(page);
+  await adicionarSessaoValida(page);
+
+  await page.goto("/");
+
+  const bottomNav = page.locator(".mobile-bottom-nav");
+  await expect(
+    page.getByRole("heading", { name: /Painel de conteudo e propostas/ }),
+  ).toBeVisible();
+  await bottomNav.getByRole("button", { name: "Propostas" }).click();
+  await expect(page.getByRole("heading", { name: "Propostas", exact: true })).toBeVisible();
+  await bottomNav.getByRole("button", { name: "Clientes" }).click();
+  await expect(page.getByRole("heading", { name: "Clientes", exact: true })).toBeVisible();
+  await bottomNav.getByRole("button", { name: /Servi.*os/ }).click();
+  await expect(page.getByRole("heading", { name: /Meus servi.*os e pacotes/ })).toBeVisible();
+  await bottomNav.getByRole("button", { name: /In.*cio/ }).click();
+  await expect(
+    page.getByRole("heading", { name: /Painel de conteudo e propostas/ }),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: /Abrir mais/ }).click();
+  const drawer = page.getByRole("dialog", { name: "Menu principal" });
+  await expect(drawer).toBeVisible();
+  await drawer.getByRole("button", { name: "Escuro" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await drawer.getByRole("button", { name: "Claro" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await page.getByTestId("mobile-drawer-nav-suporte").click();
+
+  await expect(page.getByRole("heading", { name: "Suporte", exact: true })).toBeVisible();
+  await page.getByLabel("Assunto").fill("Ajuda mobile");
+  await page.getByLabel("Mensagem").fill("Estou validando o fluxo mobile autenticado.");
+  await page.getByRole("button", { name: /Enviar solicita/ }).click();
+  await expect(page.getByText(/Ajuda mobile/)).toBeVisible();
+
+  await page.getByRole("button", { name: /Abrir mais/ }).click();
+  await expect(drawer).toBeVisible();
+  await drawer.getByRole("button", { name: "Perfil da conta" }).click();
+  await expect(page.getByRole("heading", { name: "Perfil da conta" })).toBeVisible();
+
+  await page.getByRole("button", { name: /Abrir mais/ }).click();
+  await expect(drawer).toBeVisible();
+  await drawer.getByTestId("mobile-drawer-action-new-client").click();
+  await expect(page.getByRole("heading", { name: "Novo cliente" })).toBeVisible();
+
+  await page.getByRole("button", { name: /Abrir mais/ }).click();
+  await expect(drawer).toBeVisible();
+  await drawer.getByTestId("mobile-drawer-action-new-service").click();
+  await expect(page.getByRole("heading", { name: "Novo pacote digital" })).toBeVisible();
+
+  await page.getByRole("button", { name: /Abrir mais/ }).click();
+  await expect(drawer).toBeVisible();
+  await drawer.getByRole("button", { name: "Nova proposta" }).click();
+  await expect(page.getByRole("heading", { name: "Nova proposta" })).toBeVisible();
+
+  const possuiOverflowHorizontal = await page.evaluate(() => {
+    const larguraDocumento = document.documentElement.scrollWidth;
+    const larguraViewport = document.documentElement.clientWidth;
+    return larguraDocumento > larguraViewport + 1;
+  });
+
+  expect(possuiOverflowHorizontal).toBe(false);
+});
+
+test("fluxo MVP autenticado no mobile cria cliente, pacote, proposta e PDF", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await configurarApiMockada(page);
+  await adicionarSessaoValida(page);
+
+  await page.goto("/");
+
+  await page.locator(".mobile-bottom-nav").getByRole("button", { name: "Clientes" }).click();
+  await expect(page.getByRole("heading", { name: "Clientes", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Novo cliente" }).first().click();
+  await page.getByLabel("Cliente ou marca").fill("Marca Mobile E2E");
+  await page.getByRole("textbox", { name: "Telefone" }).fill("(11) 98888-7777");
+  await page.getByRole("button", { name: "Salvar cliente" }).click();
+
+  await expect(
+    page.getByRole("heading", { name: /Meus servi.*os e pacotes/ }),
+  ).toBeVisible();
+  await page.getByLabel("Nome do servico ou pacote").fill("Pacote Reels Mobile");
+  await page.getByLabel("Categoria").fill("Social media");
+  await page.getByLabel(/Pre.*o/).fill("1800");
+  await page.getByLabel("Descricao e escopo").fill("Planejamento, roteiro e edicao de Reels.");
+  await page.getByRole("button", { name: /Salvar servi.*o/ }).click();
+
+  await expect(page.getByRole("heading", { name: "Nova proposta" })).toBeVisible();
+  await page.getByRole("button", { name: /Cliente j.* cadastrado/ }).click();
+  await page.getByRole("button", { name: /Marca Mobile E2E/ }).click();
+  await page.getByLabel(/T.*tulo/).fill("Proposta Mobile E2E");
+  await page.getByRole("button", { name: /^Pr.*ximo$/ }).click();
+  await page.getByLabel("Selecionar pacote do catalogo").selectOption("servico-1");
+  await page.getByRole("button", { name: "Adicionar" }).click();
+  await page.getByRole("button", { name: /^Pr.*ximo$/ }).click();
+  await page.getByRole("button", { name: /^Pr.*ximo$/ }).click();
+  await page.getByRole("button", { name: /^Pr.*ximo$/ }).click();
+  await page.getByRole("button", { name: "Salvar rascunho" }).click();
+  await expect(page.getByRole("heading", { name: "Editar proposta" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Gerar" }).click();
+  await expect(page.getByTestId("proposal-view-modal-dialog")).toBeVisible();
+  await expect(page.getByRole("button", { name: /WhatsApp/ }).first()).toBeVisible();
+  const downloadPdfPromise = page.waitForEvent("download");
+  await page.getByTestId("proposal-view-modal-pdf").click();
+  const downloadPdf = await downloadPdfPromise;
+  expect(downloadPdf.suggestedFilename()).toMatch(/\.pdf$/);
+});
+
 test("cadastro exige confirmacao e recuperacao de senha usa fluxo interno", async ({ page }) => {
   await configurarApiMockada(page);
 
@@ -347,7 +555,7 @@ test("cadastro exige confirmacao e recuperacao de senha usa fluxo interno", asyn
   ).toBeVisible();
 });
 
-async function configurarApiMockada(page: Page) {
+async function configurarApiMockada(page: Page, options: ConfigurarApiMockadaOptions = {}) {
   const agora = new Date().toISOString();
   let usuario = {
     id: "usuario-1",
@@ -386,6 +594,7 @@ async function configurarApiMockada(page: Page) {
   let propostas: PropostaMock[] = [];
   let proximoNumeroProposta = 1;
   let emailConfirmado = false;
+  let onboarding = buildOnboardingMock(options.onboarding);
 
   await page.route("**/api/**", async (route) => {
     const request = route.request();
@@ -491,6 +700,94 @@ async function configurarApiMockada(page: Page) {
         updatedAt: agora,
       };
       await fulfillJson(route, 200, perfil);
+      return;
+    }
+
+    if (method === "POST" && path === "/api/support") {
+      const input = request.postDataJSON() as { assunto?: string };
+      await fulfillJson(route, 201, {
+        id: "suporte-1",
+        assunto: input.assunto ?? "Suporte",
+        status: "Aberto",
+        createdAt: agora,
+      });
+      return;
+    }
+
+    if (method === "GET" && path === "/api/onboarding") {
+      await fulfillJson(route, 200, onboarding);
+      return;
+    }
+
+    if (method === "PATCH" && path === "/api/onboarding") {
+      const input = request.postDataJSON() as Record<string, unknown>;
+      onboarding = {
+        ...onboarding,
+        configuracaoConta: {
+          ...onboarding.configuracaoConta,
+          status:
+            typeof input.statusConfiguracaoConta === "string"
+              ? input.statusConfiguracaoConta
+              : onboarding.configuracaoConta.status,
+          etapaAtual:
+            typeof input.etapaConfiguracaoConta === "string"
+              ? input.etapaConfiguracaoConta
+              : onboarding.configuracaoConta.etapaAtual,
+        },
+        primeiraProposta: {
+          ...onboarding.primeiraProposta,
+          status:
+            typeof input.statusPrimeiraProposta === "string"
+              ? input.statusPrimeiraProposta
+              : onboarding.primeiraProposta.status,
+          etapaAtual:
+            typeof input.etapaPrimeiraProposta === "string"
+              ? input.etapaPrimeiraProposta
+              : onboarding.primeiraProposta.etapaAtual,
+          propostaRascunhoId:
+            input.limparPropostaRascunhoId === true
+              ? null
+              : onboarding.primeiraProposta.propostaRascunhoId,
+        },
+        deveAbrirAutomaticamente: false,
+        deveLembrarAposPular: false,
+        updatedAt: new Date().toISOString(),
+      };
+      await fulfillJson(route, 200, onboarding);
+      return;
+    }
+
+    if (method === "POST" && path === "/api/onboarding/events") {
+      const input = request.postDataJSON() as { tipo?: string; etapa?: string };
+      const tourStatus =
+        input.tipo === "TourConcluiu"
+          ? "Concluido"
+          : input.tipo === "TourPulou"
+            ? "Pulado"
+            : input.tipo === "TourExibido"
+              ? "EmAndamento"
+              : onboarding.tour.status;
+
+      onboarding = {
+        ...onboarding,
+        tour: {
+          ...onboarding.tour,
+          status: tourStatus,
+          etapaAtual: input.etapa ?? onboarding.tour.etapaAtual,
+        },
+        configuracaoConta:
+          input.tipo === "Pulou"
+            ? { ...onboarding.configuracaoConta, status: "Pulado" }
+            : onboarding.configuracaoConta,
+        primeiraProposta:
+          input.tipo === "Pulou"
+            ? { ...onboarding.primeiraProposta, status: "Pulado" }
+            : onboarding.primeiraProposta,
+        deveAbrirAutomaticamente: false,
+        deveLembrarAposPular: false,
+        updatedAt: new Date().toISOString(),
+      };
+      await fulfillJson(route, 200, onboarding);
       return;
     }
 
@@ -698,6 +995,59 @@ async function adicionarSessaoValida(page: Page) {
       }),
     );
   });
+}
+
+function buildOnboardingMock(
+  overrides: ConfigurarApiMockadaOptions["onboarding"] = {},
+): OnboardingMock {
+  return {
+    configuracaoConta: {
+      status: "Concluido",
+      etapaAtual: "personalizacao",
+      concluidoAt: new Date().toISOString(),
+      ...overrides.configuracaoConta,
+    },
+    primeiraProposta: {
+      status: "Concluido",
+      etapaAtual: "proposta",
+      concluidoAt: new Date().toISOString(),
+      propostaRascunhoId: null,
+      ...overrides.primeiraProposta,
+    },
+    tour: {
+      status: "Concluido",
+      etapaAtual: "dashboard",
+      concluidoAt: new Date().toISOString(),
+      ...overrides.tour,
+    },
+    deveAbrirAutomaticamente: overrides.deveAbrirAutomaticamente ?? false,
+    deveLembrarAposPular: overrides.deveLembrarAposPular ?? false,
+    updatedAt: overrides.updatedAt ?? new Date().toISOString(),
+  };
+}
+
+function buildOnboardingPendenteMock(): ConfigurarApiMockadaOptions["onboarding"] {
+  return {
+    configuracaoConta: {
+      status: "NaoIniciado",
+      etapaAtual: "dados-marca",
+      concluidoAt: null,
+    },
+    primeiraProposta: {
+      status: "NaoIniciado",
+      etapaAtual: "cliente",
+      concluidoAt: null,
+      propostaRascunhoId: null,
+    },
+    tour: {
+      status: "NaoIniciado",
+      etapaAtual: "dashboard",
+      concluidoAt: null,
+    },
+    deveAbrirAutomaticamente: true,
+    deveLembrarAposPular: false,
+    updatedAt: "2026-08-03T12:00:00.000Z",
+  };
 }
 
 function buildAuthMock(usuario: unknown, conta: unknown) {
